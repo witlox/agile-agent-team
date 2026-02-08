@@ -1,5 +1,7 @@
 """Configuration loading and management."""
 
+import os
+
 import yaml
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,7 +20,7 @@ class ExperimentConfig:
     sprints_per_stakeholder_review: int = 5
 
 
-def load_config(config_path: str) -> ExperimentConfig:
+def load_config(config_path: str, database_url: Optional[str] = None) -> ExperimentConfig:
     """Load configuration from YAML file."""
     with open(config_path) as f:
         data = yaml.safe_load(f)
@@ -35,10 +37,17 @@ def load_config(config_path: str) -> ExperimentConfig:
     if "experiment" in data and "sprints_per_stakeholder_review" in data["experiment"]:
         sprints_per_stakeholder_review = data["experiment"]["sprints_per_stakeholder_review"]
 
+    # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
+    resolved_db_url = (
+        database_url
+        or os.environ.get("DATABASE_URL")
+        or data["database"]["url"]
+    )
+
     return ExperimentConfig(
         name=data["experiment"]["name"],
         sprint_duration_minutes=data["experiment"]["sprint_duration_minutes"],
-        database_url=data["database"]["url"],
+        database_url=resolved_db_url,
         team_config_dir=data["team"]["config_dir"],
         vllm_endpoint=data["models"]["vllm_endpoint"],
         agent_configs=agent_configs,

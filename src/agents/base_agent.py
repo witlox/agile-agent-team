@@ -100,7 +100,17 @@ class BaseAgent:
         )
 
     def _mock_response(self, message: str) -> str:
-        """Return a canned response based on role_id."""
+        """Return a canned response based on role_id and message context."""
+        msg_lower = message.lower()
+        # Approval/review prompts → always approve in mock mode
+        if any(kw in msg_lower for kw in ("approve", "review", "accept", "definition of done")):
+            return f"approve — looks good from {self.config.role_id}"
+        # Story/planning selection → echo back first story IDs found
+        if "us-" in msg_lower:
+            import re
+            ids = re.findall(r"us-\d+", msg_lower)
+            if ids:
+                return "\n".join(ids[:3])
         default = f"[{self.config.role_id}] Response to: {message[:50]}"
         return _MOCK_RESPONSES.get(self.config.role_id, default)
 

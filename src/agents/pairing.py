@@ -10,11 +10,12 @@ from .base_agent import BaseAgent
 class PairingEngine:
     """Orchestrates TDD pairing sessions between agent pairs."""
 
-    def __init__(self, agents: List[BaseAgent], db=None):
+    def __init__(self, agents: List[BaseAgent], db=None, kanban=None):
         self.agents = agents
         self.active_sessions: List[asyncio.Task] = []
         self._busy_agents: set = set()
         self.db = db  # Optional SharedContextDB for logging
+        self.kanban = kanban  # Optional KanbanBoard for card lifecycle
 
     def get_available_pairs(self) -> List[Tuple[BaseAgent, BaseAgent]]:
         """Find agents available for pairing (not currently in a session)."""
@@ -161,14 +162,16 @@ class PairingEngine:
     async def commit(
         self, implementation: str, pair: Tuple[BaseAgent, BaseAgent], task: Dict
     ):
-        """Mark task as done in the kanban (if board is accessible via db)."""
-        # The kanban board is not directly held here; the sprint_manager
-        # handles moving the card after commit. This method logs intent.
-        driver, navigator = pair
+        """Move completed task to review on the Kanban board."""
+        driver, _ = pair
         await driver.generate(
-            f"Committing implementation for task {task.get('id')}. "
-            "Marking as done."
+            f"Committing implementation for task {task.get('id')}. Moving to review."
         )
+        if self.kanban is not None and task.get("id") is not None:
+            try:
+                await self.kanban.move_card(task["id"], "review")
+            except Exception:
+                pass  # WIP limit may be full; sprint_manager handles overflow
 
     async def escalate(
         self, pair: Tuple[BaseAgent, BaseAgent], task: Dict, implementation: str

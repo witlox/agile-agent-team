@@ -1,0 +1,208 @@
+product:
+  name: "TaskFlow - Collaborative Task Manager"
+  description: >
+    A lightweight task management app for small engineering teams.
+    Teams can create projects, assign tasks, track progress, and
+    collaborate in real time.
+
+stories:
+  - id: US-001
+    title: "User registration"
+    description: "As a new user I can register with email and password so I can access the app"
+    acceptance_criteria:
+      - "Email format validated"
+      - "Password hashed with bcrypt"
+      - "Duplicate email rejected with clear error"
+      - "Welcome email sent on success"
+    story_points: 3
+    priority: 1
+
+  - id: US-002
+    title: "User login"
+    description: "As a registered user I can log in with email and password to access my workspace"
+    acceptance_criteria:
+      - "JWT issued on success"
+      - "Failed attempts counted and rate-limited after 5"
+      - "Token expiry set to 24 hours"
+    story_points: 2
+    priority: 2
+
+  - id: US-003
+    title: "Create project"
+    description: "As a logged-in user I can create a named project with optional description"
+    acceptance_criteria:
+      - "Project name required, max 100 chars"
+      - "Creator automatically added as owner"
+      - "Project ID returned on creation"
+    story_points: 2
+    priority: 3
+
+  - id: US-004
+    title: "Invite team members"
+    description: "As a project owner I can invite others by email to join my project"
+    acceptance_criteria:
+      - "Invitation email sent with accept link"
+      - "Link expires after 48 hours"
+      - "Invited user added to project on accept"
+    story_points: 3
+    priority: 4
+
+  - id: US-005
+    title: "Create task"
+    description: "As a project member I can create a task with title, description, and assignee"
+    acceptance_criteria:
+      - "Title required, max 200 chars"
+      - "Assignee must be project member"
+      - "Task defaults to status 'todo'"
+    story_points: 2
+    priority: 5
+
+  - id: US-006
+    title: "Move task through workflow"
+    description: "As an assignee I can move my task through todo → in-progress → review → done"
+    acceptance_criteria:
+      - "Status transitions validated"
+      - "Timestamp recorded on each transition"
+      - "Only assignee or owner can move task"
+    story_points: 2
+    priority: 6
+
+  - id: US-007
+    title: "Comment on task"
+    description: "As a project member I can add comments to any task"
+    acceptance_criteria:
+      - "Comment text required, max 2000 chars"
+      - "Author and timestamp shown"
+      - "Comments ordered chronologically"
+    story_points: 2
+    priority: 7
+
+  - id: US-008
+    title: "Task due dates"
+    description: "As a task creator I can set an optional due date on a task"
+    acceptance_criteria:
+      - "Due date must be in the future at creation"
+      - "Overdue tasks visually flagged"
+      - "Daily reminder email for tasks due within 24 hours"
+    story_points: 3
+    priority: 8
+
+  - id: US-009
+    title: "Task labels"
+    description: "As a project member I can apply one or more labels to tasks for categorisation"
+    acceptance_criteria:
+      - "Labels are project-scoped"
+      - "Up to 10 labels per task"
+      - "Labels filterable in task list"
+    story_points: 2
+    priority: 9
+
+  - id: US-010
+    title: "Project dashboard"
+    description: "As a project member I can see a dashboard with task counts by status"
+    acceptance_criteria:
+      - "Shows counts for todo / in-progress / review / done"
+      - "Updates in real time (WebSocket or polling ≤5s)"
+      - "Shows team member activity (last active)"
+    story_points: 3
+    priority: 10
+
+  - id: US-011
+    title: "Search tasks"
+    description: "As a project member I can search tasks by title or description keyword"
+    acceptance_criteria:
+      - "Case-insensitive full-text search"
+      - "Results highlight matched terms"
+      - "Returns within 500ms for up to 10k tasks"
+    story_points: 3
+    priority: 11
+
+  - id: US-012
+    title: "Attach files to tasks"
+    description: "As a task assignee I can attach files up to 10MB to a task"
+    acceptance_criteria:
+      - "Supported formats: PDF, PNG, JPG, DOCX, CSV"
+      - "File stored in object storage"
+      - "Download link valid for 1 hour"
+    story_points: 3
+    priority: 12
+
+  - id: US-013
+    title: "Email notifications"
+    description: "As a project member I receive email when a task I'm involved in changes"
+    acceptance_criteria:
+      - "Notify on: assigned, commented, status changed, mentioned"
+      - "User can opt out per notification type"
+      - "Batch digest option (immediate vs daily)"
+    story_points: 3
+    priority: 13
+
+  - id: US-014
+    title: "API rate limiting"
+    description: "As an API consumer I am rate-limited to prevent abuse"
+    acceptance_criteria:
+      - "100 requests/minute per user token"
+      - "429 response with Retry-After header"
+      - "Rate limit headers in every response"
+    story_points: 2
+    priority: 14
+
+  - id: US-015
+    title: "Audit log"
+    description: "As a project owner I can view an audit log of all changes in my project"
+    acceptance_criteria:
+      - "Records: who, what, when for all mutations"
+      - "Paginated, 50 entries per page"
+      - "Exportable as CSV"
+    story_points: 3
+    priority: 15
+
+  - id: US-016
+    title: "Task dependencies"
+    description: "As a task creator I can mark another task as a prerequisite"
+    acceptance_criteria:
+      - "Circular dependencies rejected"
+      - "Blocked tasks visually indicated"
+      - "Dependency resolved notification sent"
+    story_points: 3
+    priority: 16
+
+  - id: US-017
+    title: "Recurring tasks"
+    description: "As a project member I can create tasks that repeat on a schedule"
+    acceptance_criteria:
+      - "Supports daily, weekly, monthly, custom cron"
+      - "Next occurrence auto-created on completion"
+      - "Can pause or stop recurrence"
+    story_points: 5
+    priority: 17
+
+  - id: US-018
+    title: "Bulk task operations"
+    description: "As a project member I can select multiple tasks and change status or assignee in bulk"
+    acceptance_criteria:
+      - "Select up to 50 tasks at once"
+      - "Bulk status change and bulk assign supported"
+      - "Confirmation dialog before applying"
+    story_points: 3
+    priority: 18
+
+  - id: US-019
+    title: "Dark mode"
+    description: "As a user I can switch the UI to dark mode"
+    acceptance_criteria:
+      - "Preference saved per user"
+      - "Respects OS preference by default"
+      - "All pages render correctly in dark mode"
+    story_points: 2
+    priority: 19
+
+  - id: US-020
+    title: "Mobile responsive layout"
+    description: "As a mobile user the app is usable on screens ≥320px wide"
+    acceptance_criteria:
+      - "No horizontal scrolling on mobile"
+      - "Touch targets ≥44px"
+      - "Core flows (view, create, move tasks) work on mobile"
+    story_points: 3
+    priority: 20

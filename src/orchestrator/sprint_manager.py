@@ -1,9 +1,8 @@
-"""
-Sprint lifecycle manager - orchestrates planning, execution, retro.
-"""
+"""Sprint lifecycle manager — orchestrates planning, execution, retro."""
 
 import asyncio
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -13,6 +12,7 @@ from ..agents.pairing import PairingEngine
 from ..tools.kanban import KanbanBoard
 from ..tools.shared_context import SharedContextDB
 from ..metrics.sprint_metrics import SprintMetrics
+from .backlog import Backlog
 
 
 class SprintManager:
@@ -24,45 +24,50 @@ class SprintManager:
         shared_db: SharedContextDB,
         config,
         output_dir: Path,
+        backlog: Optional[Backlog] = None,
     ):
         self.agents = agents
         self.db = shared_db
         self.config = config
         self.output_dir = output_dir
-        self.pairing_engine = PairingEngine(agents, db=shared_db)
+        self.backlog = backlog
         self.kanban = KanbanBoard(
             shared_db,
             wip_limits=getattr(config, "wip_limits", {"in_progress": 4, "review": 2}),
         )
+        self.pairing_engine = PairingEngine(agents, db=shared_db, kanban=self.kanban)
         self.metrics = SprintMetrics()
         self._sprint_results: List[Dict] = []
 
-    async def run_sprint(self, sprint_num: int):
-        """Execute one complete sprint (20 min wall-clock)."""
+    def _agent(self, role_id: str) -> Optional[BaseAgent]:
+        """Find an agent by role_id."""
+        return next((a for a in self.agents if a.config.role_id == role_id), None)
 
-        sprint_start = datetime.now()
+    async def run_sprint(self, sprint_num: int):
+        """Execute one complete sprint."""
+
         sprint_output = self.output_dir / f"sprint-{sprint_num:02d}"
         sprint_output.mkdir(parents=True, exist_ok=True)
 
-        # Phase 1: Planning (not in 20min)
-        print("📋 Sprint Planning...")
+        print("  Planning...")
         await self.run_planning(sprint_num)
 
-        # Phase 2: Development (20 minutes)
-        print("💻 Development Phase (20 minutes)...")
-        await self.run_development(sprint_num, duration_minutes=20)
+        print("  Development...")
+        await self.run_development(sprint_num)
 
-        # Phase 3: Retrospective
-        print("🔄 Retrospective...")
-        await self.run_retrospective(sprint_num)
+        print("  QA review...")
+        await self.run_qa_review(sprint_num)
 
-        # Phase 4: Generate Artifacts
-        print("📦 Generating Artifacts...")
-        await self.generate_sprint_artifacts(sprint_num, sprint_output)
+        print("  Retrospective...")
+        retro_data = await self.run_retrospective(sprint_num)
 
-        # Update metrics
+        print("  Meta-learning...")
+        await self.apply_meta_learning(sprint_num, retro_data)
+
+        print("  Artifacts...")
+        await self.generate_sprint_artifacts(sprint_num, sprint_output, retro_data)
+
         result = await self.metrics.calculate_sprint_results(sprint_num, self.db, self.kanban)
-
         self._sprint_results.append(
             {
                 "sprint": sprint_num,
@@ -73,83 +78,238 @@ class SprintManager:
                 "cycle_time_avg": result.cycle_time_avg,
             }
         )
-
         return result
 
+    # -------------------------------------------------------------------------
+    # Phase 1: Planning
+    # -------------------------------------------------------------------------
+
     async def run_planning(self, sprint_num: int):
-        """Sprint planning meeting with full team.
+        """Sprint planning — PO selects stories from backlog, team seeds Kanban."""
+        po = self._agent("po")
 
-        PO presents prioritized backlog; team selects tasks for the sprint.
-        """
-        # Find PO agent
-        po = next((a for a in self.agents if a.config.role_id == "po"), None)
-
-        if po is not None:
-            backlog_prompt = (
-                f"Sprint {sprint_num} planning: propose 3-5 user stories "
-                "from the backlog for the team to work on this sprint."
+        if self.backlog and self.backlog.remaining > 0:
+            candidates = self.backlog.next_stories(5)
+            candidate_text = "\n".join(
+                f"- {s['id']}: {s['title']} ({s['story_points']} pts) — {s['description']}"
+                for s in candidates
             )
-            stories_text = await po.generate(backlog_prompt)
+            if po:
+                prompt = (
+                    f"Sprint {sprint_num} planning for {self.backlog.summary()}.\n"
+                    f"Candidate stories:\n{candidate_text}\n\n"
+                    "Select 3-4 stories for this sprint. "
+                    "Reply with the story IDs on separate lines, e.g.:\nUS-001\nUS-002"
+                )
+                response = await po.generate(prompt)
+                selected = self._parse_story_ids(response, candidates)
+            else:
+                selected = candidates[:3]
+
+            # Return unselected candidates to pool
+            selected_ids = {s["id"] for s in selected}
+            for c in candidates:
+                if c["id"] not in selected_ids:
+                    self.backlog.mark_returned(c["id"])
         else:
-            stories_text = f"Sprint {sprint_num} default backlog items."
+            # Fallback: generic tasks when backlog is exhausted or not provided
+            selected = [
+                {
+                    "id": f"GEN-{sprint_num:02d}-{i}",
+                    "title": f"Sprint {sprint_num} Task {i}",
+                    "description": f"Implement feature {i} for sprint {sprint_num}",
+                    "story_points": 2,
+                }
+                for i in range(1, 4)
+            ]
 
-        # Seed kanban with sprint tasks parsed from PO response
-        # For simulation we create one generic task per sprint
-        sample_tasks = [
-            {
-                "title": f"Sprint {sprint_num} Task {i}",
-                "description": f"Implement feature {i} for sprint {sprint_num}",
-                "status": "ready",
-                "story_points": 2,
-                "sprint": sprint_num,
-            }
-            for i in range(1, 4)
-        ]
-        for task in sample_tasks:
-            await self.kanban.add_card(task)
+        for story in selected:
+            await self.kanban.add_card(
+                {
+                    "title": story["title"],
+                    "description": story.get("description", ""),
+                    "status": "ready",
+                    "story_points": story.get("story_points", 2),
+                    "sprint": sprint_num,
+                }
+            )
 
-    async def run_development(self, sprint_num: int, duration_minutes: int):
-        """Main development phase with pairing."""
+    def _parse_story_ids(self, response: str, candidates: List[Dict]) -> List[Dict]:
+        """Extract story IDs from PO response; fall back to first 3 candidates."""
+        found_ids = re.findall(r"US-\d+", response.upper())
+        id_map = {s["id"]: s for s in candidates}
+        selected = [id_map[sid] for sid in found_ids if sid in id_map]
+        return selected if selected else candidates[:3]
 
-        end_time = datetime.now() + timedelta(minutes=duration_minutes)
+    # -------------------------------------------------------------------------
+    # Phase 2: Development
+    # -------------------------------------------------------------------------
+
+    async def run_development(self, sprint_num: int):
+        """Main development phase — pairs work on tasks until time or tasks exhausted."""
+        duration = getattr(self.config, "sprint_duration_minutes", 20)
+        end_time = datetime.now() + timedelta(minutes=duration)
 
         while datetime.now() < end_time:
-            # Get available pairs
+            # Prune completed tasks from active_sessions
+            self.pairing_engine.active_sessions = [
+                t for t in self.pairing_engine.active_sessions if not t.done()
+            ]
+
             available_pairs = self.pairing_engine.get_available_pairs()
 
-            # Assign work from Kanban
             for pair in available_pairs:
                 task = await self.kanban.pull_ready_task()
                 if task:
-                    asyncio.create_task(
+                    t = asyncio.create_task(
                         self.pairing_engine.run_pairing_session(pair, task)
                     )
+                    self.pairing_engine.active_sessions.append(t)
 
-            # Tick simulation forward
-            await asyncio.sleep(1)  # 1 second real = ~4 minutes simulated
+            # Exit early when all work is done
+            if not self.pairing_engine.active_sessions:
+                snapshot = await self.kanban.get_snapshot()
+                if not snapshot.get("ready"):
+                    break
 
-        # Wait for all pairing sessions to complete
+            await asyncio.sleep(0.1)
+
         await self.pairing_engine.wait_for_completion()
 
-    async def run_retrospective(self, sprint_num: int) -> Dict:
-        """Team retrospective — Keep/Drop/Puzzle format.
+    # -------------------------------------------------------------------------
+    # Phase 3: QA review gate
+    # -------------------------------------------------------------------------
 
-        Each agent contributes observations; results saved to output dir.
-        """
+    async def run_qa_review(self, sprint_num: int):
+        """QA lead reviews each card in 'review'; approved → done, rejected → in_progress."""
+        qa = self._agent("qa_lead")
+        snapshot = await self.kanban.get_snapshot()
+        review_cards = snapshot.get("review", [])
+
+        for card in review_cards:
+            if qa:
+                prompt = (
+                    f"QA review for: {card['title']}\n"
+                    f"Description: {card.get('description', '')}\n"
+                    "Does this meet the Definition of Done? "
+                    "Reply 'approve' or 'reject' with brief reasoning."
+                )
+                response = await qa.generate(prompt)
+                approved = "approve" in response.lower()
+            else:
+                approved = True  # auto-approve if no QA agent
+
+            new_status = "done" if approved else "in_progress"
+            try:
+                await self.kanban.move_card(card["id"], new_status)
+            except Exception:
+                pass  # WIP limit may block; leave card where it is
+
+    # -------------------------------------------------------------------------
+    # Phase 4: Retrospective
+    # -------------------------------------------------------------------------
+
+    async def run_retrospective(self, sprint_num: int) -> Dict:
+        """Structured Keep/Drop/Puzzle retro with all agents."""
         retro: Dict = {"sprint": sprint_num, "keep": [], "drop": [], "puzzle": []}
 
         prompt = (
-            f"Sprint {sprint_num} retrospective. "
-            "Provide one KEEP, one DROP, and one PUZZLE item."
+            f"Sprint {sprint_num} retrospective.\n"
+            "Reply in exactly this format (one item each):\n"
+            "KEEP: <what went well>\n"
+            "DROP: <what to stop doing>\n"
+            "PUZZLE: <open question or challenge>"
         )
+
         for agent in self.agents:
             response = await agent.generate(prompt)
-            retro["keep"].append(f"{agent.config.role_id}: {response}")
+            keep, drop, puzzle = self._parse_retro_response(response)
+            if keep:
+                retro["keep"].append({"agent": agent.config.role_id, "text": keep})
+            if drop:
+                retro["drop"].append({"agent": agent.config.role_id, "text": drop})
+            if puzzle:
+                retro["puzzle"].append({"agent": agent.config.role_id, "text": puzzle})
 
         return retro
 
-    async def generate_sprint_artifacts(self, sprint_num: int, output_path: Path):
-        """Generate all required sprint artifacts."""
+    def _parse_retro_response(self, text: str):
+        """Extract KEEP / DROP / PUZZLE from agent response."""
+        keep = drop = puzzle = ""
+        for line in text.splitlines():
+            line = line.strip()
+            if line.upper().startswith("KEEP:"):
+                keep = line[5:].strip()
+            elif line.upper().startswith("DROP:"):
+                drop = line[5:].strip()
+            elif line.upper().startswith("PUZZLE:"):
+                puzzle = line[7:].strip()
+        # Fallback: if format not followed, use whole response as keep
+        if not keep and not drop and not puzzle:
+            keep = text.strip()
+        return keep, drop, puzzle
+
+    # -------------------------------------------------------------------------
+    # Phase 5: Meta-learning
+    # -------------------------------------------------------------------------
+
+    async def apply_meta_learning(self, sprint_num: int, retro: Dict):
+        """Append retro learnings to relevant agent profile files and reload prompts."""
+        team_config = Path(self.config.team_config_dir)
+        individuals_dir = team_config / "02_individuals"
+        jsonl_path = team_config / "04_meta" / "meta_learnings.jsonl"
+
+        all_drops = retro.get("drop", [])
+        if not all_drops:
+            return
+
+        # Map role keywords to profile filenames
+        profiles = {p.stem: p for p in individuals_dir.glob("*.md")}
+
+        for item in all_drops:
+            agent_id = item.get("agent", "")
+            learning_text = item.get("text", "").strip()
+            if not learning_text:
+                continue
+
+            # Find the profile file for this agent
+            profile_path = profiles.get(agent_id)
+            if profile_path and profile_path.exists():
+                existing = profile_path.read_text()
+                section_header = f"\n\n## Recent Learnings (Sprint {sprint_num})\n"
+                if section_header not in existing:
+                    profile_path.write_text(
+                        existing.rstrip() + section_header + f"- {learning_text}\n"
+                    )
+                else:
+                    # Append to existing section
+                    profile_path.write_text(
+                        existing.rstrip() + f"\n- {learning_text}\n"
+                    )
+
+            # Log to JSONL
+            entry = {
+                "sprint": sprint_num,
+                "agent_id": agent_id,
+                "learning_type": "drop",
+                "content": {"text": learning_text},
+                "applied": True,
+            }
+            with open(jsonl_path, "a") as f:
+                f.write(json.dumps(entry) + "\n")
+
+        # Reload prompts for all agents so next sprint sees the updates
+        for agent in self.agents:
+            agent.prompt = agent._load_prompt()
+
+    # -------------------------------------------------------------------------
+    # Phase 6: Artifacts
+    # -------------------------------------------------------------------------
+
+    async def generate_sprint_artifacts(
+        self, sprint_num: int, output_path: Path, retro_data: Dict
+    ):
+        """Write sprint artifacts to disk."""
 
         # 1. Kanban snapshot
         kanban_data = await self.kanban.get_snapshot()
@@ -160,20 +320,59 @@ class SprintManager:
         sessions = await self.db.get_pairing_sessions_for_sprint(sprint_num)
         (output_path / "pairing_log.json").write_text(json.dumps(sessions, indent=2))
 
-        # 3. Retro notes
-        retro_data = await self.run_retrospective(sprint_num)
-        (output_path / "retro.json").write_text(json.dumps(retro_data, indent=2))
+        # 3. Retro notes (Markdown)
+        retro_md = self._format_retro_md(sprint_num, retro_data)
+        (output_path / "retro.md").write_text(retro_md)
+
+    def _format_retro_md(self, sprint_num: int, retro: Dict) -> str:
+        """Format retro data as Markdown (Keep/Drop/Puzzle)."""
+        lines = [f"# Sprint {sprint_num} Retrospective\n"]
+
+        lines.append("## Keep\n")
+        for item in retro.get("keep", []):
+            lines.append(f"- **{item['agent']}**: {item['text']}")
+
+        lines.append("\n## Drop\n")
+        for item in retro.get("drop", []):
+            lines.append(f"- **{item['agent']}**: {item['text']}")
+
+        lines.append("\n## Puzzle\n")
+        for item in retro.get("puzzle", []):
+            lines.append(f"- **{item['agent']}**: {item['text']}")
+
+        return "\n".join(lines) + "\n"
+
+    # -------------------------------------------------------------------------
+    # Stakeholder review (every N sprints)
+    # -------------------------------------------------------------------------
 
     async def stakeholder_review(self, sprint_num: int):
-        """Every N sprints: comprehensive stakeholder review."""
-        print(f"\n🎯 STAKEHOLDER REVIEW (Sprint {sprint_num})")
+        """PO + dev_lead review completed stories; PO accepts or rejects."""
+        print(f"\n  STAKEHOLDER REVIEW (Sprint {sprint_num})")
+
         if self._sprint_results:
             velocities = [r["velocity"] for r in self._sprint_results]
             avg_velocity = sum(velocities) / len(velocities)
-            print(f"  Average velocity: {avg_velocity:.1f} points/sprint")
+            print(f"  Average velocity: {avg_velocity:.1f} pts/sprint")
             print(f"  Sprints completed: {len(self._sprint_results)}")
-            latest = self._sprint_results[-1]
-            print(f"  Latest test coverage: {latest['test_coverage']}%")
+
+        # PO reviews done cards
+        po = self._agent("po")
+        if po:
+            snapshot = await self.kanban.get_snapshot()
+            done_cards = snapshot.get("done", [])
+            if done_cards:
+                titles = "\n".join(f"- {c['title']}" for c in done_cards)
+                response = await po.generate(
+                    f"Stakeholder review after sprint {sprint_num}.\n"
+                    f"Completed stories:\n{titles}\n\n"
+                    "Provide brief acceptance feedback."
+                )
+                print(f"  PO feedback: {response[:200]}")
+
+    # -------------------------------------------------------------------------
+    # Final report
+    # -------------------------------------------------------------------------
 
     async def generate_final_report(self):
         """Aggregate all sprint results and write final JSON report."""
@@ -185,9 +384,11 @@ class SprintManager:
         if self._sprint_results:
             velocities = [r["velocity"] for r in self._sprint_results]
             report["avg_velocity"] = sum(velocities) / len(velocities)
-            report["total_features"] = sum(r["features_completed"] for r in self._sprint_results)
+            report["total_features"] = sum(
+                r["features_completed"] for r in self._sprint_results
+            )
 
         report_path = self.output_dir / "final_report.json"
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report, indent=2))
-        print(f"\nFinal report written to {report_path}")
+        print(f"\nFinal report: {report_path}")
