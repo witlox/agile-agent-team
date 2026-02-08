@@ -307,7 +307,7 @@ If you use this in research, please cite:
 ```bibtex
 @software{agile_agent_team,
   title={Agile Agent Team: Multi-Agent Simulation of Software Development},
-  author=Pim Witlox,
+  author={Pim Witlox},
   year={2026},
   url={https://github.com/witlox/agile-agent-team}
 }
