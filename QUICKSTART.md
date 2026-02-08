@@ -360,29 +360,6 @@ Each experiment generates:
 4. **Compare**: Run variants (no swap vs constrained vs free)
 5. **Publish**: Share findings with research community
 
-## Getting Help
-
-- **Issues**: Check GitHub issues (if repo is public)
-- **Documentation**: See `docs/` directory
-- **Community**: Join discussions (if applicable)
-
-## Citation
-
-If you use this in research:
-
-```bibtex
-@software{agile_agent_team,
-  title={Agile Agent Team: Multi-Agent Simulation of Software Development},
-  author={Your Name},
-  year={2026},
-  url={https://github.com/yourusername/agile-agent-team}
-}
-```
-
-## License
-
-MIT License - See LICENSE file
-
 ---
 
 **Ready to run?** Start with the Quick Start section above!
