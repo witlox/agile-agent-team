@@ -37,7 +37,7 @@ Thank you for your interest in contributing to the Agile Agent Team experiment!
 
 ```bash
 # Fork the repository on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/agile-agent-team.git
+git clone https://github.com/witlox/agile-agent-team.git
 cd agile-agent-team
 ```
 
