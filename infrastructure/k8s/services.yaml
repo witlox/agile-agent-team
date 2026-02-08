@@ -1,1 +1,113 @@
-# See K8s services manifest above
+---
+# PostgreSQL Service (matches config.yaml: shared-db)
+apiVersion: v1
+kind: Service
+metadata:
+  name: shared-db
+  namespace: agile-agents
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None  # Headless for StatefulSet
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: agile-agents
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+
+---
+# vLLM Tier 1 Service (matches config.yaml: vllm-gh200-module-1)
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-gh200-module-1
+  namespace: agile-agents
+spec:
+  selector:
+    app: vllm-large
+  ports:
+    - port: 8000
+      targetPort: 8000
+
+---
+# vLLM Tier 2 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-medium
+  namespace: agile-agents
+spec:
+  selector:
+    app: vllm-medium
+  ports:
+    - port: 8001
+      targetPort: 8001
+
+---
+# vLLM Tier 3 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-small
+  namespace: agile-agents
+spec:
+  selector:
+    app: vllm-small
+  ports:
+    - port: 8002
+      targetPort: 8002
+
+---
+# Orchestrator Service (metrics on 8080)
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: agile-agents
+spec:
+  selector:
+    app: orchestrator
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: 8080
+
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: agile-agents
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+
+---
+# Grafana Service (matches config.yaml: grafana:3000)
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: agile-agents
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000

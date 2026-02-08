@@ -1,1 +1,40 @@
-# Prometheus configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # Orchestrator metrics (sprint velocity, pairing sessions, etc.)
+  - job_name: orchestrator
+    static_configs:
+      - targets: ["orchestrator:8080"]
+    metrics_path: /metrics
+
+  # vLLM Tier 1 — large models
+  - job_name: vllm-large
+    static_configs:
+      - targets: ["vllm-gh200-module-1:8000"]
+    metrics_path: /metrics
+
+  # vLLM Tier 2 — medium models
+  - job_name: vllm-medium
+    static_configs:
+      - targets: ["vllm-medium:8001"]
+    metrics_path: /metrics
+
+  # vLLM Tier 3 — small models
+  - job_name: vllm-small
+    static_configs:
+      - targets: ["vllm-small:8002"]
+    metrics_path: /metrics
+
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

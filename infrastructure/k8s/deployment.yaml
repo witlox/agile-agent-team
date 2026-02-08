@@ -1,1 +1,390 @@
-# See K8s deployment manifest above
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agile-agents
+
+---
+# PostgreSQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: agile-agents
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: team_context
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: agile-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+
+---
+# vLLM Tier 1 — Large models (Qwen2.5-72B, Qwen2.5-Coder-32B) on port 8000
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: vllm-large
+  namespace: agile-agents
+spec:
+  selector:
+    matchLabels:
+      app: vllm-large
+  template:
+    metadata:
+      labels:
+        app: vllm-large
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-GH200-480GB
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - "--model"
+            - "Qwen/Qwen2.5-72B-Instruct"
+            - "--tensor-parallel-size"
+            - "2"
+            - "--gpu-memory-utilization"
+            - "0.85"
+            - "--max-model-len"
+            - "32768"
+            - "--port"
+            - "8000"
+            - "--enable-prefix-caching"
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              nvidia.com/gpu: "2"
+            limits:
+              nvidia.com/gpu: "2"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: model-cache
+          hostPath:
+            path: /mnt/model-cache
+
+---
+# vLLM Tier 2 — Medium models (DeepSeek-V2-Lite, Qwen2.5-14B) on port 8001
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-medium
+  namespace: agile-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-medium
+  template:
+    metadata:
+      labels:
+        app: vllm-medium
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - "--model"
+            - "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+            - "--gpu-memory-utilization"
+            - "0.85"
+            - "--max-model-len"
+            - "16384"
+            - "--port"
+            - "8001"
+            - "--enable-prefix-caching"
+          ports:
+            - containerPort: 8001
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+            limits:
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: model-cache
+          hostPath:
+            path: /mnt/model-cache
+
+---
+# vLLM Tier 3 — Small models (Qwen2.5-Coder-7B) on port 8002
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-small
+  namespace: agile-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-small
+  template:
+    metadata:
+      labels:
+        app: vllm-small
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - "--model"
+            - "Qwen/Qwen2.5-Coder-7B-Instruct"
+            - "--gpu-memory-utilization"
+            - "0.85"
+            - "--max-model-len"
+            - "8192"
+            - "--port"
+            - "8002"
+            - "--enable-prefix-caching"
+          ports:
+            - containerPort: 8002
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+            limits:
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: model-cache
+          hostPath:
+            path: /mnt/model-cache
+
+---
+# Sprint Orchestrator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: agile-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: agile-agents/orchestrator:latest
+          command: ["python", "src/orchestrator/main.py"]
+          args:
+            - "--config"
+            - "/app/config.yaml"
+            - "--sprints"
+            - "10"
+            - "--output"
+            - "/app/outputs/experiment-001"
+          env:
+            - name: DATABASE_URL
+              value: postgresql://$(DB_USER):$(DB_PASSWORD)@shared-db:5432/team_context
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+          ports:
+            - containerPort: 8080
+              name: metrics
+          resources:
+            requests:
+              cpu: "4"
+              memory: "16Gi"
+            limits:
+              cpu: "8"
+              memory: "32Gi"
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+            - name: outputs
+              mountPath: /app/outputs
+            - name: team-config
+              mountPath: /app/team_config
+      volumes:
+        - name: config
+          configMap:
+            name: experiment-config
+        - name: outputs
+          persistentVolumeClaim:
+            claimName: outputs-pvc
+        - name: team-config
+          configMap:
+            name: team-config
+
+---
+# Outputs PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: outputs-pvc
+  namespace: agile-agents
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+# Prometheus
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: agile-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:latest
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--web.enable-lifecycle"
+          ports:
+            - containerPort: 9090
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "1"
+              memory: "4Gi"
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-data
+              mountPath: /prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+        - name: prometheus-data
+          emptyDir: {}
+
+---
+# Grafana
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: agile-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
