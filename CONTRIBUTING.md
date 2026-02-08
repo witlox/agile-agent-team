@@ -36,8 +36,8 @@ Thank you for your interest in contributing to the Agile Agent Team experiment!
 ### 1. Fork and Clone
 
 ```bash
-# Fork the repository (https://github.com/witlox/agile-agent-team.git) on GitHub, then:
-gh repo clone agile-agent-team
+# Fork on GitHub first, then:
+gh repo clone YOUR_USERNAME/agile-agent-team
 cd agile-agent-team
 ```
 
@@ -92,9 +92,7 @@ When modifying agent profiles in `team_config/`:
 Example:
 ```bash
 # After modifying a junior profile
-python -m tests.qualification.qualify \
-  --model Qwen2.5-Coder-7B-Instruct \
-  --role dev_jr_fullstack_a
+./scripts/qualify-all-agents.sh --mock
 ```
 
 ### Source Code
@@ -152,13 +150,11 @@ pytest tests/integration/
 ### Qualification Tests
 
 ```bash
-# Test all agents
-./scripts/qualify-all-agents.sh
+# Test all agents (mock mode)
+./scripts/qualify-all-agents.sh --mock
 
-# Test specific agent
-python -m tests.qualification.qualify \
-  --model MODEL_NAME \
-  --role ROLE_NAME
+# Test all agents against live vLLM
+./scripts/qualify-all-agents.sh --vllm-endpoint http://<host>:8000
 ```
 
 ## Submitting Changes
@@ -330,9 +326,10 @@ git push origin feature/my-feature
 
 1. Copy existing profile: `cp team_config/02_individuals/dev_sr_networking.md team_config/02_individuals/dev_sr_NEW.md`
 2. Modify profile (specialization, cognitive patterns, etc.)
-3. Update `src/agents/agent_factory.py` to register agent
-4. Add qualification test in `tests/qualification/`
-5. Test: `python -m tests.qualification.qualify --role dev_sr_NEW`
+3. Add model config entry under `models.agents` in `config.yaml`
+4. Run qualification tests: `./scripts/qualify-all-agents.sh --mock`
+
+The factory autodiscovers profiles via glob — no code registration needed.
 
 ### Add New Metric
 

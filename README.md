@@ -8,9 +8,9 @@ Any code that is in this repo is AI generated as well, the experiment is thus 2-
 ## Overview
 
 This project implements an 11-agent team that operates like a real software development team:
-- **1 Dev Lead** (Kimi/Qwen2.5-Coder-32B)
-- **1 QA Lead** (Kimi/Qwen2.5-72B)
-- **1 Product Owner** (Opus/Qwen2.5-72B)
+- **1 Dev Lead** (Qwen2.5-Coder-32B)
+- **1 QA Lead** (Qwen2.5-72B)
+- **1 Product Owner** (Qwen2.5-72B)
 - **6 Developers** (2 senior, 2 mid-level, 2 junior - DeepSeek/Qwen variants)
 - **2 Testers** (Qwen2.5-14B)
 
@@ -114,7 +114,7 @@ team_config/
 
 ```bash
 # Run 10 sprints with default configuration
-python src/orchestrator/main.py --sprints 10 --output results/experiment-001
+python src/orchestrator/main.py --sprints 10 --output outputs/experiment-001
 ```
 
 ### With Disturbances
@@ -174,13 +174,11 @@ Artifacts are stored in: `outputs/<experiment-id>/sprint-<N>/`
 Before running experiments, qualify models for each role:
 
 ```bash
-# Qualify a specific agent
-python -m tests.qualification.qualify \
-  --model Qwen2.5-Coder-7B-Instruct \
-  --role dev_jr_fullstack_a
+# Qualify all agents (mock mode, no vLLM required)
+./scripts/qualify-all-agents.sh --mock
 
-# Qualify all agents
-./scripts/qualify-all-agents.sh
+# Qualify against a live vLLM endpoint
+./scripts/qualify-all-agents.sh --vllm-endpoint http://<host>:8000
 ```
 
 Qualification tests:
@@ -197,25 +195,29 @@ Edit `config.yaml` to customize:
 experiment:
   sprint_duration_minutes: 20
   sprints_per_stakeholder_review: 5
-  
+
 team:
   wip_limits:
     in_progress: 4
     review: 2
-  
-  test_coverage_minimum: 85
-  
+  quality_gates:
+    min_test_coverage_lines: 85
+    min_test_coverage_branches: 80
+
 disturbances:
   enabled: true
-  types:
-    dependency_breaks: 0.16  # 1 in 6 sprints
+  frequencies:
+    dependency_breaks: 0.166  # 1 in 6 sprints
     production_incident: 0.125  # 1 in 8 sprints
     flaky_test: 0.25  # 1 in 4 sprints
 
 models:
   vllm_endpoint: "http://vllm-gh200-module-1:8000"
-  temperature: 0.7
-  max_tokens: 4096
+  agents:
+    dev_lead:
+      model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+      temperature: 0.7
+      max_tokens: 4096
 ```
 
 ## Development
@@ -241,7 +243,8 @@ pytest
 1. Create profile file in `team_config/02_individuals/`
 2. Define specialization, cognitive patterns, growth arc
 3. Run qualification tests
-4. Update `src/agents/agent_factory.py` to register agent
+
+The factory autodiscovers profiles via glob — no code registration needed.
 
 ### Custom Metrics
 
