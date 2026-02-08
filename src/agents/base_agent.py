@@ -44,6 +44,53 @@ class BaseAgent:
         self.prompt = self._load_prompt()
         self.conversation_history: List[Dict] = []
         self.learning_history: List[Dict] = []
+        self._original_config: Optional[AgentConfig] = None
+        self._swap_state: Optional[Dict] = None
+
+    def swap_to(self, target_role_id: str, domain: str, proficiency: float, sprint: int):
+        """Temporarily reassign this agent to cover a different domain."""
+        if self._original_config is None:
+            self._original_config = self.config
+        self._swap_state = {
+            "role_id": target_role_id,
+            "domain": domain,
+            "proficiency": proficiency,
+            "sprint": sprint,
+        }
+        swap_notice = (
+            f"\n\n[PROFILE SWAP ACTIVE]\n"
+            f"You are temporarily covering {domain} tasks. "
+            f"Proficiency: {proficiency * 100:.0f}%.\n"
+            "You are less familiar with this domain — ask more questions, verify assumptions,\n"
+            "and expect to work 20% slower than your usual pace."
+        )
+        self.prompt = self._load_prompt() + swap_notice
+
+    def revert_swap(self):
+        """Restore original role configuration."""
+        if self._original_config is not None:
+            self.config = self._original_config
+            self._original_config = None
+        self._swap_state = None
+        self.prompt = self._load_prompt()
+
+    def decay_swap(self, current_sprint: int, knowledge_decay_sprints: int = 1):
+        """Reduce proficiency over time and revert if past decay threshold."""
+        if self._swap_state is None:
+            return
+        sprints_elapsed = current_sprint - self._swap_state["sprint"]
+        if sprints_elapsed >= knowledge_decay_sprints:
+            self.revert_swap()
+        else:
+            # Decay proficiency by 10% per sprint
+            self._swap_state["proficiency"] = max(
+                0.0, self._swap_state["proficiency"] - 0.10 * sprints_elapsed
+            )
+
+    @property
+    def is_swapped(self) -> bool:
+        """Return True if this agent is currently profile-swapped."""
+        return self._swap_state is not None
 
     def _load_prompt(self) -> str:
         """Load and compose agent prompt from config files.

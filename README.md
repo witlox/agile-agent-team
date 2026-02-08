@@ -110,36 +110,42 @@ team_config/
 
 ## Running Experiments
 
+### Quick start (no GPU required)
+
+```bash
+# Mock mode — no vLLM or database needed
+MOCK_LLM=true python -m src.orchestrator.main \
+  --sprints 3 \
+  --output /tmp/test-run \
+  --db-url mock://
+```
+
 ### Basic Experiment
 
 ```bash
 # Run 10 sprints with default configuration
-python src/orchestrator/main.py --sprints 10 --output outputs/experiment-001
+python -m src.orchestrator.main --sprints 10 --output outputs/experiment-001
 ```
 
-### With Disturbances
+### With Disturbances / Profile Swapping
+
+Disturbances and profile-swapping modes are controlled via `config.yaml` (not CLI flags):
+
+```yaml
+disturbances:
+  enabled: true          # flip to false to disable
+
+profile_swapping:
+  mode: "constrained"    # none | constrained | free
+```
+
+Then run as usual:
 
 ```bash
-# Enable realistic failure injection
-python src/orchestrator/main.py \
-  --sprints 20 \
-  --disturbances enabled \
-  --disturbance-frequency 0.2 \
-  --output results/experiment-002
+python -m src.orchestrator.main --sprints 20 --output outputs/experiment-002
 ```
 
-### Profile Swapping Experiments
-
-```bash
-# No swapping (pure human simulation)
-python src/orchestrator/main.py --sprints 10 --profile-swap none
-
-# Constrained swapping (recommended)
-python src/orchestrator/main.py --sprints 10 --profile-swap constrained
-
-# Free swapping (AI-optimal baseline)
-python src/orchestrator/main.py --sprints 10 --profile-swap free
-```
+See **[docs/USAGE.md](docs/USAGE.md)** for the complete usage guide: configuration reference, disturbance types, profile swapping modes, coverage formula, and artifact format.
 
 ## Monitoring
 

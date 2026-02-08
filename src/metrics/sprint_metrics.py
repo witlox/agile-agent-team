@@ -57,8 +57,21 @@ class SprintMetrics:
             if durations:
                 cycle_time_avg = sum(durations) / len(durations)
 
-        # Test coverage is not tracked in DB yet; default to 0.0
+        # Test coverage: weighted average of pairing session coverage estimates
         test_coverage = 0.0
+        if sessions:
+            # Build a map of task_id -> story_points from done cards
+            sp_map = {c.get("id"): c.get("story_points", 1) for c in sprint_done}
+            total_weight = 0.0
+            weighted_sum = 0.0
+            for s in sessions:
+                estimate = s.get("coverage_estimate")
+                if estimate is not None:
+                    weight = float(sp_map.get(s.get("task_id"), 1))
+                    weighted_sum += estimate * weight
+                    total_weight += weight
+            if total_weight > 0:
+                test_coverage = weighted_sum / total_weight
 
         return SprintResult(
             velocity=velocity,

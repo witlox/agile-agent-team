@@ -20,6 +20,7 @@ class SharedContextDB:
         self._pairing_sessions: List[Dict] = []
         self._meta_learnings: List[Dict] = []
         self._snapshots: List[Dict] = []
+        self._disturbance_events: List[Dict] = []
         self._next_id = 1
 
     async def initialize(self):
@@ -73,6 +74,15 @@ class SharedContextDB:
                     id SERIAL PRIMARY KEY,
                     sprint INTEGER,
                     snapshot_data JSONB,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS disturbance_events (
+                    id SERIAL PRIMARY KEY,
+                    type TEXT,
+                    impact TEXT,
+                    affected_agents JSONB,
+                    details JSONB,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
             ''')
@@ -177,6 +187,42 @@ class SharedContextDB:
             rows = await conn.fetch(
                 "SELECT * FROM pairing_sessions WHERE sprint = $1", sprint
             )
+            return [dict(r) for r in rows]
+
+    async def update_card_field(self, card_id: int, field: str, value: str):
+        """Update a single text field on a kanban card."""
+        if self._mock_mode:
+            for card in self._cards:
+                if card["id"] == card_id:
+                    card[field] = value
+                    return
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                f"UPDATE kanban_cards SET {field} = $1 WHERE id = $2", value, card_id
+            )
+
+    async def log_disturbance(self, event: Dict):
+        """Log a disturbance event."""
+        if self._mock_mode:
+            self._disturbance_events.append(event)
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO disturbance_events (type, impact, affected_agents, details)
+                   VALUES ($1, $2, $3, $4)""",
+                event.get("type"),
+                event.get("impact"),
+                json.dumps(event.get("affected_agents", [])),
+                json.dumps({k: v for k, v in event.items() if k not in ("type", "impact", "affected_agents")}),
+            )
+
+    async def get_disturbance_events(self) -> List[Dict]:
+        """Return all logged disturbance events."""
+        if self._mock_mode:
+            return list(self._disturbance_events)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT * FROM disturbance_events ORDER BY id")
             return [dict(r) for r in rows]
 
     async def close(self):

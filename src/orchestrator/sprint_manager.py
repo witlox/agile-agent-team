@@ -12,7 +12,9 @@ from ..agents.pairing import PairingEngine
 from ..tools.kanban import KanbanBoard
 from ..tools.shared_context import SharedContextDB
 from ..metrics.sprint_metrics import SprintMetrics
+from ..metrics.prometheus_exporter import update_sprint_metrics
 from .backlog import Backlog
+from .disturbances import DisturbanceEngine
 
 
 class SprintManager:
@@ -39,9 +41,48 @@ class SprintManager:
         self.metrics = SprintMetrics()
         self._sprint_results: List[Dict] = []
 
+        # Disturbance engine (only active when configured)
+        if getattr(config, "disturbances_enabled", False):
+            self.disturbance_engine: Optional[DisturbanceEngine] = DisturbanceEngine(
+                frequencies=getattr(config, "disturbance_frequencies", {}),
+                blast_radius_controls=getattr(config, "blast_radius_controls", {}),
+            )
+        else:
+            self.disturbance_engine = None
+
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
         """Find an agent by role_id."""
         return next((a for a in self.agents if a.config.role_id == role_id), None)
+
+    async def _check_swap_triggers(self, disturbances_fired: List[str], sprint_num: int):
+        """Trigger profile swaps when disturbances warrant it."""
+        swap_mode = getattr(self.config, "profile_swap_mode", "none")
+        if swap_mode == "none":
+            return
+
+        penalties = getattr(self.config, "profile_swap_penalties", {})
+        proficiency = penalties.get("proficiency_reduction", 0.70)
+
+        if "production_incident" in disturbances_fired:
+            # Find a senior devops or networking agent to cover the incident
+            specialist = self._agent("dev_sr_devops") or self._agent("dev_sr_networking")
+            if specialist and not specialist.is_swapped:
+                specialist.swap_to(
+                    target_role_id="incident_responder",
+                    domain="production incident response",
+                    proficiency=proficiency,
+                    sprint=sprint_num,
+                )
+                print(f"  [SWAP] {specialist.config.role_id} → incident responder")
+
+    def _decay_swaps(self, current_sprint: int):
+        """Apply swap decay for all agents after sprint completes."""
+        decay_sprints = getattr(self.config, "profile_swap_penalties", {}).get(
+            "knowledge_decay_sprints", 1
+        )
+        for agent in self.agents:
+            if agent.is_swapped:
+                agent.decay_swap(current_sprint, knowledge_decay_sprints=int(decay_sprints))
 
     async def run_sprint(self, sprint_num: int):
         """Execute one complete sprint."""
@@ -51,6 +92,16 @@ class SprintManager:
 
         print("  Planning...")
         await self.run_planning(sprint_num)
+
+        # Disturbances fire after planning, before development
+        disturbances_fired: List[str] = []
+        if self.disturbance_engine is not None:
+            disturbances_fired = self.disturbance_engine.roll_for_sprint(sprint_num)
+            for dtype in disturbances_fired:
+                print(f"  [DISTURBANCE] {dtype}")
+                await self.disturbance_engine.apply(dtype, self.agents, self.kanban, self.db)
+            # Check whether a production incident warrants a profile swap
+            await self._check_swap_triggers(disturbances_fired, sprint_num)
 
         print("  Development...")
         await self.run_development(sprint_num)
@@ -67,6 +118,9 @@ class SprintManager:
         print("  Artifacts...")
         await self.generate_sprint_artifacts(sprint_num, sprint_output, retro_data)
 
+        # Decay swaps for the just-completed sprint
+        self._decay_swaps(sprint_num)
+
         result = await self.metrics.calculate_sprint_results(sprint_num, self.db, self.kanban)
         self._sprint_results.append(
             {
@@ -76,8 +130,17 @@ class SprintManager:
                 "test_coverage": result.test_coverage,
                 "pairing_sessions": result.pairing_sessions,
                 "cycle_time_avg": result.cycle_time_avg,
+                "disturbances": disturbances_fired,
             }
         )
+
+        # Update Prometheus metrics
+        try:
+            sessions = await self.db.get_pairing_sessions_for_sprint(sprint_num)
+            update_sprint_metrics(result, session_details=sessions)
+        except Exception:
+            pass  # metrics server may not be running in all environments
+
         return result
 
     # -------------------------------------------------------------------------

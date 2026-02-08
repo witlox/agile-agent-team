@@ -285,13 +285,21 @@ psql postgresql://postgres:YOUR_PASSWORD@localhost:5432/team_context -c "\dt"
 
 ## Running Experiments
 
-### Experiment 1: Baseline (No Swapping)
+### Experiment 1: Baseline (no disturbances, no swapping)
 
+Edit `config.yaml`:
+```yaml
+disturbances:
+  enabled: false
+profile_swapping:
+  mode: "none"
+```
+
+Then run:
 ```bash
-python src/orchestrator/main.py \
+python -m src.orchestrator.main \
   --config config.yaml \
   --sprints 10 \
-  --profile-swap none \
   --output outputs/baseline-experiment
 ```
 
@@ -302,44 +310,62 @@ python src/orchestrator/main.py \
 tail -f outputs/baseline-experiment/sprint-*/retro.md
 ```
 
-### Experiment 2: Constrained Swapping
+### Experiment 2: Constrained swapping with disturbances
 
+Edit `config.yaml`:
+```yaml
+disturbances:
+  enabled: true
+profile_swapping:
+  mode: "constrained"
+```
+
+Then run:
 ```bash
-python src/orchestrator/main.py \
+python -m src.orchestrator.main \
   --config config.yaml \
   --sprints 20 \
-  --profile-swap constrained \
-  --disturbances enabled \
   --output outputs/constrained-experiment
 ```
 
-**With disturbances:** Expect 2-4 incidents over 20 sprints
+**With default frequencies:** Expect 2-4 incidents over 20 sprints.
 
-### Experiment 3: Free Swapping (Baseline)
+### Experiment 3: Free swapping (AI-optimal baseline)
 
+Edit `config.yaml`:
+```yaml
+profile_swapping:
+  mode: "free"
+```
+
+Then run:
 ```bash
-python src/orchestrator/main.py \
+python -m src.orchestrator.main \
   --config config.yaml \
   --sprints 20 \
-  --profile-swap free \
   --output outputs/free-swap-experiment
 ```
 
-### Running Multiple Variants Simultaneously
+### Running multiple variants simultaneously
+
+Use separate config files per variant, then run in parallel:
 
 ```bash
-# Terminal 1
-python src/orchestrator/main.py --config config.yaml --sprints 20 --profile-swap none --output outputs/none &
+# Copy and edit configs
+cp config.yaml config-none.yaml       # set mode: none
+cp config.yaml config-constrained.yaml # set mode: constrained
+cp config.yaml config-free.yaml       # set mode: free
 
-# Terminal 2  
-python src/orchestrator/main.py --config config.yaml --sprints 20 --profile-swap constrained --output outputs/constrained &
-
-# Terminal 3
-python src/orchestrator/main.py --config config.yaml --sprints 20 --profile-swap free --output outputs/free &
+# Run in parallel
+python -m src.orchestrator.main --config config-none.yaml --sprints 20 --output outputs/none &
+python -m src.orchestrator.main --config config-constrained.yaml --sprints 20 --output outputs/constrained &
+python -m src.orchestrator.main --config config-free.yaml --sprints 20 --output outputs/free &
 
 # Monitor all
 watch -n 5 'ls -1 outputs/*/sprint-* | wc -l'
 ```
+
+> **Tip:** See [USAGE.md](USAGE.md) for the full configuration reference and artifact format.
 
 ---
 

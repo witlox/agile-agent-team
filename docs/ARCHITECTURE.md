@@ -224,7 +224,7 @@ Example: dev_jr_fullstack_a
 ```sql
 -- Kanban board state
 kanban_cards (
-  id, title, description, status, 
+  id, title, description, status,
   assigned_pair, story_points, sprint
 )
 
@@ -246,6 +246,13 @@ meta_learnings (
 sprint_artifacts (
   id, sprint, artifact_type,
   content JSONB, created_at
+)
+
+-- Disturbance events log
+disturbance_events (
+  id, type, impact,
+  affected_agents JSONB,
+  details JSONB, created_at
 )
 ```
 

@@ -52,9 +52,10 @@ class PairingEngine:
             approach = await self.brainstorm_approaches(driver, navigator, task)
             session_result["decisions"]["approach"] = approach
 
-            # Phase 2: TDD cycles with checkpoints
-            implementation = await self.collaborative_implementation(
-                driver, navigator, task, approach
+            # Phase 2: TDD cycles with checkpoints (extra round if any agent is swapped)
+            extra_checkpoint = driver.is_swapped or navigator.is_swapped
+            implementation, checkpoints_completed = await self.collaborative_implementation(
+                driver, navigator, task, approach, extra_checkpoint=extra_checkpoint
             )
             session_result["decisions"]["implementation"] = implementation
 
@@ -67,6 +68,17 @@ class PairingEngine:
             else:
                 await self.escalate(pair, task, implementation)
                 session_result["outcome"] = "escalated"
+
+            # Simulated coverage estimate (process-based)
+            base_coverage = 70.0
+            per_checkpoint = 3.5
+            consensus_bonus = 5.0 if approved else 0.0
+            max_coverage = 95.0
+            coverage = min(
+                base_coverage + checkpoints_completed * per_checkpoint + consensus_bonus,
+                max_coverage,
+            )
+            session_result["coverage_estimate"] = coverage
         finally:
             self._busy_agents.discard(driver.config.role_id)
             self._busy_agents.discard(navigator.config.role_id)
@@ -109,25 +121,35 @@ class PairingEngine:
         navigator: BaseAgent,
         task: Dict,
         approach: str,
-    ) -> str:
-        """TDD implementation with checkpoint dialogues (4 checkpoints)."""
+        extra_checkpoint: bool = False,
+    ) -> Tuple[str, int]:
+        """TDD implementation with checkpoint dialogues (4 checkpoints).
+
+        If extra_checkpoint is True (e.g. swapped agent in pair), an extra
+        round is added to simulate the 20% slowdown from unfamiliar domain.
+
+        Returns (implementation_text, checkpoints_completed).
+        """
         task_desc = task.get("description", task.get("title", "unknown task"))
         implementation_parts: List[str] = []
+        total_checkpoints = 5 if extra_checkpoint else 4
+        checkpoints_completed = 0
 
-        for checkpoint in range(1, 5):
-            progress = (checkpoint / 4) * 100
+        for checkpoint in range(1, total_checkpoints + 1):
+            progress = (checkpoint / total_checkpoints) * 100
             prompt = (
                 f"Implementing: {task_desc}\n"
                 f"Approach: {approach}\n"
-                f"Checkpoint {checkpoint}/4 ({progress:.0f}%): "
+                f"Checkpoint {checkpoint}/{total_checkpoints} ({progress:.0f}%): "
                 f"Write the next part of the implementation."
             )
             code = await driver.generate(prompt)
             implementation_parts.append(code)
+            checkpoints_completed += 1
 
             # Navigator reviews at each checkpoint
             review_prompt = (
-                f"Review checkpoint {checkpoint}/4:\n{code}\n"
+                f"Review checkpoint {checkpoint}/{total_checkpoints}:\n{code}\n"
                 "Any issues or suggestions?"
             )
             feedback = await navigator.generate(review_prompt)
@@ -138,7 +160,7 @@ class PairingEngine:
                 )
                 implementation_parts.append(revised)
 
-        return "\n".join(implementation_parts)
+        return "\n".join(implementation_parts), checkpoints_completed
 
     async def get_consensus(
         self, driver: BaseAgent, navigator: BaseAgent, implementation: str
