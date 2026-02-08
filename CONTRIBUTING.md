@@ -36,8 +36,8 @@ Thank you for your interest in contributing to the Agile Agent Team experiment!
 ### 1. Fork and Clone
 
 ```bash
-# Fork the repository on GitHub, then:
-git clone https://github.com/witlox/agile-agent-team.git
+# Fork the repository (https://github.com/witlox/agile-agent-team.git) on GitHub, then:
+gh repo clone agile-agent-team
 cd agile-agent-team
 ```
 
