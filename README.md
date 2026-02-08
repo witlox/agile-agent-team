@@ -23,7 +23,7 @@ This project implements an 11-agent team that operates like a real software deve
 
 ### Prerequisites
 
-- Kubernetes cluster with GH200 nodes (4 modules per node)
+- Kubernetes cluster with GH200 nodes (4 GH200 superchips)
 - Python 3.11+
 - kubectl configured
 - Docker
@@ -32,7 +32,7 @@ This project implements an 11-agent team that operates like a real software deve
 
 ```bash
 # Clone repository
-git clone <your-repo-url>
+git clone https://github.com/witlox/agile-agent-team
 cd agile-agent-team
 
 # Install dependencies
@@ -307,9 +307,9 @@ If you use this in research, please cite:
 ```bibtex
 @software{agile_agent_team,
   title={Agile Agent Team: Multi-Agent Simulation of Software Development},
-  author={Your Name},
+  author=Pim Witlox,
   year={2026},
-  url={https://github.com/yourusername/agile-agent-team}
+  url={https://github.com/witlox/agile-agent-team}
 }
 ```
 
