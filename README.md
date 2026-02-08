@@ -2,6 +2,9 @@
 
 A simulation of a mature, high-performing agile development team implemented as a multi-agent AI system.
 
+**_NOTE:_** Critical remark, this whole thing is generated using AI, it stems from conversations with Claude to setup the premise and test the hypotheses.
+Any code that is in this repo is AI generated as well, the experiment is thus 2-fold :)
+
 ## Overview
 
 This project implements an 11-agent team that operates like a real software development team:
