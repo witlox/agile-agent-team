@@ -219,11 +219,11 @@ class GitLabProvider(RemoteGitProvider):
         # Parse MR URL and number from output
         url = stdout.strip().split("\n")[-1] if stdout.strip() else None
 
-        # Extract MR number (e.g., !123)
+        # Extract MR number from URL (e.g., /merge_requests/456)
         mr_number = None
-        if url and "!" in url:
+        if url and "/merge_requests/" in url:
             try:
-                mr_number = int(url.split("!")[-1].split("/")[0])
+                mr_number = int(url.split("/merge_requests/")[-1].split("/")[0])
             except (IndexError, ValueError):
                 pass
 
