@@ -408,7 +408,7 @@ models:
 # EXTERNAL CONSULTANTS (5 domains - NOT in config, created on-demand)
 # =============================================================================
 # Managed by SpecialistConsultantSystem (src/orchestrator/specialist_consultant.py)
-# Available domains (profiles in team_config/07_specialists/):
+# Available domains (profiles in team_config/08_specialists/):
 #   - ml: Machine Learning / AI (training, deployment, debugging)
 #   - security: Auth, OWASP Top 10, secure coding
 #   - performance: Optimization, profiling, benchmarking

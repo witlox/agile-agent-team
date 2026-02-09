@@ -640,7 +640,7 @@ The specialist consultant system allows teams to bring in external experts when 
    - System checks if consultations remaining < 3 for current sprint
 
 3. **Temporary Agent Creation**: System creates specialist agent with domain profile
-   - Loads from `team_config/07_specialists/{domain}_specialist.md`
+   - Loads from `team_config/08_specialists/{domain}_specialist.md`
    - Full domain expertise and teaching approach documented
 
 4. **Knowledge Transfer Session**: Specialist pairs with team member

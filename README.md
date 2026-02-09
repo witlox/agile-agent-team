@@ -117,10 +117,10 @@ Each agent's prompt is composed from 8 layers:
 2. **Role Archetype** (`01_role_archetypes/`) - Developer/Tester/Leader traits
 3. **Seniority** (`02_seniority/`) - Junior/Mid/Senior cognitive patterns
 4. **Specializations** (`03_specializations/`) - Domain expertise (networking, backend, etc.)
-5. **Domain Knowledge** (`04_domain/`) - Technical depth in specific areas
+5. **Domain Knowledge** (`04_domain_knowledge/`) - Technical depth in specific areas
 6. **Individual Personality** (`05_individuals/`) - Unique communication styles
 7. **Demographics** (configured in YAML) - Pronouns, cultural background
-8. **Meta-Learnings** (`04_meta/meta_learnings.jsonl`) - Dynamic, per-agent retrospective insights
+8. **Meta-Learnings** (`07_meta/meta_learnings.jsonl`) - Dynamic, per-agent retrospective insights
 
 ```
 team_config/
@@ -139,7 +139,7 @@ team_config/
 │   ├── devops.md                     # Layer 4: DevOps expertise
 │   ├── backend.md                    # Layer 4: Backend expertise
 │   └── ...                           # Other specializations
-├── 04_domain/
+├── 04_domain_knowledge/
 │   └── (domain-specific knowledge)   # Layer 5: Deep technical content
 ├── 05_individuals/
 │   ├── alex_chen.md                  # Layer 6: Individual personalities

@@ -249,9 +249,9 @@ class SpecialistConsultantSystem:
         Returns:
             Profile text with specialist expertise
         """
-        # Try to load from team_config/07_specialists/
+        # Try to load from team_config/08_specialists/
         specialist_file = (
-            self.team_config_dir / "07_specialists" / f"{domain}_specialist.md"
+            self.team_config_dir / "08_specialists" / f"{domain}_specialist.md"
         )
 
         if specialist_file.exists():
