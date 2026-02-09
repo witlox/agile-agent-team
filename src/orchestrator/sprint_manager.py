@@ -51,8 +51,22 @@ class SprintManager:
         workspace_root = getattr(config, "tools_workspace_root", "/tmp/agent-workspace")
         repo_config = getattr(config, "repo_config", None)
         workspace_mode = getattr(config, "workspace_mode", "per_story")
+        # Disturbance engine (only active when configured) - init before workspace manager
+        if getattr(config, "disturbances_enabled", False):
+            self.disturbance_engine: Optional[DisturbanceEngine] = DisturbanceEngine(
+                frequencies=getattr(config, "disturbance_frequencies", {}),
+                blast_radius_controls=getattr(config, "blast_radius_controls", {}),
+            )
+        else:
+            self.disturbance_engine = None
+
         self.workspace_manager = WorkspaceManager(
-            workspace_root, repo_config, workspace_mode
+            workspace_root,
+            repo_config,
+            workspace_mode,
+            disturbance_engine=self.disturbance_engine,
+            kanban=self.kanban,
+            db=shared_db,
         )
 
         # Use CodeGenPairingEngine if agents have runtimes, else fallback to PairingEngine
@@ -68,6 +82,7 @@ class SprintManager:
                     "provider": getattr(config, "remote_git_provider", "github"),
                     **getattr(config, "remote_git_config", {}),
                 },
+                disturbance_engine=self.disturbance_engine,
             )
         else:
             self.pairing_engine = PairingEngine(
@@ -76,15 +91,6 @@ class SprintManager:
 
         self.metrics = SprintMetrics()
         self._sprint_results: List[Dict] = []
-
-        # Disturbance engine (only active when configured)
-        if getattr(config, "disturbances_enabled", False):
-            self.disturbance_engine: Optional[DisturbanceEngine] = DisturbanceEngine(
-                frequencies=getattr(config, "disturbance_frequencies", {}),
-                blast_radius_controls=getattr(config, "blast_radius_controls", {}),
-            )
-        else:
-            self.disturbance_engine = None
 
         # Agile ceremony managers
         po = self._agent("po")

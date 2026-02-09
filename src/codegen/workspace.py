@@ -3,7 +3,12 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..orchestrator.disturbances import DisturbanceEngine
+    from ..tools.kanban import KanbanBoard
+    from ..tools.shared_context import SharedContextDB
 
 
 class WorkspaceManager:
@@ -18,6 +23,9 @@ class WorkspaceManager:
         base_dir: str,
         repo_config: Optional[Dict] = None,
         workspace_mode: str = "per_story",
+        disturbance_engine: Optional["DisturbanceEngine"] = None,
+        kanban: Optional["KanbanBoard"] = None,
+        db: Optional["SharedContextDB"] = None,
     ):
         """Initialize workspace manager.
 
@@ -30,10 +38,16 @@ class WorkspaceManager:
                     "clone_mode": "fresh" | "incremental"
                 }
             workspace_mode: "per_story" (isolated per story) or "per_sprint" (shared within sprint)
+            disturbance_engine: Optional disturbance engine for merge conflict detection
+            kanban: Optional kanban board for disturbance tracking
+            db: Optional database for disturbance tracking
         """
         self.base_dir = Path(base_dir)
         self.repo_config = repo_config or {}
         self.workspace_mode = workspace_mode
+        self.disturbance_engine = disturbance_engine
+        self.kanban = kanban
+        self.db = db
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def create_sprint_workspace(self, sprint_num: int, story_id: str = None) -> Path:
@@ -151,13 +165,32 @@ class WorkspaceManager:
             check=False,  # May fail if already on branch
         )
 
-        # Pull latest changes
-        subprocess.run(
-            ["git", "pull", "origin", branch],
-            cwd=workspace,
-            capture_output=True,
-            check=True,
-        )
+        # Pull latest changes with merge conflict detection
+        try:
+            result = subprocess.run(
+                ["git", "pull", "origin", branch],
+                cwd=workspace,
+                capture_output=True,
+                check=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            # Check if it's a merge conflict
+            error_output = e.stderr + e.stdout
+            if "CONFLICT" in error_output or "Automatic merge failed" in error_output:
+                # Detect merge conflict disturbance
+                if self.disturbance_engine and self.kanban and self.db:
+                    import asyncio
+                    asyncio.create_task(
+                        self.disturbance_engine.detect_merge_conflict(
+                            card_id="workspace_init",
+                            git_error=error_output,
+                            kanban=self.kanban,
+                            db=self.db,
+                        )
+                    )
+            # Re-raise the error
+            raise
 
     def create_feature_branch(self, workspace: Path, story_id: str) -> str:
         """Create a feature branch for a story.

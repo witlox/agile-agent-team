@@ -1,7 +1,9 @@
 """Unit tests for multi-language linter tool."""
 
 import pytest
+import shutil
 from pathlib import Path
+from src.tools.agent_tools.linter import MultiLanguageLinter
 
 
 @pytest.fixture
@@ -13,12 +15,17 @@ def temp_workspace(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not shutil.which("ruff"), reason="ruff not installed")
 async def test_lint_python_code(temp_workspace):
-    """Test ruff/pylint on Python code."""
+    """Test ruff on Python code."""
     python_file = temp_workspace / "test.py"
     python_file.write_text("import os\nx = 1")  # unused import
-    
-    assert python_file.exists()
+
+    linter = MultiLanguageLinter(workspace_root=str(temp_workspace))
+    result = await linter.execute(language="python")
+
+    # Ruff should run (may or may not find issues)
+    assert result is not None
 
 
 @pytest.mark.asyncio

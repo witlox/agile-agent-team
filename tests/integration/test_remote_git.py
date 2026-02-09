@@ -2,6 +2,8 @@
 
 import pytest
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
+from src.tools.agent_tools.remote_git import GitHubProvider, PullRequestConfig
 
 
 @pytest.fixture
@@ -15,15 +17,34 @@ def temp_workspace(tmp_path):
 @pytest.mark.asyncio
 async def test_github_provider_create_pr(temp_workspace):
     """Test GitHub PR creation via gh CLI."""
-    # Mock test - verifies structure
-    pr_config = {
-        "title": "Test PR",
-        "body": "Test body",
-        "base_branch": "main",
-        "head_branch": "feature/test",
-    }
-    
-    assert pr_config["title"] == "Test PR"
+    provider = GitHubProvider(
+        workspace=temp_workspace,
+        config={"token_env": "GITHUB_TOKEN", "base_branch": "main"},
+    )
+
+    pr_config = PullRequestConfig(
+        title="Test PR",
+        body="Test body",
+        base_branch="main",
+        head_branch="feature/test",
+    )
+
+    # Mock the command execution
+    with patch.object(provider, "_run_command") as mock_run:
+        mock_run.return_value = (True, "https://github.com/org/repo/pull/123\n", "")
+
+        result = await provider.create_pull_request(pr_config)
+
+        # Verify PR creation succeeded
+        assert result.success
+        assert result.url == "https://github.com/org/repo/pull/123"
+        assert result.number == 123
+
+        # Verify gh CLI was called
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args[0][0]
+        assert "gh pr create" in call_args
+        assert '--title "Test PR"' in call_args
 
 
 @pytest.mark.asyncio

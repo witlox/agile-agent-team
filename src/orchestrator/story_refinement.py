@@ -2,6 +2,7 @@
 
 from typing import List, Dict
 from dataclasses import dataclass
+from ..metrics.custom_metrics import junior_questions_total
 
 
 @dataclass
@@ -142,6 +143,14 @@ Your question (one sentence):"""
 
             question = await agent.generate(question_prompt)
             question = question.strip().split("\n")[0]  # Take first line only
+
+            # Record metric if junior is asking
+            if agent.config.seniority == "junior":
+                junior_questions_total.labels(
+                    junior_id=agent.config.role_id,
+                    resulted_in_change="unknown",  # Will track in future iterations
+                    category="clarification",
+                ).inc()
 
             # PO answers
             if self.po:

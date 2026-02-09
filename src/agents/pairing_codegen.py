@@ -26,8 +26,10 @@ if TYPE_CHECKING:
     from ..orchestrator.config import ExperimentConfig
     from ..tools.kanban import KanbanBoard
     from ..tools.shared_context import SharedContextDB
+    from ..orchestrator.disturbances import DisturbanceEngine
 from ..codegen import WorkspaceManager, BDDGenerator
 from ..tools.agent_tools.remote_git import create_provider, PullRequestConfig
+from ..metrics.custom_metrics import senior_learned_from_junior, reverse_mentorship_events
 
 
 class CodeGenPairingEngine:
@@ -41,6 +43,7 @@ class CodeGenPairingEngine:
         kanban: Optional["KanbanBoard"] = None,
         config: Optional["ExperimentConfig"] = None,
         remote_git_config: Optional[Dict] = None,
+        disturbance_engine: Optional["DisturbanceEngine"] = None,
     ):
         self.agents = agents
         self.workspace_manager = workspace_manager
@@ -51,6 +54,7 @@ class CodeGenPairingEngine:
         self.kanban = kanban
         self.config = config
         self.remote_git_config = remote_git_config or {}
+        self.disturbance_engine = disturbance_engine
 
     def _is_lead_dev(self, agent: BaseAgent) -> bool:
         """Check if agent is the development lead."""
@@ -185,6 +189,14 @@ class CodeGenPairingEngine:
         self._busy_agents.add(driver.config.role_id)
         self._busy_agents.add(navigator.config.role_id)
 
+        # Record reverse mentorship metric if junior is driver and navigator is senior
+        if driver.config.seniority == "junior" and navigator.config.seniority == "senior":
+            reverse_mentorship_events.labels(
+                junior_id=driver.config.role_id,
+                senior_id=navigator.config.role_id,
+                topic="implementation",
+            ).inc()
+
         start_time = datetime.utcnow()
         session_result: Dict = {
             "sprint": sprint_num,
@@ -226,7 +238,8 @@ class CodeGenPairingEngine:
 
             # Phase 3: Run tests if available
             if driver.runtime and self._has_tests(workspace):
-                test_result = await self._run_tests_with_iteration(driver, workspace)
+                card_id = task.get("id", "unknown")
+                test_result = await self._run_tests_with_iteration(driver, workspace, card_id=card_id)
                 session_result["test_results"] = test_result
 
                 # Extract real coverage metrics if available
@@ -389,9 +402,21 @@ class CodeGenPairingEngine:
         }
 
     async def _run_tests_with_iteration(
-        self, agent: BaseAgent, workspace: Path, max_iterations: int = 3
+        self, agent: BaseAgent, workspace: Path, max_iterations: int = 3, card_id: str = "unknown"
     ) -> Dict:
-        """Run tests and iterate on failures."""
+        """Run tests and iterate on failures.
+
+        Args:
+            agent: Agent executing tests
+            workspace: Workspace path
+            max_iterations: Maximum test/fix iterations
+            card_id: Card ID for disturbance detection
+
+        Returns:
+            Test result dict with passed, iterations, output, and test_history
+        """
+        test_history: List[Dict] = []  # Track results across iterations
+
         for iteration in range(max_iterations):
             # Agent uses run_tests tool via runtime
             test_prompt = "Run the tests using the run_tests tool. If tests fail, read the error output and fix the code."
@@ -400,22 +425,59 @@ class CodeGenPairingEngine:
                 task_description=test_prompt, max_turns=10
             )
 
-            # Check if tests passed (look for success in tool calls or output)
-            if (
+            # Parse test results
+            passed = (
                 "passed" in result["content"].lower()
                 or "all tests passed" in result["content"].lower()
-            ):
-                return {
+            )
+
+            # Track this iteration's results
+            test_history.append({
+                "iteration": iteration + 1,
+                "passed": passed,
+                "output": result["content"][:500],  # Truncate for storage
+            })
+
+            # Check if tests passed
+            if passed:
+                final_result = {
                     "passed": True,
                     "iterations": iteration + 1,
                     "output": result["content"],
+                    "test_history": test_history,
                 }
 
-        return {
+                # Detect flaky tests if we have multiple iterations with varying results
+                if self.disturbance_engine and len(test_history) > 1:
+                    pass_counts = [r["passed"] for r in test_history]
+                    if len(set(pass_counts)) > 1:  # Inconsistent results
+                        await self.disturbance_engine.detect_flaky_tests(
+                            card_id=card_id,
+                            test_results=test_history,
+                            kanban=self.kanban,
+                            db=self.db,
+                        )
+
+                return final_result
+
+        # Max iterations reached without passing
+        final_result = {
             "passed": False,
             "iterations": max_iterations,
             "output": result.get("content", "Tests did not pass after max iterations"),
+            "test_history": test_history,
         }
+
+        # Detect test failures after max iterations
+        if self.disturbance_engine:
+            await self.disturbance_engine.detect_test_failures(
+                card_id=card_id,
+                iteration_count=max_iterations,
+                final_result=final_result,
+                kanban=self.kanban,
+            )
+
+        return final_result
 
     async def _commit_changes(
         self, agent: BaseAgent, workspace: Path, task: Dict
