@@ -134,8 +134,24 @@ code_generation:
 
 # Agent definitions using new compositional structure
 # Each agent = individual personality + seniority + specialization(s) + role archetype
+#
+# Team Structure:
+# - Core Team: 11 agents (permanent team members)
+# - Language Specialists: 5 agents (for Sprint 0 infrastructure setup)
+# - External Consultants: 5 domains (on-demand via SpecialistConsultantSystem)
+#
+# Total: 16 agents defined in config + 5 external consultant domains
 models:
   agents:
+    # =========================================================================
+    # CORE TEAM (11 agents)
+    # =========================================================================
+    # The permanent team that works on all sprints.
+    # Composition: 2 Senior Devs, 2 Mid Devs, 2 Junior Devs, 2 Testers,
+    #              1 QA Lead, 1 Dev Lead, 1 Product Owner
+    # =========================================================================
+
+    # --- Senior Developers (2) ---
     alex_senior_networking:
       name: "Alex Chen (Senior Networking Specialist)"
       individual: alex_chen
@@ -166,6 +182,7 @@ models:
       temperature: 0.7
       max_tokens: 3072
 
+    # --- Mid-Level Developers (2) ---
     marcus_mid_backend:
       name: "Marcus Okafor (Mid-Level Backend Developer)"
       individual: marcus_okafor
@@ -196,6 +213,7 @@ models:
       temperature: 0.7
       max_tokens: 2048
 
+    # --- Junior Developers (2) ---
     jamie_junior_fullstack:
       name: "Jamie Rodriguez (Junior Full-Stack Developer)"
       individual: jamie_rodriguez
@@ -226,6 +244,7 @@ models:
       temperature: 0.8
       max_tokens: 2048
 
+    # --- Testers (2 + 1 QA Lead) ---
     yuki_senior_tester_integration:
       name: "Yuki Tanaka (Senior Integration Tester)"
       individual: yuki_tanaka
@@ -271,6 +290,7 @@ models:
       temperature: 0.7
       max_tokens: 4096
 
+    # --- Leaders (Dev Lead + Product Owner) ---
     ahmed_senior_dev_lead:
       name: "Ahmed Hassan (Development Lead)"
       individual: ahmed_hassan
@@ -301,7 +321,14 @@ models:
       temperature: 0.8
       max_tokens: 4096
 
-    # Language Specialists (for multi-language support)
+    # =========================================================================
+    # LANGUAGE SPECIALISTS (5 agents)
+    # =========================================================================
+    # Specialized developers for Sprint 0 multi-language infrastructure setup.
+    # They set up CI/CD, linters, formatters, and testing frameworks for each
+    # language. After Sprint 0, they can contribute to regular development.
+    # =========================================================================
+
     liam_senior_python:
       name: "Liam O'Brien (Senior Python Specialist)"
       individual: liam_obrien
@@ -376,6 +403,27 @@ models:
       model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
       temperature: 0.7
       max_tokens: 3072
+
+# =============================================================================
+# EXTERNAL CONSULTANTS (5 domains - NOT in config, created on-demand)
+# =============================================================================
+# Managed by SpecialistConsultantSystem (src/orchestrator/specialist_consultant.py)
+# Available domains (profiles in team_config/07_specialists/):
+#   - ml: Machine Learning / AI (training, deployment, debugging)
+#   - security: Auth, OWASP Top 10, secure coding
+#   - performance: Optimization, profiling, benchmarking
+#   - cloud: AWS, GCP, Azure, Kubernetes
+#   - architecture: System design, scalability, patterns
+#
+# Constraints:
+#   - Max 3 consultations per sprint (hard limit)
+#   - Velocity penalty: 2.0 story points per consultation
+#   - Only triggered when team lacks expertise for a blocker
+#   - Specialist pairs with junior/mid for knowledge transfer (1 day)
+#
+# Usage: Automatically detected during daily standups when Dev Lead identifies
+#        expertise gap blockers, or manually via SpecialistRequest.
+# =============================================================================
 
 database:
   url: "postgresql://postgres:password@shared-db:5432/team_context"
