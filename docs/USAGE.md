@@ -889,6 +889,8 @@ sprint-01/
 
 The metrics server starts automatically on port 8080.
 
+### Standard Sprint Metrics
+
 | Metric | Type | Description |
 |--------|------|-------------|
 | `sprint_velocity` | Gauge | Story points completed last sprint |
@@ -897,6 +899,29 @@ The metrics server starts automatically on port 8080.
 | `consensus_seconds` | Histogram | Time-to-consensus distribution |
 
 These are updated via `update_sprint_metrics()` after each sprint completes.
+
+### Custom Junior/Senior Metrics (NEW)
+
+Research-focused metrics tracking team dynamics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `junior_questions_total` | Counter | `junior_id`, `category`, `resulted_in_change` | Questions asked by juniors during ceremonies |
+| `reverse_mentorship_events` | Counter | `junior_id`, `senior_id`, `topic` | Junior-led pairing sessions (junior drives, senior navigates) |
+| `senior_learned_from_junior` | Counter | `senior_id`, `junior_id`, `learning_type` | Times senior updated knowledge based on junior input |
+| `junior_question_rate_per_sprint` | Gauge | `junior_id` | Number of questions per sprint per junior |
+| `question_dismissal_rate` | Gauge | `senior_id` | Percentage of junior questions dismissed without consideration |
+
+**Recording Points**:
+- `junior_questions_total`: Recorded during story refinement when juniors ask clarifying questions
+- `reverse_mentorship_events`: Recorded at pairing session start when junior is driver
+- Other metrics: Available for future enhancement
+
+**Research Value**: These metrics enable measurement of:
+- Junior engagement and curiosity
+- Reverse knowledge transfer (junior → senior)
+- Team learning culture health
+- Impact of junior developers on team outcomes
 
 **Access raw metrics:**
 

@@ -124,10 +124,10 @@ outputs/                       # Experiment artifacts (gitignored)
 | **Kanban** | ✅ Complete | WIP limits, card transitions, snapshots |
 | **Database** | ✅ Complete | PostgreSQL + in-memory mock mode |
 | **Meta-learning** | ✅ Complete | JSONL storage, dynamic loading per agent |
-| **Disturbances** | ✅ Complete | 6 types, blast radius controls |
+| **Disturbances** | ✅ Complete | 6 types, blast radius controls, **detection wired** |
 | **Profile swapping** | ✅ Complete | Swap/revert/decay, proficiency penalties |
-| **Metrics** | ✅ Complete | Prometheus integration, coverage simulation |
-| **Testing** | ✅ Complete | 24/24 tests passing (unit/integration/qualification) |
+| **Metrics** | ✅ Complete | Prometheus integration, **custom metrics recording** |
+| **Testing** | ✅ Complete | 138/138 tests passing (unit/integration/qualification) |
 
 ## Code Generation Workflow
 

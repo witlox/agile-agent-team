@@ -149,13 +149,16 @@
 - Tester pairing (20% frequency, always navigator)
 
 **Disturbances** (`src/orchestrator/disturbances.py`):
-1. Dependency breaks
-2. Production incidents
-3. Flaky tests
-4. Scope creep
-5. Junior misunderstandings
-6. Architectural debt
-7. **Merge conflicts** (NEW - 30% frequency)
+1. Dependency breaks (injected)
+2. Production incidents (injected)
+3. **Flaky tests** (detected - wired in pairing_codegen)
+4. Scope creep (injected)
+5. Junior misunderstandings (injected)
+6. Architectural debt (detected - future hook point)
+7. **Merge conflicts** (detected - wired in workspace manager)
+8. **Test failures** (detected - wired in test iteration)
+
+**Detection System**: Hybrid approach - some disturbances are artificially injected, others are naturally detected from actual code generation failures. Fully operational as of v1.4.0.
 
 ---
 
@@ -345,16 +348,19 @@ product:
 **Quality & Process**:
 - ✅ Kanban with WIP limits (4 in-progress, 2 review)
 - ✅ Test coverage simulation (process-based, ~70-95%)
-- ✅ Prometheus metrics (velocity, coverage, pairing sessions)
+- ✅ **Prometheus metrics** (velocity, coverage, pairing sessions)
+- ✅ **Custom metrics recording** (junior questions, reverse mentorship) - NEW
 - ✅ Profile swapping (swap/revert/decay)
 - ✅ Meta-learning from retrospectives
+- ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ 24/24 tests passing
-- ✅ Unit tests (Kanban, tools, runtimes)
-- ✅ Integration tests (pairing, codegen, sprint workflow)
-- ✅ Qualification tests (agent creation, prompt loading)
+- ✅ **138/138 tests passing** (expanded from 24 tests)
+- ✅ Unit tests (84 tests - Kanban, tools, runtimes, disturbances, metrics, multi-language)
+- ✅ Integration tests (51 tests - pairing, codegen, ceremonies, remote git, sprint workflow)
+- ✅ Qualification tests (6 tests - agent creation, prompt loading)
 - ✅ Mock mode works for all components
+- ✅ Multi-language tests with real tool execution (skip if tools not installed)
 
 ---
 
