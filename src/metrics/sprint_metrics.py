@@ -12,7 +12,9 @@ if TYPE_CHECKING:
 class SprintResult:
     velocity: int
     features_completed: int
-    test_coverage: float
+    test_coverage: float  # Real line coverage from pytest-cov
+    process_coverage: float  # Process-based coverage (TDD protocol adherence)
+    branch_coverage: float  # Real branch coverage from pytest-cov
     pairing_sessions: int
     cycle_time_avg: float
 
@@ -57,26 +59,47 @@ class SprintMetrics:
             if durations:
                 cycle_time_avg = sum(durations) / len(durations)
 
-        # Test coverage: weighted average of pairing session coverage estimates
-        test_coverage = 0.0
+        # Coverage metrics: weighted average across pairing sessions
+        test_coverage = 0.0  # Real line coverage
+        process_coverage = 0.0  # Process-based (TDD adherence)
+        branch_coverage = 0.0  # Real branch coverage
+
         if sessions:
             # Build a map of task_id -> story_points from done cards
             sp_map = {c.get("id"): c.get("story_points", 1) for c in sprint_done}
             total_weight = 0.0
-            weighted_sum = 0.0
+            line_cov_sum = 0.0
+            process_cov_sum = 0.0
+            branch_cov_sum = 0.0
+
             for s in sessions:
-                estimate = s.get("coverage_estimate")
-                if estimate is not None:
-                    weight = float(sp_map.get(s.get("task_id"), 1))
-                    weighted_sum += estimate * weight
-                    total_weight += weight
+                weight = float(sp_map.get(s.get("task_id"), 1))
+
+                # Real line coverage (from pytest-cov)
+                if s.get("line_coverage") is not None:
+                    line_cov_sum += s["line_coverage"] * weight
+
+                # Process coverage (TDD protocol adherence)
+                if s.get("process_coverage") is not None:
+                    process_cov_sum += s["process_coverage"] * weight
+
+                # Real branch coverage (from pytest-cov)
+                if s.get("branch_coverage") is not None:
+                    branch_cov_sum += s["branch_coverage"] * weight
+
+                total_weight += weight
+
             if total_weight > 0:
-                test_coverage = weighted_sum / total_weight
+                test_coverage = line_cov_sum / total_weight
+                process_coverage = process_cov_sum / total_weight
+                branch_coverage = branch_cov_sum / total_weight
 
         return SprintResult(
             velocity=velocity,
             features_completed=features_completed,
             test_coverage=test_coverage,
+            process_coverage=process_coverage,
+            branch_coverage=branch_coverage,
             pairing_sessions=pairing_sessions,
             cycle_time_avg=cycle_time_avg,
         )

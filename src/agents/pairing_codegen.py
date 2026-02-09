@@ -204,6 +204,30 @@ class CodeGenPairingEngine:
                 test_result = await self._run_tests_with_iteration(driver, workspace)
                 session_result["test_results"] = test_result
 
+                # Extract real coverage metrics if available
+                if "line_coverage" in test_result:
+                    session_result["line_coverage"] = test_result["line_coverage"]
+                    session_result["branch_coverage"] = test_result.get("branch_coverage", 0.0)
+                    session_result["covered_lines"] = test_result.get("covered_lines", 0)
+                    session_result["total_lines"] = test_result.get("total_lines", 0)
+
+                # Calculate process-based coverage (how well TDD protocol was followed)
+                # This is complementary to real coverage
+                checkpoints_completed = impl_result.get("checkpoints_completed", 0)
+                base_coverage = 70.0
+                per_checkpoint = 3.5
+                consensus_bonus = 5.0 if impl_result.get("consensus", False) else 0.0
+                max_coverage = 95.0
+                process_coverage = min(
+                    base_coverage + checkpoints_completed * per_checkpoint + consensus_bonus,
+                    max_coverage,
+                )
+                session_result["process_coverage"] = process_coverage
+
+                # For backward compatibility, coverage_estimate uses real coverage if available
+                # Falls back to process coverage if real coverage not available
+                session_result["coverage_estimate"] = session_result.get("line_coverage", process_coverage)
+
             # Phase 4: Commit if tests pass
             if session_result.get("test_results", {}).get("passed", False):
                 commit_sha = await self._commit_changes(driver, workspace, task)

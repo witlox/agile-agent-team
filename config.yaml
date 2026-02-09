@@ -125,6 +125,13 @@ code_generation:
     # fresh: Delete and re-clone each time (greenfield default)
     # incremental: Reuse workspace, pull latest (brownfield)
 
+  # Code coverage configuration
+  coverage:
+    enabled: true  # Collect real code coverage with pytest-cov
+    source: "src"  # Directory to measure coverage for
+    min_line_coverage: 85  # Minimum line coverage for Definition of Done
+    min_branch_coverage: 80  # Minimum branch coverage for Definition of Done
+
 # Agent definitions using new compositional structure
 # Each agent = individual personality + seniority + specialization(s) + role archetype
 models:

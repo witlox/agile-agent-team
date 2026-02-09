@@ -1,6 +1,8 @@
 """Test execution tools for agents."""
 
 import asyncio
+import json
+from pathlib import Path
 from typing import Dict, Any
 
 from .base import Tool, ToolResult
@@ -36,6 +38,16 @@ class RunTestsTool(Tool):
                     "type": "string",
                     "description": "Pytest markers to filter (e.g., 'not slow')",
                     "default": ""
+                },
+                "collect_coverage": {
+                    "type": "boolean",
+                    "description": "Collect code coverage metrics using pytest-cov",
+                    "default": True
+                },
+                "coverage_source": {
+                    "type": "string",
+                    "description": "Source directory to measure coverage for",
+                    "default": "src"
                 }
             }
         }
@@ -44,9 +56,11 @@ class RunTestsTool(Tool):
         self,
         path: str = "tests/",
         verbose: bool = False,
-        markers: str = ""
+        markers: str = "",
+        collect_coverage: bool = True,
+        coverage_source: str = "src"
     ) -> ToolResult:
-        """Run pytest tests."""
+        """Run pytest tests with optional coverage collection."""
         try:
             # Build pytest command
             cmd = ["pytest", path]
@@ -58,6 +72,15 @@ class RunTestsTool(Tool):
 
             if markers:
                 cmd.extend(["-m", markers])
+
+            # Add coverage collection if enabled
+            if collect_coverage:
+                cmd.extend([
+                    f"--cov={coverage_source}",  # Measure coverage of source
+                    "--cov-report=json",  # Generate JSON report
+                    "--cov-report=term-missing",  # Show missing lines in terminal
+                    "--cov-branch"  # Include branch coverage
+                ])
 
             # Add options for clean output
             cmd.extend([
@@ -96,6 +119,12 @@ class RunTestsTool(Tool):
 
             # Parse output for summary
             summary = self._parse_test_summary(output)
+
+            # Parse coverage if collected
+            if collect_coverage:
+                coverage_data = self._parse_coverage_json()
+                if coverage_data:
+                    summary.update(coverage_data)
 
             return ToolResult(
                 success=success,
@@ -146,6 +175,43 @@ class RunTestsTool(Tool):
         summary["total"] = summary["passed"] + summary["failed"] + summary["errors"]
 
         return summary
+
+    def _parse_coverage_json(self) -> Dict:
+        """Parse coverage.json for line and branch coverage metrics."""
+        coverage_file = Path(self.workspace) / "coverage.json"
+
+        if not coverage_file.exists():
+            return {}
+
+        try:
+            coverage_data = json.loads(coverage_file.read_text())
+            totals = coverage_data.get("totals", {})
+
+            # Extract line coverage
+            num_statements = totals.get("num_statements", 0)
+            covered_lines = totals.get("covered_lines", 0)
+            line_coverage = (covered_lines / num_statements * 100) if num_statements > 0 else 0.0
+
+            # Extract branch coverage
+            num_branches = totals.get("num_branches", 0)
+            covered_branches = totals.get("covered_branches", 0)
+            branch_coverage = (covered_branches / num_branches * 100) if num_branches > 0 else 0.0
+
+            # Extract missing lines count
+            missing_lines = totals.get("missing_lines", 0)
+
+            return {
+                "line_coverage": round(line_coverage, 1),
+                "branch_coverage": round(branch_coverage, 1),
+                "covered_lines": covered_lines,
+                "total_lines": num_statements,
+                "covered_branches": covered_branches,
+                "total_branches": num_branches,
+                "missing_lines": missing_lines
+            }
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            # If coverage parsing fails, return empty dict
+            return {}
 
 
 class RunBDDTestsTool(Tool):

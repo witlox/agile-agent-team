@@ -12,7 +12,7 @@ This guide covers everything you need to run experiments with agents that **gene
 6. [Disturbance injection](#6-disturbance-injection)
 7. [Profile swapping](#7-profile-swapping)
 8. [Team culture features](#8-team-culture-features)
-9. [Simulated test coverage](#9-simulated-test-coverage)
+9. [Test coverage (Hybrid: Real + Process)](#9-test-coverage-hybrid-real--process)
 10. [Sprint artifacts](#10-sprint-artifacts)
 11. [Prometheus metrics](#11-prometheus-metrics)
 
@@ -567,7 +567,7 @@ The system auto-generates Gherkin feature files from these scenarios.
 
 ---
 
-## 5. Disturbance injection
+## 6. Disturbance injection
 
 Disturbances are controlled-chaos events that fire probabilistically each sprint. They model realistic team stress.
 
@@ -614,7 +614,7 @@ disturbances:
 
 ---
 
-## 6. Profile swapping
+## 7. Profile swapping
 
 Profile swapping lets agents temporarily work outside their specialisation. It models cross-training, incidents, and organizational resilience.
 
@@ -657,7 +657,7 @@ The `BaseAgent.is_swapped` property returns `True` while a swap is active. Swap 
 
 ---
 
-## 7. Team culture features
+## 8. Team culture features
 
 ### Role-Based Pairing
 
@@ -702,11 +702,32 @@ Pairing role assignment follows team culture:
 
 ---
 
-## 8. Simulated test coverage
+## 9. Test coverage (Hybrid: Real + Process)
 
-Test coverage is a **process-based simulation** — it measures how thoroughly the TDD pairing protocol was followed.
+The system tracks **two types of coverage** to measure both code quality and process adherence:
 
-### Formula
+### Real Coverage (pytest-cov)
+
+**Actual line and branch coverage** from pytest-cov, measuring how much of the generated code is tested:
+
+- Collected automatically during test execution via `--cov=src --cov-branch`
+- Parses `coverage.json` for precise metrics
+- Stored per session: `line_coverage`, `branch_coverage`, `covered_lines`, `total_lines`
+- Sprint-level: story-point-weighted average across sessions
+
+**Example metrics:**
+```json
+{
+  "line_coverage": 87.5,
+  "branch_coverage": 82.3,
+  "covered_lines": 145,
+  "total_lines": 166
+}
+```
+
+### Process Coverage (TDD Protocol Adherence)
+
+**Process-based metric** measuring how thoroughly the TDD pairing protocol was followed:
 
 ```
 base_coverage = 70.0        # floor if no TDD checkpoints
@@ -714,24 +735,75 @@ per_checkpoint = 3.5        # each completed checkpoint adds coverage
 consensus_bonus = 5.0       # both agents approve → bonus
 max_coverage = 95.0
 
-session_coverage = min(base + checkpoints_completed * per_checkpoint + bonus, max)
+process_coverage = min(base + checkpoints_completed * per_checkpoint + bonus, max)
 ```
 
-With the default 4-checkpoint protocol and consensus:
-- Coverage per session ≈ 70 + 4×3.5 + 5 = **89%**
+With default 4-checkpoint protocol + consensus:
+- Process coverage ≈ 70 + 4×3.5 + 5 = **89%**
 
-If an agent is swapped in (extra checkpoint from 20% slowdown):
-- 5 checkpoints → 70 + 5×3.5 + 5 = **92.5%** (more careful review)
+If agent is swapped (extra checkpoint from 20% slowdown):
+- 5 checkpoints → 70 + 5×3.5 + 5 = **92.5%**
 
-### Sprint-level aggregation
+### Why Track Both?
 
-Sprint coverage = story-point-weighted average across completed sessions:
+| Metric | Measures | Research Value |
+|--------|----------|----------------|
+| **Real coverage** | Code quality | How thoroughly agents test their implementations |
+| **Process coverage** | Team discipline | How well agents follow TDD practices |
+
+**Example insights:**
+- High process, low real → Team follows protocol but writes ineffective tests
+- Low process, high real → Team skips checkpoints but writes good tests anyway
+- High both → Mature team with strong practices
+- Low both → Red flag for team dynamics
+
+### Sprint-Level Aggregation
+
+All coverage metrics are story-point-weighted averages:
 
 ```
-sprint_coverage = Σ(session_coverage × story_points) / Σ(story_points)
+sprint_metric = Σ(session_metric × story_points) / Σ(story_points)
 ```
 
-This appears in `final_report.json` as `test_coverage` and is exported to the `test_coverage_percent` Prometheus gauge.
+Appears in `final_report.json`:
+```json
+{
+  "sprint": 1,
+  "test_coverage": 87.5,      # Real line coverage
+  "branch_coverage": 82.3,    # Real branch coverage
+  "process_coverage": 89.0    # TDD protocol adherence
+}
+```
+
+### Prometheus Metrics
+
+Three gauges exported:
+- `test_coverage_percent` - Real line coverage from pytest-cov
+- `branch_coverage_percent` - Real branch coverage from pytest-cov
+- `process_coverage_percent` - Process-based TDD adherence
+
+### Configuration
+
+```yaml
+code_generation:
+  coverage:
+    enabled: true  # Collect real coverage (default)
+    source: "src"  # Directory to measure
+    min_line_coverage: 85
+    min_branch_coverage: 80
+```
+
+### Disabling Real Coverage
+
+To use only process-based coverage (faster, no pytest-cov overhead):
+
+```yaml
+code_generation:
+  coverage:
+    enabled: false
+```
+
+Agents will still run tests, but won't collect coverage metrics.
 
 ---
 
