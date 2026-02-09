@@ -45,16 +45,52 @@ class AgentFactory:
         self.agent_model_configs: Dict[str, Dict] = agent_model_configs or {}
 
     async def create_all_agents(self) -> List[BaseAgent]:
-        """Load all agent configurations and create instances."""
+        """Load all agent configurations and create instances.
+
+        Supports two modes:
+        1. NEW: agent_model_configs has detailed agent definitions with individual/seniority/specializations
+        2. LEGACY: Discover from 02_individuals/*.md files
+        """
         agents: List[BaseAgent] = []
 
-        individuals_dir = self.config_dir / "02_individuals"
-        for profile_file in sorted(individuals_dir.glob("*.md")):
-            config = self._parse_agent_config(profile_file)
-            agent = BaseAgent(config, self.vllm_endpoint)
-            agents.append(agent)
+        # Check if any agent config has the new fields (individual, seniority, etc.)
+        has_new_structure = any(
+            isinstance(cfg, dict) and ("individual" in cfg or "seniority" in cfg)
+            for cfg in self.agent_model_configs.values()
+        )
+
+        if has_new_structure:
+            # NEW: Create agents from config.yaml definitions
+            for agent_id, agent_cfg in self.agent_model_configs.items():
+                if isinstance(agent_cfg, dict):
+                    config = self._create_agent_config_new(agent_id, agent_cfg)
+                    agent = BaseAgent(config, self.vllm_endpoint)
+                    agents.append(agent)
+        else:
+            # LEGACY: Discover from 02_individuals/*.md files
+            individuals_dir = self.config_dir / "02_individuals"
+            if individuals_dir.exists():
+                for profile_file in sorted(individuals_dir.glob("*.md")):
+                    config = self._parse_agent_config(profile_file)
+                    agent = BaseAgent(config, self.vllm_endpoint)
+                    agents.append(agent)
 
         return agents
+
+    def _create_agent_config_new(self, agent_id: str, agent_cfg: Dict) -> AgentConfig:
+        """Create AgentConfig from new structure (individual + seniority + specializations)."""
+        return AgentConfig(
+            role_id=agent_id,
+            name=agent_cfg.get("name", agent_id),
+            individual=agent_cfg.get("individual", ""),
+            seniority=agent_cfg.get("seniority", ""),
+            specializations=agent_cfg.get("specializations", []),
+            role_archetype=agent_cfg.get("role_archetype", "developer"),
+            demographics=agent_cfg.get("demographics", {}),
+            model=agent_cfg.get("model", _DEFAULT_MODEL),
+            temperature=float(agent_cfg.get("temperature", _DEFAULT_TEMPERATURE)),
+            max_tokens=int(agent_cfg.get("max_tokens", _DEFAULT_MAX_TOKENS)),
+        )
 
     def _parse_agent_config(self, profile_path: Path) -> AgentConfig:
         """Parse agent profile to extract config.

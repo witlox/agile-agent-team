@@ -2,7 +2,7 @@
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -16,7 +16,12 @@ class AgentConfig:
     model: str
     temperature: float
     max_tokens: int
-    prompt_path: str
+    individual: str = ""                      # Personality file (e.g., "jamie_rodriguez")
+    seniority: str = ""                       # junior | mid | senior
+    specializations: List[str] = field(default_factory=list)  # List of specialization files
+    role_archetype: str = ""                  # developer | tester | leader
+    demographics: Dict[str, str] = field(default_factory=dict)  # pronouns, cultural_background, etc.
+    prompt_path: str = ""                     # DEPRECATED (for backward compatibility)
 
 
 # Canned responses used in mock mode, keyed by role_id
@@ -93,13 +98,110 @@ class BaseAgent:
         return self._swap_state is not None
 
     def _load_prompt(self) -> str:
-        """Load and compose agent prompt from config files.
+        """Load and compose agent prompt from layered config files.
 
-        Layers:
-        1. 00_base/base_agent.md  (universal)
-        2. 01_role_archetypes/<archetype>.md  (parsed from **Inherits**: line)
-        3. Individual profile at prompt_path
+        Composition order (NEW ARCHITECTURE):
+        1. 00_base/base_agent.md (universal)
+        2. 01_role_archetypes/{developer,tester,leader}.md
+        3. 02_seniority/{junior,mid,senior}.md
+        4. 03_specializations/{spec1,spec2,...}.md (multiple)
+        5. 04_domain_knowledge/ (layered by seniority)
+        6. 05_individuals/{name}.md
+        7. Demographic modifiers (applied as text)
+
+        Falls back to old prompt_path system if new fields not present.
         """
+        # Backward compatibility: use old system if new fields not populated
+        if not self.config.individual and self.config.prompt_path:
+            return self._load_prompt_legacy()
+
+        # Determine team_config directory
+        # Try to find it from environment or default location
+        team_config_dir = Path(os.environ.get("TEAM_CONFIG_DIR", "team_config"))
+        if not team_config_dir.exists():
+            # Try relative to this file's location
+            team_config_dir = Path(__file__).parent.parent.parent / "team_config"
+
+        if not team_config_dir.exists():
+            return "You are a helpful software engineering team member."
+
+        parts: List[str] = []
+
+        # 1. Base agent (universal)
+        base_path = team_config_dir / "00_base" / "base_agent.md"
+        if base_path.exists():
+            parts.append(base_path.read_text())
+
+        # 2. Role archetype(s)
+        if self.config.role_archetype:
+            archetypes = self.config.role_archetype.split("+")  # Support "developer+leader"
+            for archetype in archetypes:
+                arch_path = team_config_dir / "01_role_archetypes" / f"{archetype.strip()}.md"
+                if arch_path.exists():
+                    parts.append(arch_path.read_text())
+
+        # 3. Seniority level
+        if self.config.seniority:
+            seniority_path = team_config_dir / "02_seniority" / f"{self.config.seniority}.md"
+            if seniority_path.exists():
+                parts.append(seniority_path.read_text())
+
+        # 4. Specializations (multiple allowed)
+        for spec in self.config.specializations:
+            spec_path = team_config_dir / "03_specializations" / f"{spec}.md"
+            if spec_path.exists():
+                parts.append(spec_path.read_text())
+
+        # 5. Domain knowledge (layered by seniority)
+        domain_dir = team_config_dir / "04_domain_knowledge"
+        if domain_dir.exists():
+            # Always load base product context
+            base_domain = domain_dir / "00_saas_project_management.md"
+            if base_domain.exists():
+                parts.append(base_domain.read_text())
+
+            # Load seniority-specific domain knowledge (cumulative)
+            if self.config.seniority == "junior":
+                junior_domain = domain_dir / "01_junior_domain.md"
+                if junior_domain.exists():
+                    parts.append(junior_domain.read_text())
+            elif self.config.seniority == "mid":
+                junior_domain = domain_dir / "01_junior_domain.md"
+                mid_domain = domain_dir / "02_mid_domain.md"
+                if junior_domain.exists():
+                    parts.append(junior_domain.read_text())
+                if mid_domain.exists():
+                    parts.append(mid_domain.read_text())
+            elif self.config.seniority == "senior":
+                junior_domain = domain_dir / "01_junior_domain.md"
+                mid_domain = domain_dir / "02_mid_domain.md"
+                senior_domain = domain_dir / "03_senior_domain.md"
+                if junior_domain.exists():
+                    parts.append(junior_domain.read_text())
+                if mid_domain.exists():
+                    parts.append(mid_domain.read_text())
+                if senior_domain.exists():
+                    parts.append(senior_domain.read_text())
+
+        # 6. Individual personality
+        if self.config.individual:
+            individual_path = team_config_dir / "05_individuals" / f"{self.config.individual}.md"
+            if individual_path.exists():
+                parts.append(individual_path.read_text())
+
+        # 7. Demographic modifiers (injected as text)
+        if self.config.demographics:
+            demo_text = "\n\n[DEMOGRAPHIC CONTEXT]\n"
+            if "pronouns" in self.config.demographics:
+                demo_text += f"Pronouns: {self.config.demographics['pronouns']}\n"
+            if "cultural_background" in self.config.demographics:
+                demo_text += f"Cultural Background: {self.config.demographics['cultural_background']}\n"
+            parts.append(demo_text)
+
+        return "\n\n---\n\n".join(parts)
+
+    def _load_prompt_legacy(self) -> str:
+        """Legacy prompt loading for backward compatibility."""
         if not self.config.prompt_path:
             return "You are a helpful software engineering team member."
 
@@ -107,25 +209,21 @@ class BaseAgent:
         if not profile_path.exists():
             return "You are a helpful software engineering team member."
 
-        team_config_dir = profile_path.parent.parent  # 02_individuals/../ = team_config/
+        team_config_dir = profile_path.parent.parent
 
-        # Parse **Inherits**: line from individual profile
         profile_text = profile_path.read_text()
         inherit_match = re.search(r"\*\*Inherits\*\*:?\s*(.+)", profile_text)
         archetype_files: List[str] = []
         if inherit_match:
             raw = inherit_match.group(1)
-            # Extract filenames like developer.md, leader.md, base_agent.md
             archetype_files = re.findall(r"`?(\w[\w.-]*\.md)`?", raw)
 
         parts: List[str] = []
 
-        # 1. Base prompt
         base_path = team_config_dir / "00_base" / "base_agent.md"
         if base_path.exists():
             parts.append(base_path.read_text())
 
-        # 2. Role archetypes (exclude base_agent.md already loaded)
         archetypes_dir = team_config_dir / "01_role_archetypes"
         for fname in archetype_files:
             if fname == "base_agent.md":
@@ -134,7 +232,6 @@ class BaseAgent:
             if arch_path.exists():
                 parts.append(arch_path.read_text())
 
-        # 3. Individual profile
         parts.append(profile_text)
 
         return "\n\n---\n\n".join(parts)

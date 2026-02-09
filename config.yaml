@@ -43,41 +43,151 @@ disturbances:
 models:
   vllm_endpoint: "http://vllm-gh200-module-1:8000"
 
+  # Agent definitions using new compositional structure
+  # Each agent = individual personality + seniority + specialization(s) + role archetype
   agents:
-    dev_lead:
-      model: "Qwen/Qwen2.5-Coder-32B-Instruct"
-      temperature: 0.7
-      max_tokens: 4096
-
-    qa_lead:
-      model: "Qwen/Qwen2.5-72B-Instruct"
-      temperature: 0.7
-      max_tokens: 4096
-
-    po:
-      model: "Qwen/Qwen2.5-72B-Instruct"
-      temperature: 0.8
-      max_tokens: 4096
-
-    developers_sr:
+    alex_senior_networking:
+      name: "Alex Chen (Senior Networking Specialist)"
+      individual: alex_chen
+      seniority: senior
+      specializations: [networking, security]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
       model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
       temperature: 0.7
       max_tokens: 3072
 
-    developers_mid:
+    priya_senior_devops:
+      name: "Priya Sharma (Senior DevOps Specialist)"
+      individual: priya_sharma
+      seniority: senior
+      specializations: [devops, cloud_architecture]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Indian"
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    marcus_mid_backend:
+      name: "Marcus Okafor (Mid-Level Backend Developer)"
+      individual: marcus_okafor
+      seniority: mid
+      specializations: [backend, api_design]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Nigerian"
       model: "Qwen/Qwen2.5-Coder-14B-Instruct"
       temperature: 0.7
       max_tokens: 2048
 
-    developers_jr:
+    elena_mid_frontend:
+      name: "Elena Volkov (Mid-Level Frontend Developer)"
+      individual: elena_volkov
+      seniority: mid
+      specializations: [frontend, ui_ux]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Russian"
+      model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    jamie_junior_fullstack:
+      name: "Jamie Rodriguez (Junior Full-Stack Developer)"
+      individual: jamie_rodriguez
+      seniority: junior
+      specializations: [backend, frontend]
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Mexican-American"
       model: "Qwen/Qwen2.5-Coder-7B-Instruct"
       temperature: 0.8
       max_tokens: 2048
 
-    testers:
+    jordan_junior_backend:
+      name: "Jordan Kim (Junior Backend Developer)"
+      individual: jordan_kim
+      seniority: junior
+      specializations: [backend, database]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Korean-American"
+      model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+      temperature: 0.8
+      max_tokens: 2048
+
+    yuki_senior_tester_integration:
+      name: "Yuki Tanaka (Senior Integration Tester)"
+      individual: yuki_tanaka
+      seniority: senior
+      specializations: [test_automation, backend]
+      role_archetype: tester
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Japanese"
       model: "Qwen/Qwen2.5-14B-Instruct"
       temperature: 0.7
       max_tokens: 2048
+
+    maria_mid_tester_e2e:
+      name: "Maria Santos (Mid-Level E2E Tester)"
+      individual: maria_santos
+      seniority: mid
+      specializations: [test_automation, frontend]
+      role_archetype: tester
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Brazilian"
+      model: "Qwen/Qwen2.5-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    sophie_senior_qa_lead:
+      name: "Sophie Dubois (QA Lead)"
+      individual: sophie_dubois
+      seniority: senior
+      specializations: [test_automation, performance_optimization]
+      role_archetype: tester+leader
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "French"
+      model: "Qwen/Qwen2.5-72B-Instruct"
+      temperature: 0.7
+      max_tokens: 4096
+
+    ahmed_senior_dev_lead:
+      name: "Ahmed Hassan (Development Lead)"
+      individual: ahmed_hassan
+      seniority: senior
+      specializations: [backend, distributed_systems]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Egyptian"
+      model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+      temperature: 0.7
+      max_tokens: 4096
+
+    alex_senior_po:
+      name: "Alex Chen (Product Owner)"
+      individual: alex_chen  # Reusing personality (allowed)
+      seniority: senior
+      specializations: [api_design]
+      role_archetype: leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      model: "Qwen/Qwen2.5-72B-Instruct"
+      temperature: 0.8
+      max_tokens: 4096
 
 database:
   url: "postgresql://postgres:password@shared-db:5432/team_context"
