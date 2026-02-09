@@ -250,19 +250,19 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
             mid = [a for a in matching_devs if a.config.seniority == "mid"]
 
             if senior:
-                return senior[0].agent_id
+                return senior[0].config.role_id
             elif mid:
-                return mid[0].agent_id
+                return mid[0].config.role_id
             else:
-                return matching_devs[0].agent_id
+                return matching_devs[0].config.role_id
 
         # Fallback: Pick any senior developer
         seniors = [a for a in self.team if a.config.seniority == "senior"]
         if seniors:
-            return seniors[0].agent_id
+            return seniors[0].config.role_id
 
         # Last resort: Pick first developer
-        return self.team[0].agent_id if self.team else "unknown"
+        return self.team[0].config.role_id if self.team else "unknown"
 
     async def _assign_initial_navigator(self, owner: str, task: Dict) -> str:
         """Assign initial navigator (Day 1 pair) for task owner.
@@ -270,14 +270,14 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
         Prefer someone with complementary skills.
         """
         # Find owner agent
-        owner_agent = next((a for a in self.team if a.agent_id == owner), None)
+        owner_agent = next((a for a in self.team if a.config.role_id == owner), None)
 
         if not owner_agent:
             # Fallback
-            return self.team[0].agent_id if self.team else owner
+            return self.team[0].config.role_id if self.team else owner
 
         # Find available navigators (not the owner)
-        candidates = [a for a in self.team if a.agent_id != owner]
+        candidates = [a for a in self.team if a.config.role_id != owner]
 
         if not candidates:
             return owner  # Fallback (solo work)
@@ -287,16 +287,16 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
             # Senior pairs with junior/mid for mentoring
             juniors = [a for a in candidates if a.config.seniority in ["junior", "mid"]]
             if juniors:
-                return random.choice(juniors).agent_id
+                return random.choice(juniors).config.role_id
 
         elif owner_agent.config.seniority == "junior":
             # Junior pairs with senior for learning
             seniors = [a for a in candidates if a.config.seniority == "senior"]
             if seniors:
-                return random.choice(seniors).agent_id
+                return random.choice(seniors).config.role_id
 
         # Default: Random pairing
-        return random.choice(candidates).agent_id
+        return random.choice(candidates).config.role_id
 
     def _simple_breakdown(self, story) -> List[Dict]:
         """Simple fallback breakdown when no dev lead available."""
@@ -309,12 +309,12 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
                     "title": f"{story.title} - Part {i+1}",
                     "description": f"Implementation task {i+1}",
                     "estimated_hours": 8,
-                    "owner": self.team[i % len(self.team)].agent_id
+                    "owner": self.team[i % len(self.team)].config.role_id
                     if self.team
                     else "unknown",
-                    "initial_navigator": self.team[(i + 1) % len(self.team)].agent_id
+                    "initial_navigator": self.team[(i + 1) % len(self.team)].config.role_id
                     if len(self.team) > 1
-                    else self.team[0].agent_id,
+                    else self.team[0].config.role_id,
                 }
             )
 

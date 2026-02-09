@@ -159,7 +159,7 @@ Focus on requirements, not implementation. (2-3 sentences max)"""
             clarifications.append(
                 {
                     "agent": agent.config.name,
-                    "agent_id": agent.agent_id,
+                    "agent_id": agent.config.role_id,
                     "question": question,
                     "answer": answer.strip(),
                 }

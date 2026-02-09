@@ -139,7 +139,7 @@ class SprintReviewSession:
         """Team member demonstrates completed story."""
 
         # Find who worked on this story (use dev lead or any developer)
-        presenter = self.dev_lead.agent_id if self.dev_lead else "team"
+        presenter = self.dev_lead.config.role_id if self.dev_lead else "team"
 
         # Generate demo narrative
         demo_summary = await self._generate_demo_narrative(story, sprint_num)
