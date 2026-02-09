@@ -5,9 +5,12 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 import httpx
+
+if TYPE_CHECKING:
+    from .runtime import AgentRuntime
 
 
 @dataclass
@@ -41,11 +44,22 @@ _MOCK_RESPONSES: Dict[str, str] = {
 
 
 class BaseAgent:
-    """LLM-backed agent with a composed system prompt."""
+    """LLM-backed agent with a composed system prompt.
 
-    def __init__(self, config: AgentConfig, vllm_endpoint: str):
+    Can operate in two modes:
+    1. Legacy mode: Direct text generation via vLLM (for dialogue/planning)
+    2. Runtime mode: Tool-using agent for code generation (requires runtime)
+    """
+
+    def __init__(
+        self,
+        config: AgentConfig,
+        vllm_endpoint: str,
+        runtime: Optional["AgentRuntime"] = None
+    ):
         self.config = config
         self.vllm_endpoint = vllm_endpoint
+        self.runtime = runtime  # Optional runtime for tool use
         self.prompt = self._load_prompt()
         self.conversation_history: List[Dict] = []
         self.learning_history: List[Dict] = []
@@ -283,3 +297,62 @@ class BaseAgent:
             parts.append(f"\nCurrent Context:\n{context}")
         parts.append(f"\n{message}")
         return "\n".join(parts)
+
+    async def execute_coding_task(
+        self,
+        task_description: str,
+        max_turns: int = 20
+    ) -> Dict:
+        """Execute a coding task using the agent's runtime (with tools).
+
+        This is the new method for code generation tasks. It uses the runtime's
+        agentic loop with tool use (read/write files, run tests, git, etc.)
+
+        Args:
+            task_description: Description of the coding task
+            max_turns: Maximum number of agentic turns
+
+        Returns:
+            Dict with execution results including files_changed, success, etc.
+
+        Raises:
+            RuntimeError: If no runtime is configured for this agent
+        """
+        if self.runtime is None:
+            raise RuntimeError(
+                f"Agent {self.config.role_id} has no runtime configured. "
+                "Cannot execute coding tasks without tool access."
+            )
+
+        result = await self.runtime.execute_task(
+            system_prompt=self.prompt,
+            user_message=task_description,
+            max_turns=max_turns
+        )
+
+        # Log to conversation history
+        self.conversation_history.append({
+            "role": "user",
+            "content": task_description,
+            "type": "coding_task"
+        })
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": result.content,
+            "type": "coding_task_result",
+            "metadata": {
+                "turns": result.turns,
+                "tool_calls": len(result.tool_calls),
+                "files_changed": result.files_changed,
+                "success": result.success
+            }
+        })
+
+        return {
+            "success": result.success,
+            "content": result.content,
+            "files_changed": result.files_changed,
+            "tool_calls": result.tool_calls,
+            "turns": result.turns,
+            "error": result.error
+        }
