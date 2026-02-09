@@ -43,8 +43,54 @@ disturbances:
 models:
   vllm_endpoint: "http://vllm-gh200-module-1:8000"
 
-  # Agent definitions using new compositional structure
-  # Each agent = individual personality + seniority + specialization(s) + role archetype
+# Runtime configurations for tool-using agents
+runtimes:
+  # Anthropic (Claude) runtime - requires API key and internet
+  anthropic:
+    enabled: true
+    api_key_env: "ANTHROPIC_API_KEY"
+    default_model: "claude-sonnet-4-5"
+    fallback_model: "claude-opus-4-6"
+    max_tokens: 8192
+
+  # Local vLLM runtime - fully offline, uses self-hosted models
+  local_vllm:
+    enabled: true
+    endpoint: "http://vllm-gh200-module-1:8000"
+    tool_use_protocol: "xml"  # XML-based tool calling
+    max_tokens: 8192
+    temperature: 0.7
+
+  # Shared tool configuration
+  tools:
+    workspace_root: "/tmp/agent-workspace"  # Base directory for code generation
+    allowed_commands:
+      - "git"
+      - "pytest"
+      - "python"
+      - "pip"
+      - "mypy"
+      - "black"
+      - "ruff"
+      - "npm"
+      - "node"
+      - "ls"
+      - "cat"
+      - "grep"
+      - "find"
+      - "mkdir"
+      - "echo"
+    blocked_patterns:
+      - "rm -rf /"
+      - "dd if="
+      - "mkfs"
+      - "sudo"
+      - "curl.*|.*bash"
+      - "wget.*|.*sh"
+
+# Agent definitions using new compositional structure
+# Each agent = individual personality + seniority + specialization(s) + role archetype
+models:
   agents:
     alex_senior_networking:
       name: "Alex Chen (Senior Networking Specialist)"
@@ -55,6 +101,8 @@ models:
       demographics:
         pronouns: "he/him"
         cultural_background: "Chinese-American"
+      runtime: "local_vllm"  # Can use: local_vllm | anthropic
+      tools: ["filesystem", "git", "bash"]  # Available tools
       model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
       temperature: 0.7
       max_tokens: 3072
@@ -68,6 +116,8 @@ models:
       demographics:
         pronouns: "she/her"
         cultural_background: "Indian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
       model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
       temperature: 0.7
       max_tokens: 3072
@@ -81,6 +131,8 @@ models:
       demographics:
         pronouns: "he/him"
         cultural_background: "Nigerian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git"]
       model: "Qwen/Qwen2.5-Coder-14B-Instruct"
       temperature: 0.7
       max_tokens: 2048
@@ -94,6 +146,8 @@ models:
       demographics:
         pronouns: "she/her"
         cultural_background: "Russian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git"]
       model: "Qwen/Qwen2.5-Coder-14B-Instruct"
       temperature: 0.7
       max_tokens: 2048
@@ -107,6 +161,8 @@ models:
       demographics:
         pronouns: "they/them"
         cultural_background: "Mexican-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]  # Limited tools for juniors
       model: "Qwen/Qwen2.5-Coder-7B-Instruct"
       temperature: 0.8
       max_tokens: 2048
@@ -120,6 +176,8 @@ models:
       demographics:
         pronouns: "he/him"
         cultural_background: "Korean-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
       model: "Qwen/Qwen2.5-Coder-7B-Instruct"
       temperature: 0.8
       max_tokens: 2048
@@ -133,6 +191,8 @@ models:
       demographics:
         pronouns: "they/them"
         cultural_background: "Japanese"
+      runtime: "local_vllm"
+      tools: ["filesystem", "bash"]  # Testers need to run tests
       model: "Qwen/Qwen2.5-14B-Instruct"
       temperature: 0.7
       max_tokens: 2048
@@ -146,6 +206,8 @@ models:
       demographics:
         pronouns: "she/her"
         cultural_background: "Brazilian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "bash"]
       model: "Qwen/Qwen2.5-14B-Instruct"
       temperature: 0.7
       max_tokens: 2048
@@ -159,6 +221,8 @@ models:
       demographics:
         pronouns: "she/her"
         cultural_background: "French"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
       model: "Qwen/Qwen2.5-72B-Instruct"
       temperature: 0.7
       max_tokens: 4096
@@ -172,6 +236,8 @@ models:
       demographics:
         pronouns: "he/him"
         cultural_background: "Egyptian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
       model: "Qwen/Qwen2.5-Coder-32B-Instruct"
       temperature: 0.7
       max_tokens: 4096
@@ -185,6 +251,8 @@ models:
       demographics:
         pronouns: "he/him"
         cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]  # PO only needs to read, not write
       model: "Qwen/Qwen2.5-72B-Instruct"
       temperature: 0.8
       max_tokens: 4096

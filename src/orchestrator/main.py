@@ -33,6 +33,7 @@ async def run_experiment(
         config.team_config_dir,
         config.vllm_endpoint,
         agent_model_configs=config.agent_configs,
+        runtime_configs=config.runtime_configs,
     )
     agents = await factory.create_all_agents()
 

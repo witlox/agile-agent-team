@@ -16,6 +16,7 @@ class ExperimentConfig:
     team_config_dir: str
     vllm_endpoint: str
     agent_configs: Dict[str, Dict] = field(default_factory=dict)
+    runtime_configs: Dict[str, Dict] = field(default_factory=dict)  # NEW: Runtime configurations
     wip_limits: Dict[str, int] = field(default_factory=lambda: {"in_progress": 4, "review": 2})
     sprints_per_stakeholder_review: int = 5
     disturbances_enabled: bool = False
@@ -34,6 +35,11 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
     agent_configs: Dict[str, Dict] = {}
     if "models" in data and "agents" in data["models"]:
         agent_configs = data["models"]["agents"]
+
+    # Load runtime configurations
+    runtime_configs: Dict[str, Dict] = {}
+    if "runtimes" in data:
+        runtime_configs = data["runtimes"]
 
     wip_limits: Dict[str, int] = {"in_progress": 4, "review": 2}
     if "team" in data and "wip_limits" in data["team"]:
@@ -77,6 +83,7 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         team_config_dir=data["team"]["config_dir"],
         vllm_endpoint=data["models"]["vllm_endpoint"],
         agent_configs=agent_configs,
+        runtime_configs=runtime_configs,  # NEW: Pass runtime configs
         wip_limits=wip_limits,
         sprints_per_stakeholder_review=sprints_per_stakeholder_review,
         disturbances_enabled=disturbances_enabled,
