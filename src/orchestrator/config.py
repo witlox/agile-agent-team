@@ -27,6 +27,9 @@ class ExperimentConfig:
     profile_swap_penalties: Dict[str, float] = field(default_factory=dict)
     tools_workspace_root: str = "/tmp/agent-workspace"  # NEW: Workspace for code generation
     repo_config: Optional[Dict] = None  # NEW: Optional git repo to clone
+    workspace_mode: str = "per_story"  # per_story | per_sprint
+    persist_across_sprints: bool = False  # Continue from previous sprint
+    merge_completed_stories: bool = False  # Auto-merge to main after QA
     # Team constraints and dynamics
     max_engineers: int = 10  # Max engineers (excluding testers)
     max_total_team_size: int = 13  # Total team size including testers/PO/leads
@@ -87,10 +90,19 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
     # Tools and workspace config
     tools_workspace_root = "/tmp/agent-workspace"
     repo_config = None
+    workspace_mode = "per_story"
+    persist_across_sprints = False
+    merge_completed_stories = False
+
     if "runtimes" in data and "tools" in data["runtimes"]:
         tools_workspace_root = data["runtimes"]["tools"].get("workspace_root", tools_workspace_root)
+
     if "code_generation" in data:
-        repo_config = data["code_generation"].get("repo_config")
+        cg = data["code_generation"]
+        repo_config = cg.get("repo_config")
+        workspace_mode = cg.get("workspace_mode", "per_story")
+        persist_across_sprints = cg.get("persist_across_sprints", False)
+        merge_completed_stories = cg.get("merge_completed_stories", False)
 
     # Team constraints and dynamics
     max_engineers = 10
@@ -158,6 +170,9 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         profile_swap_penalties=profile_swap_penalties,
         tools_workspace_root=tools_workspace_root,
         repo_config=repo_config,
+        workspace_mode=workspace_mode,
+        persist_across_sprints=persist_across_sprints,
+        merge_completed_stories=merge_completed_stories,
         max_engineers=max_engineers,
         max_total_team_size=max_total_team_size,
         turnover_enabled=turnover_enabled,

@@ -13,7 +13,7 @@ class WorkspaceManager:
     Supports cloning from remote repos or starting fresh.
     """
 
-    def __init__(self, base_dir: str, repo_config: Optional[Dict] = None):
+    def __init__(self, base_dir: str, repo_config: Optional[Dict] = None, workspace_mode: str = "per_story"):
         """Initialize workspace manager.
 
         Args:
@@ -24,16 +24,18 @@ class WorkspaceManager:
                     "branch": "main",
                     "clone_mode": "fresh" | "incremental"
                 }
+            workspace_mode: "per_story" (isolated per story) or "per_sprint" (shared within sprint)
         """
         self.base_dir = Path(base_dir)
         self.repo_config = repo_config or {}
+        self.workspace_mode = workspace_mode
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def create_sprint_workspace(self, sprint_num: int, story_id: str = None) -> Path:
         """Create a workspace for a sprint with feature branch.
 
         Follows stable main + gitflow:
-        1. Initialize/clone repo
+        1. Initialize/clone repo (or reuse if incremental mode)
         2. Create feature branch for story: feature/<story-id>
 
         Args:
@@ -43,22 +45,45 @@ class WorkspaceManager:
         Returns:
             Path to the workspace directory
         """
-        if story_id:
+        # Determine workspace path based on mode
+        if self.workspace_mode == "per_story" and story_id:
+            # Isolated workspace per story
             workspace = self.base_dir / f"sprint-{sprint_num}" / story_id
         else:
+            # Shared workspace for entire sprint
             workspace = self.base_dir / f"sprint-{sprint_num}"
 
-        # Create fresh workspace
-        if workspace.exists():
-            shutil.rmtree(workspace)
+        clone_mode = self.repo_config.get("clone_mode", "fresh")
+        workspace_exists = workspace.exists()
 
-        workspace.mkdir(parents=True, exist_ok=True)
-
-        # Initialize or clone
-        if self.repo_config.get("url"):
-            self._clone_repo(workspace)
+        # Handle workspace creation based on mode
+        if workspace_exists and clone_mode == "incremental":
+            # Incremental mode: reuse existing workspace, pull latest changes
+            if self.repo_config.get("url"):
+                self._pull_latest(workspace)
+            # If fresh repo (no remote), just reuse as-is
+        elif workspace_exists and self.workspace_mode == "per_sprint":
+            # Shared sprint workspace already exists, just switch to main before creating new branch
+            if self.repo_config.get("url") or (workspace / ".git").exists():
+                branch = self.repo_config.get("branch", "main")
+                subprocess.run(
+                    ["git", "checkout", branch],
+                    cwd=workspace,
+                    capture_output=True,
+                    check=False
+                )
         else:
-            self._init_fresh_repo(workspace)
+            # Fresh mode or new workspace: delete and recreate
+            if workspace_exists:
+                shutil.rmtree(workspace)
+
+            workspace.mkdir(parents=True, exist_ok=True)
+
+            # Initialize or clone
+            if self.repo_config.get("url"):
+                self._clone_repo(workspace)
+            else:
+                self._init_fresh_repo(workspace)
 
         # Create feature branch if story_id provided
         if story_id:
@@ -112,6 +137,26 @@ class WorkspaceManager:
             check=True
         )
 
+    def _pull_latest(self, workspace: Path):
+        """Pull latest changes from remote in incremental mode."""
+        branch = self.repo_config.get("branch", "main")
+
+        # Checkout main/base branch
+        subprocess.run(
+            ["git", "checkout", branch],
+            cwd=workspace,
+            capture_output=True,
+            check=False  # May fail if already on branch
+        )
+
+        # Pull latest changes
+        subprocess.run(
+            ["git", "pull", "origin", branch],
+            cwd=workspace,
+            capture_output=True,
+            check=True
+        )
+
     def create_feature_branch(self, workspace: Path, story_id: str) -> str:
         """Create a feature branch for a story.
 
@@ -137,6 +182,74 @@ class WorkspaceManager:
         """Get existing workspace for a sprint if it exists."""
         workspace = self.base_dir / f"sprint-{sprint_num}"
         return workspace if workspace.exists() else None
+
+    def merge_to_main(self, workspace: Path, branch_name: str):
+        """Merge a feature branch to main.
+
+        Args:
+            workspace: Workspace directory
+            branch_name: Branch to merge (e.g., "feature/us-001")
+        """
+        base_branch = self.repo_config.get("branch", "main")
+
+        # Checkout main
+        subprocess.run(
+            ["git", "checkout", base_branch],
+            cwd=workspace,
+            capture_output=True,
+            check=True
+        )
+
+        # Merge feature branch
+        subprocess.run(
+            ["git", "merge", "--no-ff", branch_name, "-m", f"Merge {branch_name} into {base_branch}"],
+            cwd=workspace,
+            capture_output=True,
+            check=True
+        )
+
+        # Optionally delete feature branch
+        subprocess.run(
+            ["git", "branch", "-d", branch_name],
+            cwd=workspace,
+            capture_output=True,
+            check=False  # Don't fail if branch deletion fails
+        )
+
+    def copy_workspace_to_next_sprint(self, from_sprint: int, to_sprint: int) -> Path:
+        """Copy previous sprint's workspace to continue work in next sprint.
+
+        Enables incremental development across sprints.
+
+        Args:
+            from_sprint: Source sprint number
+            to_sprint: Destination sprint number
+
+        Returns:
+            Path to the new sprint workspace
+        """
+        source = self.base_dir / f"sprint-{from_sprint}"
+        dest = self.base_dir / f"sprint-{to_sprint}"
+
+        if not source.exists():
+            raise ValueError(f"Source workspace for sprint {from_sprint} does not exist")
+
+        if dest.exists():
+            shutil.rmtree(dest)
+
+        # Copy entire workspace
+        shutil.copytree(source, dest)
+
+        # Checkout main branch in new workspace
+        base_branch = self.repo_config.get("branch", "main")
+        subprocess.run(
+            ["git", "checkout", base_branch],
+            cwd=dest,
+            capture_output=True,
+            check=False
+        )
+
+        return dest
 
     def cleanup_old_workspaces(self, keep_last_n: int = 3):
         """Clean up old sprint workspaces, keeping only the last N."""

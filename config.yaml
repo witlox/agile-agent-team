@@ -106,6 +106,25 @@ runtimes:
       - "curl.*|.*bash"
       - "wget.*|.*sh"
 
+# Code generation and workspace configuration
+code_generation:
+  # Workspace mode: how workspaces are organized
+  workspace_mode: "per_story"  # Options: per_story | per_sprint
+  # per_story: Each story gets isolated workspace (default)
+  # per_sprint: All stories in sprint share one workspace
+
+  # Cross-sprint persistence
+  persist_across_sprints: false  # If true, sprint N+1 continues from sprint N's main
+  merge_completed_stories: false  # Auto-merge feature branches to main after QA approval
+
+  # Repository configuration (for brownfield development)
+  repo_config:
+    url: ""  # Git repo URL (leave empty for greenfield)
+    branch: "main"  # Base branch to work from
+    clone_mode: "fresh"  # Options: fresh | incremental
+    # fresh: Delete and re-clone each time (greenfield default)
+    # incremental: Reuse workspace, pull latest (brownfield)
+
 # Agent definitions using new compositional structure
 # Each agent = individual personality + seniority + specialization(s) + role archetype
 models:

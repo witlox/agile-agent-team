@@ -44,7 +44,8 @@ class SprintManager:
         # Setup workspace manager for code generation
         workspace_root = getattr(config, "tools_workspace_root", "/tmp/agent-workspace")
         repo_config = getattr(config, "repo_config", None)
-        self.workspace_manager = WorkspaceManager(workspace_root, repo_config)
+        workspace_mode = getattr(config, "workspace_mode", "per_story")
+        self.workspace_manager = WorkspaceManager(workspace_root, repo_config, workspace_mode)
 
         # Use CodeGenPairingEngine if agents have runtimes, else fallback to PairingEngine
         if self._agents_have_runtimes():
