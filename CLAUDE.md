@@ -351,7 +351,7 @@ You CAN:
 
 ## Key Concepts
 
-- **Sprint**: 20-minute wall-clock window simulating a 2-week development sprint
+- **Sprint**: 60-minute wall-clock window simulating a 2-week development sprint
 - **Pairing**: TDD-driven code generation — driver implements, navigator reviews, checkpoints every 25%
 - **BDD/DDD**: User stories with Gherkin scenarios drive implementation
 - **Tool-using agents**: Agents execute file operations, git, bash, tests via runtime

@@ -168,7 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `team_config/06_process_rules/sprint_planning.md` - Complete planning guide (~450 lines)
 
 **Daily Standups**:
-- Day-based simulation: 20 minutes wall-clock = 10 simulated days (2-week sprint)
+- Day-based simulation: 60 minutes wall-clock = 10 simulated days (2-week sprint)
 - Daily standup every day except Day 1
 - Focus: architectural alignment, cross-pair dependencies, Dev Lead facilitation
 - `src/orchestrator/daily_standup.py` - DailyStandupSession class

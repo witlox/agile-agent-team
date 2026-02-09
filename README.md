@@ -17,7 +17,7 @@ This project implements an 11-agent team that operates like a real software deve
 ### Core Principles
 
 - **Sprint 0**: Infrastructure setup before feature development (CI/CD, linters, Docker, K8s)
-- **20-minute sprints** (simulated 2 weeks)
+- **60-minute sprints** (simulated 2 weeks)
 - **XP practices**: Pair programming, TDD, continuous integration
 - **Kanban workflow** with WIP limits
 - **Clean house policy**: No technical debt beyond 1 sprint

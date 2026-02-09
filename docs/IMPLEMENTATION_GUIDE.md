@@ -303,7 +303,7 @@ python -m src.orchestrator.main \
   --output outputs/baseline-experiment
 ```
 
-**Expected duration:** ~220 minutes (10 sprints × 22 min)
+**Expected duration:** ~620 minutes (10 sprints × ~62 min)
 
 **Watch progress:**
 ```bash

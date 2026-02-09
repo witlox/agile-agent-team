@@ -277,7 +277,7 @@ product:
 
 **Overview**: Complete agile ceremony implementation with Product Owner participation.
 
-**Time Simulation**: 20 minutes wall-clock = 10 simulated days (2-week sprint)
+**Time Simulation**: 60 minutes wall-clock = 10 simulated days (2-week sprint)
 
 **Product Owner Role** (`team_config/01_role_archetypes/product_owner.md`):
 - Backlog management and prioritization

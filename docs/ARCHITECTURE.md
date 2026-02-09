@@ -19,7 +19,7 @@ This experiment tests whether:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Sprint Orchestrator                      │
-│  - 20-minute wall-clock = 2-week simulated sprint           │
+│  - 60-minute wall-clock = 2-week simulated sprint           │
 │  - Manages planning → development → retrospective           │
 │  - Enforces process rules (pairing, WIP limits, DoD)        │
 └─────────────────────────────────────────────────────────────┘
@@ -52,7 +52,7 @@ This experiment tests whether:
 ### 1. Sprint Orchestrator
 
 **Responsibilities:**
-- Time management (20 minutes wall-clock → 2 weeks simulated)
+- Time management (60 minutes wall-clock → 2 weeks simulated)
 - Phase coordination (planning → dev → retro)
 - Process enforcement (pairing protocol, WIP limits)
 - Artifact generation (Kanban snapshots, logs, reports)
@@ -71,7 +71,7 @@ Phase 1: Planning (pre-sprint, not in 20min)
   - Decompose into tasks
   - Assign pairs to initial tasks
 
-Phase 2: Development (20 minutes wall-clock)
+Phase 2: Development (60 minutes wall-clock)
   - Continuous pairing on tasks
   - TDD cycles with checkpoints
   - Design dialogues throughout
@@ -587,8 +587,8 @@ outputs/experiment-001/
 ## Scalability Considerations
 
 **Current Implementation:**
-- 11 agents, 20-minute sprints
-- ~40-60 agent interactions per sprint
+- 11 agents, 60-minute sprints
+- ~244 LLM API calls per sprint (~118 top-level, rest inner turns)
 - ~450k tokens per sprint
 
 **Scaling Up:**
@@ -641,11 +641,12 @@ outputs/experiment-001/
 ## Performance Characteristics
 
 **Typical Sprint Timing:**
-- Planning: 90 seconds wall-clock
-- Development: 20 minutes (1200 seconds)
-- Retrospective: 60 seconds
+- Planning: ~5 minutes wall-clock (~52 LLM calls, mostly serial)
+- Development: ~50 minutes (10 simulated days, ~160 LLM calls, up to 4 parallel pairs)
+- QA + Sprint Review: ~3 minutes (~10 LLM calls)
+- Retrospective: ~1 minute (~11 LLM calls, fully parallel)
 - Artifact generation: 30 seconds
-- **Total: ~22 minutes per sprint**
+- **Total: ~62 minutes per sprint**
 
 **Throughput:**
 - 2-3 micro-features per sprint

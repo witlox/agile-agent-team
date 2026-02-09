@@ -545,12 +545,14 @@ class SprintManager:
     async def run_development(self, sprint_num: int):
         """Development phase with daily standups and pair rotation.
 
-        20 minutes wall-clock = 10 simulated days (2 weeks)
-        Each day: standup (except Day 1) + pairing sessions + rotation prep
+        Wall-clock duration (default 60 min) = 10 simulated days (2 weeks).
+        Each day: standup (except Day 1) + pairing sessions + rotation prep.
+        At 60 min each simulated day gets ~6 min of wall-clock, enough for
+        ~160 code-generation LLM calls across up to 4 parallel pairs.
         """
-        duration = getattr(self.config, "sprint_duration_minutes", 20)
+        duration = getattr(self.config, "sprint_duration_minutes", 60)
         num_days = 10  # 2-week sprint = 10 working days
-        time_per_day = duration / num_days  # ~2 minutes per day
+        time_per_day = duration / num_days  # ~6 minutes per day
 
         # Get initial task assignments and pairs
         snapshot = await self.kanban.get_snapshot()
