@@ -238,18 +238,22 @@ class BaseAgent:
                 for line in f:
                     if not line.strip():
                         continue
-                    entry = json.loads(line)
-                    # Match learnings for this agent's role_id
-                    if entry.get("agent_id") == self.config.role_id:
-                        sprint_num = entry.get("sprint", "?")
-                        learning_type = entry.get("learning_type", "learning")
-                        content = entry.get("content", {})
-                        text = content.get("text", "")
-                        if text:
-                            learnings.append(
-                                f"- **Sprint {sprint_num} ({learning_type})**: {text}"
-                            )
-        except (json.JSONDecodeError, IOError):
+                    try:
+                        entry = json.loads(line)
+                        # Match learnings for this agent's role_id
+                        if entry.get("agent_id") == self.config.role_id:
+                            sprint_num = entry.get("sprint", "?")
+                            learning_type = entry.get("learning_type", "learning")
+                            content = entry.get("content", {})
+                            text = content.get("text", "")
+                            if text:
+                                learnings.append(
+                                    f"- **Sprint {sprint_num} ({learning_type})**: {text}"
+                                )
+                    except json.JSONDecodeError:
+                        # Skip malformed lines gracefully
+                        continue
+        except IOError:
             return ""
 
         if not learnings:

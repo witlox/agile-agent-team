@@ -2,7 +2,7 @@
 
 **Date**: February 2026
 **Current State**: ✅ **100% Complete and Operational**
-**Tests**: 144/147 passing (3 skipped - tools not installed)
+**Tests**: 168/171 passing (3 skipped - tools not installed)
 
 ---
 
@@ -405,12 +405,13 @@ product:
 - ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ **144/147 tests passing** (3 skipped - tools not installed)
-- ✅ Unit tests (90 tests - Kanban, tools, runtimes, disturbances, metrics, multi-language, specialist)
+- ✅ **168/171 tests passing** (3 skipped - tools not installed)
+- ✅ Unit tests (114 tests - Kanban, tools, runtimes, disturbances, metrics, multi-language, specialist, profile swapping, meta-learning)
 - ✅ Integration tests (51 tests - pairing, codegen, ceremonies, remote git, sprint workflow)
 - ✅ Qualification tests (6 tests - agent creation, prompt loading)
 - ✅ Mock mode works for all components
 - ✅ Multi-language tests with real tool execution (skip if tools not installed)
+- ✅ **Research-critical tests**: Profile swapping (13 tests), Meta-learning (11 tests)
 
 ---
 

@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Research-Critical Test Coverage (2026-02-09)
+
+**Profile Swapping Tests** (13 tests - Research Question 4):
+- `test_swap_to_sets_swap_state` - Verify swap state creation
+- `test_swap_to_modifies_prompt` - Swap notice added to prompt
+- `test_swap_to_preserves_original_config` - Original config saved
+- `test_is_swapped_property` - Property returns correct state
+- `test_revert_swap_restores_config` - Config restoration
+- `test_revert_swap_clears_state` - State cleanup
+- `test_revert_swap_restores_prompt` - Prompt restoration
+- `test_decay_swap_reduces_proficiency` - Proficiency decay over sprints
+- `test_decay_swap_reverts_after_decay_period` - Auto-revert after threshold
+- `test_multiple_swaps_only_preserve_first_original` - Prevent nested swap corruption
+- `test_revert_when_not_swapped_is_safe` - Safe no-op when not swapped
+- `test_decay_when_not_swapped_is_safe` - Safe no-op when not swapped
+- `test_swap_proficiency_bounds` - Proficiency bounded at [0, 1]
+
+**Meta-Learning Tests** (11 tests - Research Question 7):
+- `test_write_meta_learning_to_jsonl` - JSONL append works
+- `test_read_meta_learnings_filters_by_agent` - Agent-specific filtering
+- `test_meta_learnings_loaded_in_prompt` - Learnings appear in prompt
+- `test_multiple_learnings_accumulated` - Multiple learnings for same agent
+- `test_empty_jsonl_returns_empty_string` - Handles missing file gracefully
+- `test_malformed_jsonl_handled` - Skip bad lines, keep valid ones
+- `test_meta_learning_sprint_tracking` - Sprint numbers preserved
+- `test_meta_learning_types` - Keep/Drop/Puzzle types
+- `test_prompt_reloads_after_new_learning` - Dynamic prompt reload
+- `test_meta_learnings_format_in_prompt` - Correct formatting with context
+- `test_meta_learnings_only_for_matching_agent` - No cross-agent pollution
+
+**Impact**: These 24 tests validate the two core mechanisms for measuring team learning and adaptation:
+- **Profile swapping** (RQ4: "Does profile-swapping break team dynamics?")
+- **Meta-learning** (RQ7: "How does team maturity affect productivity?")
+
+**Test Count**: 144 → 168 passing tests (+ 24 new tests)
+
+### Fixed - Meta-Learning Resilience (2026-02-09)
+
+**Bug Fix**: `BaseAgent._load_meta_learnings()` now handles malformed JSONL gracefully
+- **Before**: Single malformed line caused all learnings to be discarded
+- **After**: Malformed lines skipped per-line, valid learnings preserved
+- **Change**: Moved `try/except json.JSONDecodeError` inside the loop (line-level error handling)
+- **Impact**: Meta-learnings now robust against corruption (e.g., manual edits, truncated writes)
+
 ### Added - Specialist Consultant System (2026-02-09)
 
 **External Expertise On-Boarding - Managed Knowledge Gaps**:
@@ -64,12 +108,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Labels: `junior_id`, `senior_id`, `topic`
 - **Impact**: Enables measurement of research question "Do juniors improve team outcomes?"
 
-**Test Coverage Expansion - 287% Increase**:
-- Expanded from 38 to 147 tests (109 new tests)
+**Test Coverage Expansion - 342% Increase**:
+- Expanded from 38 to 171 tests (133 new tests)
 - Added 73 tests in TIER 2-4 (ceremonies, multi-language, metrics, remote git)
 - Added 6 tests for specialist consultant system
+- Added 24 tests for profile swapping and meta-learning (research-critical)
 - All 30 TIER 1 tests (disturbances, pair rotation, conventions) already passing
-- **Current Status**: 144 tests passing, 3 skipped (expected - tools not installed)
+- **Current Status**: 168 tests passing, 3 skipped (expected - tools not installed)
 
 ### Changed
 
