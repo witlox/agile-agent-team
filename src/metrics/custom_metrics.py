@@ -69,3 +69,23 @@ reverse_mentorship_events = Counter(
 # - accessibility: A11y best practices
 # - recent_idiom: Language features
 # - user_perspective: UX insights
+
+# Specialist consultant tracking
+specialist_consultations_total = Counter(
+    "specialist_consultations_total",
+    "External specialist consultations requested",
+    ["domain", "sprint", "reason_category"],
+)
+
+specialist_velocity_penalty = Gauge(
+    "specialist_velocity_penalty_points",
+    "Story points lost to specialist consultations",
+    ["sprint"],
+)
+
+# Reason categories:
+# - expertise_gap: Team lacks domain knowledge
+# - blocker_resolution: Stuck on technical problem
+# - architecture_decision: Need expert architectural guidance
+# - performance_issue: Optimization expertise needed
+# - security_concern: Security expertise required

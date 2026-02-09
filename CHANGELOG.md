@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Specialist Consultant System (2026-02-09)
+
+**External Expertise On-Boarding - Managed Knowledge Gaps**:
+- **Specialist Consultant System**: Ability to bring in external experts when team lacks domain expertise
+  - Maximum 3 consultations per sprint (enforced)
+  - Velocity penalty of 2.0 story points per consultation (configurable cost)
+  - Only activated when team genuinely lacks expertise for a blocker
+- **Automatic Detection**: System detects expertise gaps based on blocker descriptions and team skills
+  - Keywords trigger domain-specific specialists (ML, security, performance, cloud, etc.)
+  - Checks team's specializations to avoid redundant consultations
+- **Specialist Domains Available**:
+  - `ml`: Machine Learning / AI (training, deployment, debugging)
+  - `security`: Authentication, authorization, OWASP Top 10
+  - `performance`: Optimization, profiling, benchmarking
+  - `cloud`: AWS, GCP, Azure, Kubernetes
+  - `architecture`: System design, scalability, patterns
+- **Knowledge Transfer Flow**:
+  1. Dev Lead identifies expertise gap blocker
+  2. System creates temporary specialist agent with domain profile
+  3. Specialist paired with junior/mid developer (learning opportunity)
+  4. 1-day consultation: unblock issue, transfer knowledge, teach patterns
+  5. Learnings recorded, velocity penalty applied
+- **New Files**:
+  - `src/orchestrator/specialist_consultant.py` - Core system implementation
+  - `team_config/07_specialists/ml_specialist.md` - ML expert profile
+  - `team_config/07_specialists/security_specialist.md` - Security expert profile
+  - `tests/unit/test_specialist_consultant.py` - 6 comprehensive tests
+- **Metrics**: `specialist_consultations_total`, `specialist_velocity_penalty` counters
+- **Integration**: Wired into `SprintManager`, ready for automatic detection in daily standups
+- **Research Impact**: Enables studying how teams handle knowledge gaps with controlled external help
+
 ### Added - Disturbance Detection & Observability (2026-02-09)
 
 **Disturbance Detection System - Now Fully Operational**:
@@ -33,11 +64,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Labels: `junior_id`, `senior_id`, `topic`
 - **Impact**: Enables measurement of research question "Do juniors improve team outcomes?"
 
-**Test Coverage Expansion - 270% Increase**:
-- Expanded from 38 to 141 tests (103 new tests)
+**Test Coverage Expansion - 287% Increase**:
+- Expanded from 38 to 147 tests (109 new tests)
 - Added 73 tests in TIER 2-4 (ceremonies, multi-language, metrics, remote git)
+- Added 6 tests for specialist consultant system
 - All 30 TIER 1 tests (disturbances, pair rotation, conventions) already passing
-- **Current Status**: 138 tests passing, 3 skipped (expected - tools not installed)
+- **Current Status**: 144 tests passing, 3 skipped (expected - tools not installed)
 
 ### Changed
 

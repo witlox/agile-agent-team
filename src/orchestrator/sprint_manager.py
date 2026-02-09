@@ -24,6 +24,7 @@ from .technical_planning import TechnicalPlanningSession
 from .daily_standup import DailyStandupSession
 from .sprint_review import SprintReviewSession
 from .pair_rotation import PairRotationManager
+from .specialist_consultant import SpecialistConsultantSystem, SpecialistRequest
 
 
 class SprintManager:
@@ -113,6 +114,17 @@ class SprintManager:
             po, dev_lead, qa_lead, self.kanban, shared_db
         )
         self.pair_rotation_manager = PairRotationManager()
+
+        # Specialist consultant system
+        team_config_dir = Path(__file__).parent.parent.parent / "team_config"
+        self.specialist_consultant = SpecialistConsultantSystem(
+            team_config_dir=str(team_config_dir),
+            db=shared_db,
+            max_per_sprint=getattr(config, "max_specialist_consultations", 3),
+            velocity_penalty_per_consultation=getattr(
+                config, "specialist_velocity_penalty", 2.0
+            ),
+        )
 
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
         """Find an agent by role_id."""

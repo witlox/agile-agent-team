@@ -2,7 +2,7 @@
 
 **Date**: February 2026
 **Current State**: ✅ **100% Complete and Operational**
-**Tests**: 24/24 passing
+**Tests**: 144/147 passing (3 skipped - tools not installed)
 
 ---
 
@@ -159,6 +159,55 @@
 8. **Test failures** (detected - wired in test iteration)
 
 **Detection System**: Hybrid approach - some disturbances are artificially injected, others are naturally detected from actual code generation failures. Fully operational as of v1.4.0.
+
+---
+
+### Specialist Consultant System ✅
+
+**Overview**: External expertise on-boarding when team encounters domain-specific blockers beyond their current capabilities. Controlled mechanism for managing knowledge gaps.
+
+**Key Features**:
+- **Max 3 consultations per sprint** (enforced limit)
+- **Velocity penalty**: 2.0 story points per consultation (configurable cost)
+- **Automatic expertise gap detection**: Matches blocker keywords to specialist domains
+- **Learning opportunity**: Specialist pairs with junior/mid developer (knowledge transfer)
+- **1-day consultation**: Unblock issue, teach patterns, document learnings
+
+**Specialist Domains** (`team_config/07_specialists/`):
+1. **ml**: Machine Learning / AI (training, debugging, deployment, MLOps)
+2. **security**: Authentication, authorization, OWASP Top 10, secure coding
+3. **performance**: Optimization, profiling, benchmarking, bottleneck analysis
+4. **cloud**: AWS, GCP, Azure, Kubernetes, cloud-native patterns
+5. **architecture**: System design, scalability, design patterns, technical debt
+
+**Implementation** (`src/orchestrator/specialist_consultant.py`):
+- `SpecialistConsultantSystem` class managing lifecycle
+- `should_request_specialist()` - Automatic gap detection based on blocker + team skills
+- `request_specialist()` - Creates temporary specialist agent, pairs with trainee
+- `can_request_specialist()` - Enforces max 3 per sprint limit
+- `get_sprint_summary()` - Tracks usage and velocity impact
+
+**Workflow**:
+1. Dev Lead identifies blocker beyond team expertise
+2. System checks: blocker keywords match domain + team lacks that specialization
+3. System checks: consultations remaining < 3 for this sprint
+4. Create temporary specialist agent with domain profile (e.g., `ml_specialist.md`)
+5. Select trainee (prefer junior/mid for learning)
+6. Conduct 1-day consultation (simulated LLM interaction)
+7. Record learnings, apply velocity penalty
+
+**Metrics** (`src/metrics/custom_metrics.py`):
+- `specialist_consultations_total` - Counter by domain, sprint, reason category
+- `specialist_velocity_penalty` - Gauge tracking story points lost to consultations
+
+**Integration Points**:
+- Sprint Manager: Initialized in `__init__()`, ready for use
+- Daily Standup: Can be triggered when blockers identified (future hook)
+- Sprint Summary: Reports consultations used/remaining, velocity impact
+
+**Research Impact**: Enables studying how teams handle knowledge gaps with controlled external help. Balances realism (expertise gaps exist) with fairness (limited, costly consultations).
+
+**Tests**: 6 comprehensive tests in `tests/unit/test_specialist_consultant.py`
 
 ---
 
@@ -336,6 +385,7 @@ product:
 - ✅ **Sprint 0**: Multi-language infrastructure setup (CI/CD, linters, Docker, K8s)
 - ✅ **2-Phase Planning**: PO + Team refinement, then Team-only technical planning
 - ✅ **Disturbance injection**: 7 types (including merge conflicts)
+- ✅ **Specialist consultants**: Max 3 per sprint, velocity penalty, knowledge transfer - NEW
 - ✅ **Development**: Day-based simulation (20 min = 10 days) with daily standups
 - ✅ **Pair rotation**: Navigator rotates daily, owner stays (round-robin algorithm)
 - ✅ **Daily standups**: Coordination, architectural alignment, Dev Lead facilitation
@@ -355,8 +405,8 @@ product:
 - ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ **138/138 tests passing** (expanded from 24 tests)
-- ✅ Unit tests (84 tests - Kanban, tools, runtimes, disturbances, metrics, multi-language)
+- ✅ **144/147 tests passing** (3 skipped - tools not installed)
+- ✅ Unit tests (90 tests - Kanban, tools, runtimes, disturbances, metrics, multi-language, specialist)
 - ✅ Integration tests (51 tests - pairing, codegen, ceremonies, remote git, sprint workflow)
 - ✅ Qualification tests (6 tests - agent creation, prompt loading)
 - ✅ Mock mode works for all components

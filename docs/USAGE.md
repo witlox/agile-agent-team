@@ -10,11 +10,12 @@ This guide covers everything you need to run experiments with agents that **gene
 4. [Remote git integration](#4-remote-git-integration)
 5. [Code generation workflow](#5-code-generation-workflow)
 6. [Disturbance injection](#6-disturbance-injection)
-7. [Profile swapping](#7-profile-swapping)
-8. [Team culture features](#8-team-culture-features)
-9. [Test coverage (Hybrid: Real + Process)](#9-test-coverage-hybrid-real--process)
-10. [Sprint artifacts](#10-sprint-artifacts)
-11. [Prometheus metrics](#11-prometheus-metrics)
+7. [Specialist consultant system](#7-specialist-consultant-system)
+8. [Profile swapping](#8-profile-swapping)
+9. [Team culture features](#9-team-culture-features)
+10. [Test coverage (Hybrid: Real + Process)](#10-test-coverage-hybrid-real--process)
+11. [Sprint artifacts](#11-sprint-artifacts)
+12. [Prometheus metrics](#12-prometheus-metrics)
 
 ---
 
@@ -614,7 +615,112 @@ disturbances:
 
 ---
 
-## 7. Profile swapping
+## 7. Specialist consultant system
+
+The specialist consultant system allows teams to bring in external experts when they encounter domain-specific blockers beyond their current capabilities. This provides a controlled mechanism for managing knowledge gaps while maintaining research validity.
+
+### Overview
+
+**Purpose**: Model realistic scenarios where teams need expertise they don't have (ML, security, performance optimization, etc.)
+
+**Constraints**:
+- **Max 3 consultations per sprint** (hard limit enforced)
+- **Velocity penalty**: 2.0 story points per consultation (configurable cost)
+- **Knowledge transfer**: Specialist pairs with junior/mid developer (learning opportunity)
+- **Duration**: 1 day consultation (simulated)
+
+### How it works
+
+1. **Expertise Gap Detection**: System automatically detects when a blocker requires domain knowledge the team lacks
+   - Compares blocker keywords against team's specializations
+   - Triggers only when gap is genuine (team doesn't have that expertise)
+
+2. **Specialist Request**: Dev Lead (or system) requests specialist for specific domain
+   - Domain examples: `ml`, `security`, `performance`, `cloud`, `architecture`
+   - System checks if consultations remaining < 3 for current sprint
+
+3. **Temporary Agent Creation**: System creates specialist agent with domain profile
+   - Loads from `team_config/07_specialists/{domain}_specialist.md`
+   - Full domain expertise and teaching approach documented
+
+4. **Knowledge Transfer Session**: Specialist pairs with team member
+   - Prefers junior/mid developers (maximize learning)
+   - 1-day consultation to unblock issue and teach patterns
+   - Learnings recorded for team
+
+5. **Velocity Impact**: 2.0 story points deducted from sprint velocity
+   - Models time cost of onboarding and consultation
+   - Tracked in sprint metrics
+
+### Available specialist domains
+
+| Domain | Expertise | Example Scenarios |
+|--------|-----------|-------------------|
+| `ml` | Machine Learning / AI | Model training issues, deployment, debugging neural networks |
+| `security` | Auth, OWASP Top 10 | OAuth implementation, password hashing, XSS prevention |
+| `performance` | Optimization, Profiling | API slowness, database query optimization, caching strategies |
+| `cloud` | AWS, GCP, Azure, K8s | Cloud architecture, container orchestration, serverless |
+| `architecture` | System design, Patterns | Scalability decisions, microservices, event-driven design |
+
+### Configuration
+
+```yaml
+# config.yaml
+specialist_consultants:
+  enabled: true
+  max_per_sprint: 3
+  velocity_penalty: 2.0  # story points
+```
+
+### Manual usage (future enhancement)
+
+In daily standups, if Dev Lead identifies a blocker requiring external expertise:
+
+```python
+from src.orchestrator.specialist_consultant import SpecialistRequest
+
+request = SpecialistRequest(
+    reason="Team stuck on ML model training - accuracy won't improve",
+    domain="ml",
+    requesting_agent_id="ahmed_dev_lead",
+    sprint_num=3,
+    day_num=5,
+)
+
+outcome = await specialist_system.request_specialist(request, team)
+```
+
+### Metrics
+
+Specialist consultations are tracked in Prometheus metrics:
+
+- `specialist_consultations_total` - Counter by domain, sprint, reason category
+- `specialist_velocity_penalty` - Gauge tracking story points lost
+
+### Research impact
+
+This feature enables studying:
+- How teams handle knowledge gaps under constraints
+- Trade-offs between velocity and external help
+- Impact of specialist knowledge transfer on team capabilities
+- Optimal timing for bringing in external experts
+
+**Balance**: Realistic (teams do need external help) but constrained (limited, costly) to maintain research validity
+
+### Disabling specialist consultants
+
+To disable for pure team-only experiments:
+
+```yaml
+specialist_consultants:
+  enabled: false
+```
+
+Or simply don't configure the feature (defaults to disabled).
+
+---
+
+## 8. Profile swapping
 
 Profile swapping lets agents temporarily work outside their specialisation. It models cross-training, incidents, and organizational resilience.
 
@@ -657,7 +763,7 @@ The `BaseAgent.is_swapped` property returns `True` while a swap is active. Swap 
 
 ---
 
-## 8. Team culture features
+## 9. Team culture features
 
 ### Role-Based Pairing
 
@@ -702,7 +808,7 @@ Pairing role assignment follows team culture:
 
 ---
 
-## 9. Test coverage (Hybrid: Real + Process)
+## 10. Test coverage (Hybrid: Real + Process)
 
 The system tracks **two types of coverage** to measure both code quality and process adherence:
 
@@ -807,7 +913,7 @@ Agents will still run tests, but won't collect coverage metrics.
 
 ---
 
-## 10. Sprint artifacts
+## 11. Sprint artifacts
 
 ### Sprint Metadata (`<output>/sprint-NN/`)
 
@@ -885,7 +991,7 @@ sprint-01/
 
 ---
 
-## 11. Prometheus metrics
+## 12. Prometheus metrics
 
 The metrics server starts automatically on port 8080.
 
