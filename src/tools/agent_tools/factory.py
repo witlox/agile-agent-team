@@ -13,7 +13,8 @@ from .filesystem import (
 )
 from .bash import BashTool
 from .git import GitStatusTool, GitDiffTool, GitAddTool, GitCommitTool, GitRemoteTool, GitPushTool
-from .test_runner import RunTestsTool, RunBDDTestsTool
+from .test_runner import RunBDDTestsTool
+from .test_runner_multi import MultiLanguageTestRunner
 
 
 # Tool registry mapping names to classes
@@ -30,7 +31,7 @@ TOOL_REGISTRY = {
     "git_commit": GitCommitTool,
     "git_remote": GitRemoteTool,
     "git_push": GitPushTool,
-    "run_tests": RunTestsTool,
+    "run_tests": MultiLanguageTestRunner,
     "run_bdd_tests": RunBDDTestsTool,
 }
 
