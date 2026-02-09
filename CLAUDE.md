@@ -96,8 +96,8 @@ team_config/                   # Agent prompts (Markdown) — compositional
 ├── 03_specializations/        # Layer 4: Domain expertise
 ├── 04_domain/                 # Layer 5: Deep technical knowledge
 ├── 05_individuals/            # Layer 6: Personalities
-├── 03_process_rules/          # XP, Kanban, pairing protocols
-└── 04_meta/
+├── 06_process_rules/          # XP, Kanban, pairing protocols
+└── 07_meta/
     ├── meta_learnings.jsonl   # Layer 8: Dynamic learnings (JSONL)
     └── ...
 
@@ -479,6 +479,6 @@ workspace = Path(tmpdir).resolve()
 
 - **Research design**: `README.md`, `RESEARCH_QUESTIONS.md`
 - **Usage guide**: `docs/USAGE.md` (configuration, disturbances, profile swapping)
-- **Implementation summary**: `PHASES_5-8_SUMMARY.md` (code generation architecture)
+- **Implementation summary**: `docs/IMPLEMENTATION_STATUS.md` (code generation architecture)
 - **Contributing**: `CONTRIBUTING.md`
 - **Auto memory**: `~/.claude/projects/-Users-witlox-src-agile-agent-team/memory/MEMORY.md`
