@@ -51,7 +51,8 @@ class SprintManager:
                 agents,
                 self.workspace_manager,
                 db=shared_db,
-                kanban=self.kanban
+                kanban=self.kanban,
+                config=config
             )
         else:
             self.pairing_engine = PairingEngine(agents, db=shared_db, kanban=self.kanban)

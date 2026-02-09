@@ -24,14 +24,15 @@ from ..codegen import WorkspaceManager, BDDGenerator
 
 
 class CodeGenPairingEngine:
-    """Pairing engine that generates real code."""
+    """Pairing engine that generates real code with role-based pairing."""
 
     def __init__(
         self,
         agents: List[BaseAgent],
         workspace_manager: WorkspaceManager,
         db=None,
-        kanban=None
+        kanban=None,
+        config=None
     ):
         self.agents = agents
         self.workspace_manager = workspace_manager
@@ -40,13 +41,94 @@ class CodeGenPairingEngine:
         self._busy_agents: set = set()
         self.db = db
         self.kanban = kanban
+        self.config = config
+
+    def _is_lead_dev(self, agent: BaseAgent) -> bool:
+        """Check if agent is the development lead."""
+        return "dev_lead" in agent.config.role_id or "lead" in agent.config.role_archetype
+
+    def _is_tester(self, agent: BaseAgent) -> bool:
+        """Check if agent is a tester."""
+        return "tester" in agent.config.role_archetype or "qa" in agent.config.role_id
+
+    def _assign_roles(self, agent1: BaseAgent, agent2: BaseAgent) -> Tuple[BaseAgent, BaseAgent]:
+        """Assign driver and navigator roles based on team culture.
+
+        Rules:
+        1. Lead dev is always navigator (teaching role)
+        2. Testers are always navigator when pairing with devs
+        3. Otherwise, senior navigates with junior
+        4. Same level: random assignment
+
+        Returns:
+            (driver, navigator) tuple
+        """
+        import random
+
+        # Rule 1: Lead dev always navigates
+        if self._is_lead_dev(agent1):
+            return (agent2, agent1)  # agent2 drives, agent1 (lead dev) navigates
+        if self._is_lead_dev(agent2):
+            return (agent1, agent2)  # agent1 drives, agent2 (lead dev) navigates
+
+        # Rule 2: Tester always navigates when pairing with dev
+        if self._is_tester(agent1) and not self._is_tester(agent2):
+            return (agent2, agent1)  # dev drives, tester navigates
+        if self._is_tester(agent2) and not self._is_tester(agent1):
+            return (agent1, agent2)  # dev drives, tester navigates
+
+        # Rule 3: Senior navigates with junior (teaching)
+        seniority_order = {"senior": 3, "mid": 2, "junior": 1}
+        agent1_seniority = seniority_order.get(getattr(agent1.config, "seniority", "mid"), 2)
+        agent2_seniority = seniority_order.get(getattr(agent2.config, "seniority", "mid"), 2)
+
+        if agent1_seniority > agent2_seniority:
+            # agent1 is more senior, navigates
+            return (agent2, agent1)
+        elif agent2_seniority > agent1_seniority:
+            # agent2 is more senior, navigates
+            return (agent1, agent2)
+
+        # Rule 4: Same level, random assignment
+        if random.random() < 0.5:
+            return (agent1, agent2)
+        else:
+            return (agent2, agent1)
 
     def get_available_pairs(self) -> List[Tuple[BaseAgent, BaseAgent]]:
-        """Find agents available for pairing."""
+        """Find agents available for pairing with role-based assignment.
+
+        Returns pairs as (driver, navigator) tuples respecting team culture:
+        - Lead dev always navigates
+        - Testers always navigate when pairing with devs
+        - Seniors navigate with juniors
+        """
         available = [a for a in self.agents if a.config.role_id not in self._busy_agents]
+
+        # Separate developers and testers
+        developers = [a for a in available if not self._is_tester(a)]
+        testers = [a for a in available if self._is_tester(a)]
+
         pairs: List[Tuple[BaseAgent, BaseAgent]] = []
-        for i in range(0, len(available) - 1, 2):
-            pairs.append((available[i], available[i + 1]))
+
+        # Pair testers with developers if tester pairing enabled
+        tester_pairing_enabled = getattr(self.config, "tester_pairing_enabled", True) if self.config else True
+        tester_pairing_frequency = getattr(self.config, "tester_pairing_frequency", 0.20) if self.config else 0.20
+
+        if tester_pairing_enabled and testers and developers:
+            import random
+            # 20% of pairs include a tester (configurable)
+            if random.random() < tester_pairing_frequency and len(developers) > 0:
+                tester = testers.pop(0)
+                dev = developers.pop(0)
+                driver, navigator = self._assign_roles(dev, tester)
+                pairs.append((driver, navigator))
+
+        # Pair remaining developers
+        for i in range(0, len(developers) - 1, 2):
+            driver, navigator = self._assign_roles(developers[i], developers[i + 1])
+            pairs.append((driver, navigator))
+
         return pairs
 
     async def run_pairing_session(
