@@ -48,6 +48,7 @@ class DisturbanceEngine:
             "scope_creep": self._apply_scope_creep,
             "junior_misunderstanding": self._apply_junior_misunderstanding,
             "architectural_debt_surfaces": self._apply_architectural_debt,
+            "merge_conflict": self._apply_merge_conflict,
         }
         handler = handlers.get(disturbance_type)
         if handler is None:
@@ -189,3 +190,46 @@ class DisturbanceEngine:
                 await db.update_card_field(card_id, "description", card["description"])
                 affected = [str(card_id)]
         return {"impact": "architectural_debt_surfaced", "affected_agents": affected}
+
+    async def _apply_merge_conflict(
+        self,
+        agents: List["BaseAgent"],
+        kanban: "KanbanBoard",
+        db: "SharedContextDB",
+    ) -> Dict:
+        """Inject merge conflict scenario into a random in-progress card.
+
+        Simulates: Another pair merged to main touching the same files.
+        The current pair must resolve conflicts when rebasing/merging.
+        """
+        snapshot = await kanban.get_snapshot()
+        in_progress = snapshot.get("in_progress", [])
+        affected: List[str] = []
+
+        if in_progress:
+            card = self._rng.choice(in_progress)
+            card_id = card.get("id")
+            if card_id is not None:
+                desc = card.get("description", "")
+                card["description"] = (
+                    f"[MERGE CONFLICT: main branch updated with overlapping changes] {desc}\n\n"
+                    "Another pair merged changes to the same files you're working on. "
+                    "You'll need to rebase your feature branch on main and resolve conflicts. "
+                    "Reach out to the other pair if needed to understand their changes."
+                )
+                await db.update_card_field(card_id, "description", card["description"])
+                affected = [str(card_id)]
+
+                # Notify the dev lead to be available for conflict resolution
+                lead_devs = [a for a in agents if "dev_lead" in a.config.role_id or "lead" in a.config.role_archetype]
+                for lead in lead_devs:
+                    lead.conversation_history.append({
+                        "role": "system",
+                        "content": (
+                            f"[MERGE CONFLICT DETECTED] Card {card.get('title', 'Unknown')} has merge conflicts "
+                            "with recent main branch changes. Be available to help the pair resolve conflicts."
+                        ),
+                    })
+                    affected.append(lead.config.role_id)
+
+        return {"impact": "merge_conflict_injected", "affected_agents": affected}

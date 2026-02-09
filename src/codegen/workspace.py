@@ -30,7 +30,11 @@ class WorkspaceManager:
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def create_sprint_workspace(self, sprint_num: int, story_id: str = None) -> Path:
-        """Create a workspace for a sprint.
+        """Create a workspace for a sprint with feature branch.
+
+        Follows stable main + gitflow:
+        1. Initialize/clone repo
+        2. Create feature branch for story: feature/<story-id>
 
         Args:
             sprint_num: Sprint number
@@ -55,6 +59,10 @@ class WorkspaceManager:
             self._clone_repo(workspace)
         else:
             self._init_fresh_repo(workspace)
+
+        # Create feature branch if story_id provided
+        if story_id:
+            self.create_feature_branch(workspace, story_id)
 
         return workspace
 
