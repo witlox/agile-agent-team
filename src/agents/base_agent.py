@@ -214,8 +214,8 @@ class BaseAgent:
         return "\n\n---\n\n".join(parts)
 
     def _load_meta_learnings(self, team_config_dir: Path) -> str:
-        """Load meta-learnings from 04_meta/meta_learnings.jsonl for this agent."""
-        jsonl_path = team_config_dir / "04_meta" / "meta_learnings.jsonl"
+        """Load meta-learnings from 07_meta/meta_learnings.jsonl for this agent."""
+        jsonl_path = team_config_dir / "07_meta" / "meta_learnings.jsonl"
         if not jsonl_path.exists():
             return ""
 

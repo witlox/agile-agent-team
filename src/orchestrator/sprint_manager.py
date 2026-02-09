@@ -348,11 +348,11 @@ class SprintManager:
     async def apply_meta_learning(self, sprint_num: int, retro: Dict):
         """Store retro learnings in JSONL and reload agent prompts.
 
-        Meta-learnings are stored in 04_meta/meta_learnings.jsonl and dynamically
+        Meta-learnings are stored in 07_meta/meta_learnings.jsonl and dynamically
         loaded at prompt composition time, so they don't pollute the base profile files.
         """
         team_config = Path(self.config.team_config_dir)
-        jsonl_path = team_config / "04_meta" / "meta_learnings.jsonl"
+        jsonl_path = team_config / "07_meta" / "meta_learnings.jsonl"
 
         # Ensure directory exists
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
