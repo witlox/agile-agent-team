@@ -301,6 +301,82 @@ models:
       temperature: 0.8
       max_tokens: 4096
 
+    # Language Specialists (for multi-language support)
+    liam_senior_python:
+      name: "Liam O'Brien (Senior Python Specialist)"
+      individual: liam_obrien
+      seniority: senior
+      specializations: [python_specialist, backend]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Irish"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    maya_senior_golang:
+      name: "Maya Patel (Senior Go Specialist)"
+      individual: maya_patel
+      seniority: senior
+      specializations: [golang_specialist, backend]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Indian-American"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    kai_senior_rust:
+      name: "Kai Anderson (Senior Rust Specialist)"
+      individual: kai_anderson
+      seniority: senior
+      specializations: [rust_specialist, systems_programming]
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Swedish-American"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    aria_senior_typescript:
+      name: "Aria Cohen (Senior TypeScript Specialist)"
+      individual: aria_cohen
+      seniority: senior
+      specializations: [typescript_specialist, frontend]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Israeli-American"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    dmitri_senior_cpp:
+      name: "Dmitri Volkov (Senior C++ Specialist)"
+      individual: dmitri_volkov
+      seniority: senior
+      specializations: [cpp_specialist, systems_programming]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Russian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
 database:
   url: "postgresql://postgres:password@shared-db:5432/team_context"
   redis_url: "redis://redis:6379"

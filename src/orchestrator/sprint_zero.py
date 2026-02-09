@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .backlog import ProductMetadata
+from .convention_analyzer import ConventionAnalyzer
 
 
 @dataclass
@@ -603,22 +604,56 @@ test:
         ),
     ]
 
-    def __init__(self, product_metadata: ProductMetadata, team_config: Dict):
+    def __init__(self, product_metadata: ProductMetadata, team_config: Dict, workspace: Optional[Path] = None):
         self.product = product_metadata
         self.team = team_config
+        self.workspace = workspace
 
-    def generate_stories(self) -> List[InfrastructureStory]:
-        """Generate all infrastructure stories based on tech stack and languages."""
+    def generate_stories(self, brownfield_mode: bool = False) -> List[InfrastructureStory]:
+        """Generate all infrastructure stories based on tech stack and languages.
+
+        Args:
+            brownfield_mode: If True, analyze existing workspace and only generate stories for gaps
+
+        Returns:
+            List of infrastructure stories (all stories for greenfield, gap stories for brownfield)
+        """
+        # Generate all potential stories
+        all_stories = self._generate_all_stories()
+
+        # If brownfield, filter to only gap stories
+        if brownfield_mode and self.workspace:
+            analyzer = BrownfieldAnalyzer(self.workspace)
+            analysis = analyzer.analyze()
+
+            # Also run convention analyzer to augment existing conventions
+            convention_analyzer = ConventionAnalyzer(self.workspace)
+            for lang in self.product.languages:
+                lang_lower = lang.lower()
+                conventions = convention_analyzer.analyze(lang_lower)
+                augmented = convention_analyzer.generate_augmented_config(lang_lower, conventions)
+
+                # Log detected conventions (would be used by agents during implementation)
+                if conventions:
+                    print(f"  Detected {lang_lower} conventions: {conventions}")
+                    print(f"  Augmented config: {augmented}")
+
+            return analyzer.generate_gap_stories(analysis, all_stories)
+
+        return all_stories
+
+    def _generate_all_stories(self) -> List[InfrastructureStory]:
+        """Generate all possible infrastructure stories."""
         stories = []
 
         # CI/CD pipeline (always needed)
         if "github-actions" in self.product.tech_stack or "github" in str(self.product.repository_url).lower():
-            stories.extend(self.CI_STORIES[:1])  # GitHub Actions
+            stories.extend(self._generate_ci_stories_with_all_languages("github"))
         elif "gitlab-ci" in self.product.tech_stack or "gitlab" in str(self.product.repository_url).lower():
-            stories.extend(self.CI_STORIES[1:])  # GitLab CI
+            stories.extend(self._generate_ci_stories_with_all_languages("gitlab"))
         else:
             # Default to GitHub Actions if not specified
-            stories.extend(self.CI_STORIES[:1])
+            stories.extend(self._generate_ci_stories_with_all_languages("github"))
 
         # Per-language tooling
         for lang in self.product.languages:
@@ -634,6 +669,10 @@ test:
             elif lang_lower in ["c++", "cpp", "c"]:
                 stories.extend(self.CPP_STORIES)
 
+        # Build validation stories for compiled languages
+        if any(lang.lower() in ["go", "rust", "c++", "cpp", "c"] for lang in self.product.languages):
+            stories.extend(self._generate_build_validation_stories())
+
         # Containerization
         if "docker" in self.product.tech_stack:
             stories.extend(self.DOCKER_STORIES)
@@ -641,6 +680,298 @@ test:
         # Kubernetes/Helm
         if "kubernetes" in self.product.tech_stack or "helm" in self.product.tech_stack:
             stories.extend(self.KUBERNETES_STORIES)
+
+        return stories
+
+    def _generate_ci_stories_with_all_languages(self, provider: str) -> List[InfrastructureStory]:
+        """Generate CI story templates that include all project languages.
+
+        Args:
+            provider: 'github' or 'gitlab'
+
+        Returns:
+            CI story with template customized for project languages
+        """
+        if provider == "github":
+            return [self._customize_github_actions_template()]
+        else:
+            return [self._customize_gitlab_ci_template()]
+
+    def _customize_github_actions_template(self) -> InfrastructureStory:
+        """Generate GitHub Actions CI template with all project languages."""
+        languages = [lang.lower() for lang in self.product.languages]
+
+        # Build CI steps for each language
+        ci_steps = []
+
+        if "python" in languages:
+            ci_steps.append("""      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov black ruff mypy
+
+      - name: Format check (Python)
+        run: black --check .
+
+      - name: Lint (Python)
+        run: ruff check .
+
+      - name: Type check (Python)
+        run: mypy .
+
+      - name: Test (Python)
+        run: pytest --cov=src --cov-report=xml --cov-report=term""")
+
+        if "go" in languages:
+            ci_steps.append("""      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Format check (Go)
+        run: gofmt -d .
+
+      - name: Lint (Go)
+        run: golangci-lint run
+
+      - name: Test (Go)
+        run: go test -race -cover ./...""")
+
+        if "rust" in languages:
+            ci_steps.append("""      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Format check (Rust)
+        run: cargo fmt -- --check
+
+      - name: Lint (Rust)
+        run: cargo clippy -- -D warnings
+
+      - name: Test (Rust)
+        run: cargo test""")
+
+        if any(lang in languages for lang in ["typescript", "ts", "javascript", "js"]):
+            ci_steps.append("""      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Format check (TypeScript)
+        run: npx prettier --check .
+
+      - name: Lint (TypeScript)
+        run: npx eslint . --ext .ts,.tsx
+
+      - name: Type check (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Test (TypeScript)
+        run: npm test""")
+
+        if any(lang in languages for lang in ["c++", "cpp", "c"]):
+            ci_steps.append("""      - name: Install C++ tools
+        run: sudo apt-get update && sudo apt-get install -y cmake clang-format clang-tidy
+
+      - name: Format check (C++)
+        run: find . -name '*.cpp' -o -name '*.h' | xargs clang-format --dry-run --Werror
+
+      - name: Build (C++)
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+
+      - name: Test (C++)
+        run: cd build && ctest""")
+
+        workflow_content = f"""name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+{chr(10).join(ci_steps)}
+
+      - name: Upload coverage
+        if: success()
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+"""
+
+        return InfrastructureStory(
+            id="INFRA-CI-GHA",
+            title="Setup GitHub Actions CI pipeline",
+            description=f"Create GitHub Actions workflow for {', '.join(self.product.languages)} project",
+            acceptance_criteria=[
+                "Workflow runs on push to main and PRs",
+                f"Runs format/lint/test for all languages: {', '.join(self.product.languages)}",
+                "All quality checks pass",
+                "Coverage reports generated",
+            ],
+            story_points=5,
+            priority=1,
+            assigned_specializations=["devops"],
+            config_files=[".github/workflows/ci.yml"],
+            validation_command="gh workflow list",
+            template_content={".github/workflows/ci.yml": workflow_content}
+        )
+
+    def _customize_gitlab_ci_template(self) -> InfrastructureStory:
+        """Generate GitLab CI template with all project languages."""
+        # Similar structure to GitHub Actions but for GitLab CI YAML
+        # For brevity, return existing template (can be expanded similarly)
+        return self.CI_STORIES[1]
+
+    def _generate_build_validation_stories(self) -> List[InfrastructureStory]:
+        """Generate build validation stories for compiled languages."""
+        stories = []
+
+        if "go" in [lang.lower() for lang in self.product.languages]:
+            stories.append(InfrastructureStory(
+                id="INFRA-GO-BUILD",
+                title="Setup Go build validation",
+                description="Ensure Go code builds successfully with all dependencies",
+                acceptance_criteria=[
+                    "go.mod includes all dependencies",
+                    "go build ./... succeeds",
+                    "go mod tidy keeps dependencies clean",
+                    "Build produces working binary",
+                ],
+                story_points=2,
+                priority=7,
+                assigned_specializations=["golang_specialist", "backend"],
+                config_files=["Makefile"],
+                validation_command="go build ./...",
+                template_content={
+                    "Makefile": """build:
+\tgo build -v ./...
+
+test:
+\tgo test -v -race -cover ./...
+
+lint:
+\tgolangci-lint run
+
+fmt:
+\tgofmt -w .
+\tgoimports -w .
+
+.PHONY: build test lint fmt
+"""
+                }
+            ))
+
+        if "rust" in [lang.lower() for lang in self.product.languages]:
+            stories.append(InfrastructureStory(
+                id="INFRA-RUST-BUILD",
+                title="Setup Rust build validation",
+                description="Ensure Rust code builds successfully in debug and release modes",
+                acceptance_criteria=[
+                    "cargo build succeeds",
+                    "cargo build --release succeeds",
+                    "cargo check runs quickly for validation",
+                    "All dependencies compile",
+                ],
+                story_points=2,
+                priority=8,
+                assigned_specializations=["rust_specialist", "systems_programming"],
+                config_files=["Makefile"],
+                validation_command="cargo build",
+                template_content={
+                    "Makefile": """build:
+\tcargo build
+
+release:
+\tcargo build --release
+
+test:
+\tcargo test
+
+lint:
+\tcargo clippy -- -D warnings
+
+fmt:
+\tcargo fmt
+
+check:
+\tcargo check
+
+.PHONY: build release test lint fmt check
+"""
+                }
+            ))
+
+        if any(lang.lower() in ["c++", "cpp", "c"] for lang in self.product.languages):
+            stories.append(InfrastructureStory(
+                id="INFRA-CPP-BUILD",
+                title="Setup C++ build validation",
+                description="Ensure C++ code builds successfully with CMake",
+                acceptance_criteria=[
+                    "CMakeLists.txt configures project",
+                    "Debug build succeeds",
+                    "Release build succeeds with optimizations",
+                    "Tests compile and link",
+                ],
+                story_points=3,
+                priority=9,
+                assigned_specializations=["cpp_specialist", "systems_programming"],
+                config_files=["CMakeLists.txt", "Makefile"],
+                validation_command="cmake -B build && cmake --build build",
+                template_content={
+                    "CMakeLists.txt": """cmake_minimum_required(VERSION 3.20)
+project(MyProject CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
+add_executable(myapp src/main.cpp)
+
+enable_testing()
+""",
+                    "Makefile": """build:
+\tmkdir -p build && cd build && cmake .. && make
+
+release:
+\tmkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make
+
+test:
+\tcd build && ctest
+
+clean:
+\trm -rf build
+
+.PHONY: build release test clean
+"""
+                }
+            ))
 
         return stories
 
