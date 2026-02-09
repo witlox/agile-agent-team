@@ -13,6 +13,7 @@ from ..agents.pairing_codegen import CodeGenPairingEngine
 from ..codegen.workspace import WorkspaceManager
 from ..tools.kanban import KanbanBoard
 from ..tools.shared_context import SharedContextDB
+from ..tools.agent_tools.remote_git import create_provider
 from ..metrics.sprint_metrics import SprintMetrics
 from ..metrics.prometheus_exporter import update_sprint_metrics
 from .backlog import Backlog
@@ -52,7 +53,12 @@ class SprintManager:
                 self.workspace_manager,
                 db=shared_db,
                 kanban=self.kanban,
-                config=config
+                config=config,
+                remote_git_config={
+                    'enabled': getattr(config, 'remote_git_enabled', False),
+                    'provider': getattr(config, 'remote_git_provider', 'github'),
+                    **getattr(config, 'remote_git_config', {})
+                }
             )
         else:
             self.pairing_engine = PairingEngine(agents, db=shared_db, kanban=self.kanban)
@@ -291,11 +297,126 @@ class SprintManager:
             else:
                 approved = True  # auto-approve if no QA agent
 
+            # Approve PR if remote git enabled and card approved
+            if approved and self.config.remote_git_enabled:
+                await self._approve_pr_if_exists(card, qa, response if qa else "Auto-approved")
+
             new_status = "done" if approved else "in_progress"
             try:
                 await self.kanban.move_card(card["id"], new_status)
+
+                # Merge PR if moving to done and remote git enabled
+                if new_status == "done" and self.config.remote_git_enabled:
+                    await self._merge_pr_if_exists(card)
             except Exception:
                 pass  # WIP limit may block; leave card where it is
+
+    async def _approve_pr_if_exists(self, card: Dict, qa_agent: Optional[BaseAgent], review_comment: str):
+        """Approve PR/MR if it exists in card metadata."""
+        try:
+            # Extract PR URL from metadata
+            metadata = card.get("metadata")
+            if not metadata:
+                return
+
+            if isinstance(metadata, str):
+                metadata = json.loads(metadata)
+
+            pr_url = metadata.get("pr_url")
+            if not pr_url:
+                return
+
+            # Extract PR number from URL
+            pr_number = None
+            if "/pull/" in pr_url:  # GitHub
+                pr_number = int(pr_url.split("/pull/")[-1].split("/")[0])
+            elif "!" in pr_url:  # GitLab MR
+                pr_number = int(pr_url.split("!")[-1].split("/")[0])
+
+            if not pr_number:
+                return
+
+            # Create provider and approve
+            provider_type = self.config.remote_git_provider
+            provider_config = self.config.remote_git_config.get(provider_type, {}).copy()
+
+            # Add QA agent's metadata
+            if qa_agent:
+                author_name = qa_agent.config.name.split(" (")[0]
+                author_email = f"{qa_agent.config.role_id}@{self.config.remote_git_config.get('author_email_domain', 'agent.local')}"
+                provider_config['author_name'] = author_name
+                provider_config['author_email'] = author_email
+
+                # Handle per-agent tokens for GitLab
+                if provider_type == "gitlab":
+                    token_pattern = provider_config.get("token_env_pattern", "GITLAB_TOKEN_{role_id}")
+                    token_env = token_pattern.replace("{role_id}", qa_agent.config.role_id)
+                    provider_config['token_env'] = token_env
+
+            # Workspace path (approximate - may need adjustment based on actual workspace structure)
+            workspace = Path(self.config.tools_workspace_root) / f"sprint-{self.current_sprint if hasattr(self, 'current_sprint') else 'current'}"
+
+            provider = create_provider(provider_type, workspace, provider_config)
+            if provider:
+                await provider.approve_pull_request(pr_number, review_comment[:500])  # Truncate comment
+
+        except Exception:
+            # Don't fail QA review if PR approval fails
+            pass
+
+    async def _merge_pr_if_exists(self, card: Dict):
+        """Merge PR/MR if it exists in card metadata."""
+        try:
+            # Extract PR URL from metadata
+            metadata = card.get("metadata")
+            if not metadata:
+                return
+
+            if isinstance(metadata, str):
+                metadata = json.loads(metadata)
+
+            pr_url = metadata.get("pr_url")
+            if not pr_url:
+                return
+
+            # Extract PR number
+            pr_number = None
+            if "/pull/" in pr_url:  # GitHub
+                pr_number = int(pr_url.split("/pull/")[-1].split("/")[0])
+            elif "!" in pr_url:  # GitLab MR
+                pr_number = int(pr_url.split("!")[-1].split("/")[0])
+
+            if not pr_number:
+                return
+
+            # Create provider and merge
+            provider_type = self.config.remote_git_provider
+            provider_config = self.config.remote_git_config.get(provider_type, {}).copy()
+
+            # Use dev lead or first available agent for merge
+            merge_agent = self._agent("dev_lead") or (self.agents[0] if self.agents else None)
+            if merge_agent:
+                author_name = merge_agent.config.name.split(" (")[0]
+                author_email = f"{merge_agent.config.role_id}@{self.config.remote_git_config.get('author_email_domain', 'agent.local')}"
+                provider_config['author_name'] = author_name
+                provider_config['author_email'] = author_email
+
+                # Handle per-agent tokens for GitLab
+                if provider_type == "gitlab":
+                    token_pattern = provider_config.get("token_env_pattern", "GITLAB_TOKEN_{role_id}")
+                    token_env = token_pattern.replace("{role_id}", merge_agent.config.role_id)
+                    provider_config['token_env'] = token_env
+
+            workspace = Path(self.config.tools_workspace_root) / f"sprint-{self.current_sprint if hasattr(self, 'current_sprint') else 'current'}"
+
+            provider = create_provider(provider_type, workspace, provider_config)
+            if provider:
+                merge_method = provider_config.get("merge_method", "squash")
+                await provider.merge_pull_request(pr_number, merge_method)
+
+        except Exception:
+            # Don't fail card transition if PR merge fails
+            pass
 
     # -------------------------------------------------------------------------
     # Phase 4: Retrospective

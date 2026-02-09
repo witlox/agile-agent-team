@@ -46,6 +46,7 @@ class SharedContextDB:
                     assigned_pair TEXT[],
                     story_points INTEGER,
                     sprint INTEGER,
+                    metadata JSONB,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
 
@@ -94,14 +95,15 @@ class SharedContextDB:
         if self._mock_mode:
             card = dict(card_data)
             card["id"] = self._next_id
+            card.setdefault("metadata", None)  # Initialize metadata field
             self._next_id += 1
             self._cards.append(card)
             return card["id"]
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """INSERT INTO kanban_cards
-                   (title, description, status, assigned_pair, story_points, sprint)
-                   VALUES ($1, $2, $3, $4, $5, $6)
+                   (title, description, status, assigned_pair, story_points, sprint, metadata)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)
                    RETURNING id""",
                 card_data.get("title", ""),
                 card_data.get("description", ""),
@@ -109,6 +111,7 @@ class SharedContextDB:
                 card_data.get("assigned_pair", []),
                 card_data.get("story_points", 1),
                 card_data.get("sprint", 0),
+                card_data.get("metadata"),
             )
             return row["id"]
 

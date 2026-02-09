@@ -12,7 +12,7 @@ from .filesystem import (
     SearchCodeTool
 )
 from .bash import BashTool
-from .git import GitStatusTool, GitDiffTool, GitAddTool, GitCommitTool
+from .git import GitStatusTool, GitDiffTool, GitAddTool, GitCommitTool, GitRemoteTool, GitPushTool
 from .test_runner import RunTestsTool, RunBDDTestsTool
 
 
@@ -28,6 +28,8 @@ TOOL_REGISTRY = {
     "git_diff": GitDiffTool,
     "git_add": GitAddTool,
     "git_commit": GitCommitTool,
+    "git_remote": GitRemoteTool,
+    "git_push": GitPushTool,
     "run_tests": RunTestsTool,
     "run_bdd_tests": RunBDDTestsTool,
 }
@@ -35,7 +37,7 @@ TOOL_REGISTRY = {
 # Predefined tool sets
 TOOL_SETS = {
     "filesystem": ["read_file", "write_file", "edit_file", "list_files", "search_code"],
-    "git": ["git_status", "git_diff", "git_add", "git_commit"],
+    "git": ["git_status", "git_diff", "git_add", "git_commit", "git_remote", "git_push"],
     "bash": ["bash"],
     "test_runner": ["run_tests", "run_bdd_tests"],
     "basic": ["read_file", "write_file", "list_files"],

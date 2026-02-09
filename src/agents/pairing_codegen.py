@@ -15,12 +15,14 @@ Workflow:
 """
 
 import asyncio
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .base_agent import BaseAgent
 from ..codegen import WorkspaceManager, BDDGenerator
+from ..tools.agent_tools.remote_git import create_provider, PullRequestConfig
 
 
 class CodeGenPairingEngine:
@@ -32,7 +34,8 @@ class CodeGenPairingEngine:
         workspace_manager: WorkspaceManager,
         db=None,
         kanban=None,
-        config=None
+        config=None,
+        remote_git_config=None
     ):
         self.agents = agents
         self.workspace_manager = workspace_manager
@@ -42,6 +45,7 @@ class CodeGenPairingEngine:
         self.db = db
         self.kanban = kanban
         self.config = config
+        self.remote_git_config = remote_git_config or {}
 
     def _is_lead_dev(self, agent: BaseAgent) -> bool:
         """Check if agent is the development lead."""
@@ -205,6 +209,21 @@ class CodeGenPairingEngine:
                 commit_sha = await self._commit_changes(driver, workspace, task)
                 session_result["commit_sha"] = commit_sha
                 session_result["outcome"] = "completed"
+
+                # Phase 4.5: Push and create PR if remote git enabled
+                pr_url = await self._push_and_create_pr(driver, workspace, task, commit_sha)
+                if pr_url:
+                    session_result["pr_url"] = pr_url
+                    # Store PR URL in kanban card metadata
+                    if self.kanban and task.get("id"):
+                        try:
+                            await self.db.update_card_field(
+                                task["id"],
+                                "metadata",
+                                json.dumps({"pr_url": pr_url})
+                            )
+                        except Exception:
+                            pass
             else:
                 session_result["outcome"] = "tests_failed"
 
@@ -371,6 +390,105 @@ class CodeGenPairingEngine:
             return "committed"  # Real SHA extraction would parse git output
 
         return None
+
+    async def _push_and_create_pr(
+        self,
+        driver: BaseAgent,
+        workspace: Path,
+        task: Dict,
+        commit_sha: str
+    ) -> Optional[str]:
+        """Push branch to remote and create PR/MR.
+
+        Returns PR/MR URL if successful, None otherwise.
+        """
+        # Check if remote_git is enabled
+        if not self.remote_git_config.get('enabled'):
+            return None
+
+        try:
+            # Get current branch name
+            proc = await asyncio.create_subprocess_shell(
+                "git rev-parse --abbrev-ref HEAD",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(workspace)
+            )
+            stdout, _ = await proc.communicate()
+            branch_name = stdout.decode("utf-8").strip()
+
+            # Extract agent metadata for git authorship
+            author_name = driver.config.name.split(" (")[0]  # "Alex Chen"
+            author_email = f"{driver.config.role_id}@{self.remote_git_config.get('author_email_domain', 'agent.local')}"
+
+            # Create provider instance
+            provider_type = self.remote_git_config.get('provider', 'github')
+            provider_config_key = provider_type
+            provider_config = self.remote_git_config.get(provider_config_key, {}).copy()
+
+            # Add author metadata
+            provider_config['author_name'] = author_name
+            provider_config['author_email'] = author_email
+
+            # Handle per-agent tokens for GitLab
+            if provider_type == "gitlab":
+                token_pattern = provider_config.get("token_env_pattern", "GITLAB_TOKEN_{role_id}")
+                token_env = token_pattern.replace("{role_id}", driver.config.role_id)
+                provider_config['token_env'] = token_env
+
+            provider = create_provider(provider_type, workspace, provider_config)
+            if not provider:
+                return None
+
+            # Push branch to remote
+            push_cmd = f"git push -u origin {branch_name}"
+            proc = await asyncio.create_subprocess_shell(
+                push_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(workspace)
+            )
+            await asyncio.wait_for(proc.communicate(), timeout=60)
+
+            if proc.returncode != 0:
+                return None
+
+            # Create PR/MR
+            base_branch = provider_config.get('base_branch', 'main')
+            draft = provider_config.get('draft_prs', False)
+
+            pr_title = f"feat: {task.get('title', 'Implementation')}"
+            pr_body = (
+                f"## Summary\n\n"
+                f"{task.get('description', 'No description provided')}\n\n"
+                f"## Implementation Details\n\n"
+                f"- Driver: {driver.config.name}\n"
+                f"- Branch: `{branch_name}`\n"
+                f"- Commit: {commit_sha[:8] if len(commit_sha) > 8 else commit_sha}\n\n"
+                f"## Test Plan\n\n"
+                f"- [ ] All tests passing\n"
+                f"- [ ] Code reviewed\n"
+                f"- [ ] Ready for QA review\n"
+            )
+
+            pr_config = PullRequestConfig(
+                title=pr_title,
+                body=pr_body,
+                base_branch=base_branch,
+                head_branch=branch_name,
+                draft=draft
+            )
+
+            result = await provider.create_pull_request(pr_config)
+
+            if result.success:
+                return result.url
+
+            return None
+
+        except Exception:
+            # Log error but don't fail the pairing session
+            return None
 
     def _should_generate_bdd(self, task: Dict) -> bool:
         """Check if task should have BDD feature file."""

@@ -238,3 +238,160 @@ class GitCommitTool(Tool):
 
         except Exception as e:
             return ToolResult(success=False, output="", error=f"Error: {str(e)}")
+
+
+class GitRemoteTool(Tool):
+    """Configure git remote URL."""
+
+    @property
+    def name(self) -> str:
+        return "git_remote"
+
+    @property
+    def description(self) -> str:
+        return "Configure git remote URL (add or set-url)"
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Remote name (default: origin)",
+                    "default": "origin"
+                },
+                "url": {
+                    "type": "string",
+                    "description": "Remote URL (https or git)"
+                },
+                "action": {
+                    "type": "string",
+                    "description": "Action: add or set-url",
+                    "enum": ["add", "set-url"],
+                    "default": "add"
+                }
+            },
+            "required": ["url"]
+        }
+
+    async def execute(self, url: str, name: str = "origin", action: str = "add") -> ToolResult:
+        """Configure remote."""
+        cmd = f"git remote {action} {name} {url}"
+        return await self._run_git_command(cmd)
+
+    async def _run_git_command(self, command: str) -> ToolResult:
+        """Helper to run a git command."""
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(self.workspace)
+            )
+
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+
+            output = stdout.decode("utf-8", errors="replace")
+            if stderr:
+                output += "\n" + stderr.decode("utf-8", errors="replace")
+
+            success = proc.returncode == 0
+
+            return ToolResult(
+                success=success,
+                output=output.strip() if output.strip() else "Remote configured",
+                error=None if success else f"Git remote command failed"
+            )
+
+        except Exception as e:
+            return ToolResult(success=False, output="", error=f"Error: {str(e)}")
+
+
+class GitPushTool(Tool):
+    """Push branch to remote repository."""
+
+    @property
+    def name(self) -> str:
+        return "git_push"
+
+    @property
+    def description(self) -> str:
+        return "Push current branch to remote repository"
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "remote": {
+                    "type": "string",
+                    "description": "Remote name (default: origin)",
+                    "default": "origin"
+                },
+                "branch": {
+                    "type": "string",
+                    "description": "Branch name (default: current branch)"
+                },
+                "set_upstream": {
+                    "type": "boolean",
+                    "description": "Set upstream tracking (-u flag)",
+                    "default": True
+                }
+            }
+        }
+
+    async def execute(
+        self,
+        remote: str = "origin",
+        branch: str = None,
+        set_upstream: bool = True
+    ) -> ToolResult:
+        """Push to remote."""
+        # Get current branch if not specified
+        if not branch:
+            cmd = "git rev-parse --abbrev-ref HEAD"
+            proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(self.workspace)
+            )
+            stdout, _ = await proc.communicate()
+            branch = stdout.decode("utf-8").strip()
+
+        # Build push command
+        push_cmd = f"git push {remote} {branch}"
+        if set_upstream:
+            push_cmd = f"git push -u {remote} {branch}"
+
+        return await self._run_git_command(push_cmd)
+
+    async def _run_git_command(self, command: str) -> ToolResult:
+        """Helper to run a git command."""
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(self.workspace)
+            )
+
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)  # 60s for push
+
+            output = stdout.decode("utf-8", errors="replace")
+            if stderr:
+                output += "\n" + stderr.decode("utf-8", errors="replace")
+
+            success = proc.returncode == 0
+
+            return ToolResult(
+                success=success,
+                output=output.strip() if output.strip() else "Pushed successfully",
+                error=None if success else f"Git push failed"
+            )
+
+        except asyncio.TimeoutError:
+            return ToolResult(success=False, output="", error="Git push timed out")
+        except Exception as e:
+            return ToolResult(success=False, output="", error=f"Error: {str(e)}")

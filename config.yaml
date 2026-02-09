@@ -295,3 +295,26 @@ profile_swapping:
     context_switch_slowdown: 1.20  # 20% slower first task
     proficiency_reduction: 0.70  # 70% of true specialist
     knowledge_decay_sprints: 1  # Decays after 1 sprint if not used
+
+# Remote Git Integration (GitHub/GitLab)
+# Enables agents to push code and create/review pull requests
+remote_git:
+  enabled: false  # Set to true to enable remote push/PR workflow
+  provider: "github"  # Options: github | gitlab
+
+  # GitHub configuration (single service account + per-agent author attribution)
+  github:
+    token_env: "GITHUB_TOKEN"  # Environment variable containing GitHub token
+    base_branch: "main"
+    merge_method: "squash"  # Options: merge | squash | rebase
+    draft_prs: false  # Create PRs as drafts initially
+
+  # GitLab configuration (per-agent accounts for self-hosted instances)
+  gitlab:
+    token_env_pattern: "GITLAB_TOKEN_{role_id}"  # Pattern: GITLAB_TOKEN_alex_senior_networking
+    base_branch: "main"
+    merge_method: "squash"  # Options: merge | squash
+    draft_prs: false
+
+  # Git author metadata for commit attribution
+  author_email_domain: "agent.local"  # Generates emails like alex_senior_networking@agent.local

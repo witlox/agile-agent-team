@@ -36,6 +36,10 @@ class ExperimentConfig:
     turnover_backfill: bool = True  # Auto-hire replacements
     tester_pairing_enabled: bool = True  # Testers can pair as navigators
     tester_pairing_frequency: float = 0.20  # 20% of sessions include tester
+    # Remote git integration (GitHub/GitLab)
+    remote_git_enabled: bool = False
+    remote_git_provider: str = "github"  # "github" or "gitlab"
+    remote_git_config: Dict[str, Dict] = field(default_factory=dict)
 
 
 def load_config(config_path: str, database_url: Optional[str] = None) -> ExperimentConfig:
@@ -114,6 +118,21 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
             tester_pairing_enabled = tester_pairing.get("enabled", True)
             tester_pairing_frequency = tester_pairing.get("frequency", 0.20)
 
+    # Remote git configuration
+    remote_git_enabled = False
+    remote_git_provider = "github"
+    remote_git_config: Dict[str, Dict] = {}
+
+    if "remote_git" in data:
+        rg = data["remote_git"]
+        remote_git_enabled = rg.get("enabled", False)
+        remote_git_provider = rg.get("provider", "github")
+        remote_git_config = {
+            "github": rg.get("github", {}),
+            "gitlab": rg.get("gitlab", {}),
+            "author_email_domain": rg.get("author_email_domain", "agent.local")
+        }
+
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
     resolved_db_url = (
         database_url
@@ -147,4 +166,7 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         turnover_backfill=turnover_backfill,
         tester_pairing_enabled=tester_pairing_enabled,
         tester_pairing_frequency=tester_pairing_frequency,
+        remote_git_enabled=remote_git_enabled,
+        remote_git_provider=remote_git_provider,
+        remote_git_config=remote_git_config,
     )
