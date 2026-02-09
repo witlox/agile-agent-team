@@ -144,13 +144,13 @@ team_config/
 │   ├── alex_chen.md                  # Layer 6: Individual personalities
 │   ├── priya_sharma.md
 │   └── ...
-├── 03_process_rules/
+├── 06_process_rules/
 │   ├── xp_practices.md               # TDD, pairing, refactoring
 │   ├── kanban_workflow.md            # Flow management
 │   ├── pairing_protocol.md           # Collaboration mechanics
 │   ├── consensus_protocol.md         # Decision escalation
 │   └── artifact_standards.md         # Sprint deliverables
-└── 04_meta/
+└── 07_meta/
     ├── retro_template.md             # Keep/Drop/Puzzle format
     ├── meta_learnings.jsonl          # Layer 8: Append-only learning log
     └── team_evolution.md             # Prompt modification rules
