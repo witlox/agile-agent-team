@@ -16,6 +16,34 @@ stories:
       - "Welcome email sent on success"
     story_points: 3
     priority: 1
+    scenarios:
+      - name: "Successful registration"
+        given:
+          - "the system is ready"
+          - "no user exists with email user@example.com"
+        when:
+          - "I register with email user@example.com and password SecurePass123"
+        then:
+          - "a new user account is created"
+          - "the password is hashed with bcrypt"
+          - "a welcome email is sent to user@example.com"
+          - "I receive a success response"
+      - name: "Invalid email format"
+        given:
+          - "the system is ready"
+        when:
+          - "I register with email invalid-email and password SecurePass123"
+        then:
+          - "the registration fails"
+          - "I receive an error message 'Invalid email format'"
+      - name: "Duplicate email rejected"
+        given:
+          - "a user already exists with email existing@example.com"
+        when:
+          - "I register with email existing@example.com and password SecurePass123"
+        then:
+          - "the registration fails"
+          - "I receive an error message 'Email already registered'"
 
   - id: US-002
     title: "User login"
@@ -26,6 +54,25 @@ stories:
       - "Token expiry set to 24 hours"
     story_points: 2
     priority: 2
+    scenarios:
+      - name: "Successful login"
+        given:
+          - "a user exists with email user@example.com and password SecurePass123"
+        when:
+          - "I login with email user@example.com and password SecurePass123"
+        then:
+          - "I receive a JWT token"
+          - "the token expires in 24 hours"
+          - "I can access authenticated endpoints"
+      - name: "Rate limiting after failed attempts"
+        given:
+          - "a user exists with email user@example.com"
+        when:
+          - "I attempt login with wrong password 5 times"
+          - "I attempt login with correct password"
+        then:
+          - "the sixth attempt is rejected with status 429"
+          - "I receive error 'Too many failed attempts, try again later'"
 
   - id: US-003
     title: "Create project"

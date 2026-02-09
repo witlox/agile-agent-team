@@ -9,6 +9,8 @@ from typing import Dict, List, Optional
 
 from ..agents.base_agent import BaseAgent
 from ..agents.pairing import PairingEngine
+from ..agents.pairing_codegen import CodeGenPairingEngine
+from ..codegen.workspace import WorkspaceManager
 from ..tools.kanban import KanbanBoard
 from ..tools.shared_context import SharedContextDB
 from ..metrics.sprint_metrics import SprintMetrics
@@ -37,7 +39,23 @@ class SprintManager:
             shared_db,
             wip_limits=getattr(config, "wip_limits", {"in_progress": 4, "review": 2}),
         )
-        self.pairing_engine = PairingEngine(agents, db=shared_db, kanban=self.kanban)
+
+        # Setup workspace manager for code generation
+        workspace_root = getattr(config, "tools_workspace_root", "/tmp/agent-workspace")
+        repo_config = getattr(config, "repo_config", None)
+        self.workspace_manager = WorkspaceManager(workspace_root, repo_config)
+
+        # Use CodeGenPairingEngine if agents have runtimes, else fallback to PairingEngine
+        if self._agents_have_runtimes():
+            self.pairing_engine = CodeGenPairingEngine(
+                agents,
+                self.workspace_manager,
+                db=shared_db,
+                kanban=self.kanban
+            )
+        else:
+            self.pairing_engine = PairingEngine(agents, db=shared_db, kanban=self.kanban)
+
         self.metrics = SprintMetrics()
         self._sprint_results: List[Dict] = []
 
@@ -53,6 +71,10 @@ class SprintManager:
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
         """Find an agent by role_id."""
         return next((a for a in self.agents if a.config.role_id == role_id), None)
+
+    def _agents_have_runtimes(self) -> bool:
+        """Check if any agent has a runtime configured."""
+        return any(a.runtime is not None for a in self.agents)
 
     async def _check_swap_triggers(self, disturbances_fired: List[str], sprint_num: int):
         """Trigger profile swaps when disturbances warrant it."""
@@ -224,9 +246,15 @@ class SprintManager:
             for pair in available_pairs:
                 task = await self.kanban.pull_ready_task()
                 if task:
-                    t = asyncio.create_task(
-                        self.pairing_engine.run_pairing_session(pair, task)
-                    )
+                    # CodeGenPairingEngine requires sprint_num parameter
+                    if isinstance(self.pairing_engine, CodeGenPairingEngine):
+                        t = asyncio.create_task(
+                            self.pairing_engine.run_pairing_session(pair, task, sprint_num)
+                        )
+                    else:
+                        t = asyncio.create_task(
+                            self.pairing_engine.run_pairing_session(pair, task)
+                        )
                     self.pairing_engine.active_sessions.append(t)
 
             # Exit early when all work is done

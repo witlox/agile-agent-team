@@ -25,6 +25,8 @@ class ExperimentConfig:
     profile_swap_mode: str = "none"
     profile_swap_scenarios: List[str] = field(default_factory=list)
     profile_swap_penalties: Dict[str, float] = field(default_factory=dict)
+    tools_workspace_root: str = "/tmp/agent-workspace"  # NEW: Workspace for code generation
+    repo_config: Optional[Dict] = None  # NEW: Optional git repo to clone
 
 
 def load_config(config_path: str, database_url: Optional[str] = None) -> ExperimentConfig:
@@ -69,6 +71,14 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         profile_swap_scenarios = list(ps.get("allowed_scenarios", []))
         profile_swap_penalties = dict(ps.get("penalties", {}))
 
+    # Tools and workspace config
+    tools_workspace_root = "/tmp/agent-workspace"
+    repo_config = None
+    if "runtimes" in data and "tools" in data["runtimes"]:
+        tools_workspace_root = data["runtimes"]["tools"].get("workspace_root", tools_workspace_root)
+    if "code_generation" in data:
+        repo_config = data["code_generation"].get("repo_config")
+
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
     resolved_db_url = (
         database_url
@@ -92,4 +102,6 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         profile_swap_mode=profile_swap_mode,
         profile_swap_scenarios=profile_swap_scenarios,
         profile_swap_penalties=profile_swap_penalties,
+        tools_workspace_root=tools_workspace_root,  # NEW: Workspace root
+        repo_config=repo_config,  # NEW: Optional repo config
     )

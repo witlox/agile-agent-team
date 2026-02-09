@@ -13,6 +13,7 @@ from .filesystem import (
 )
 from .bash import BashTool
 from .git import GitStatusTool, GitDiffTool, GitAddTool, GitCommitTool
+from .test_runner import RunTestsTool, RunBDDTestsTool
 
 
 # Tool registry mapping names to classes
@@ -27,6 +28,8 @@ TOOL_REGISTRY = {
     "git_diff": GitDiffTool,
     "git_add": GitAddTool,
     "git_commit": GitCommitTool,
+    "run_tests": RunTestsTool,
+    "run_bdd_tests": RunBDDTestsTool,
 }
 
 # Predefined tool sets
@@ -34,6 +37,7 @@ TOOL_SETS = {
     "filesystem": ["read_file", "write_file", "edit_file", "list_files", "search_code"],
     "git": ["git_status", "git_diff", "git_add", "git_commit"],
     "bash": ["bash"],
+    "test_runner": ["run_tests", "run_bdd_tests"],
     "basic": ["read_file", "write_file", "list_files"],
     "full": list(TOOL_REGISTRY.keys()),
 }
