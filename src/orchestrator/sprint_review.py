@@ -1,4 +1,15 @@
-"""Sprint Review/Demo - Team demonstrates completed work to PO and stakeholders."""
+"""Sprint Review/Demo - Team demonstrates completed work to PO.
+
+IMPORTANT: Stakeholder Feedback Loop
+- Regular sprint reviews (most sprints): Team + PO only
+- PO represents stakeholder interests (fast feedback loop within simulation time)
+- Major stakeholder reviews: Every 5 sprints (see config.sprints_per_stakeholder_review)
+- Real stakeholders review asynchronously (hours/days in human time)
+- Simulation pauses for stakeholder input, then resumes with feedback as backlog items
+
+This module handles the FAST loop (PO feedback). Real stakeholder feedback is handled
+by the experiment runner pausing every 5 sprints for human input.
+"""
 
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
@@ -262,9 +273,15 @@ Feedback:"""
         story: Dict,
         demo: DemoResult
     ) -> List[str]:
-        """Simulate stakeholder feedback on demo."""
+        """Simulate stakeholder-like feedback from PO perspective.
 
-        # Simplified: Generate 1-2 stakeholder comments
+        Note: In regular sprint reviews (most sprints), PO represents stakeholder
+        interests. Real stakeholder feedback happens asynchronously every 5 sprints
+        (outside simulation time). This method simulates what stakeholders MIGHT say
+        for research/realism purposes, but it's actually PO feedback.
+        """
+
+        # Simplified: Generate 1-2 PO comments representing stakeholder perspective
         import random
 
         feedback_templates = [
@@ -273,7 +290,7 @@ Feedback:"""
             "How does this integrate with [existing system]?",
             "The UX could be improved, but good start.",
             "This unblocks the enterprise deal, thank you!",
-            "We need to show this to the executive team.",
+            "We need to validate this with users next sprint.",
         ]
 
         num_comments = random.randint(0, 2)

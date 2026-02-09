@@ -2,8 +2,22 @@
 
 **When**: Last day of sprint, after QA review, before retrospective
 **Duration**: 1-2 hours
-**Participants**: Team + PO + Stakeholders
+**Participants**: Team + PO (Stakeholders join every 5 sprints)
 **Purpose**: Demo completed work, get PO acceptance, gather feedback
+
+## Important: Stakeholder Participation
+
+**Regular Sprint Review** (Sprints 1-4, 6-9, 11-14, etc.):
+- Team + PO only
+- PO represents stakeholder interests (voice of customer)
+- Fast feedback loop (within simulation time)
+
+**Major Stakeholder Review** (Every 5 sprints):
+- Team + PO + Real stakeholders (researchers, users)
+- Happens ASYNCHRONOUSLY (breaks simulation flow)
+- Review accumulated work from 5 sprints
+- Stakeholders provide strategic feedback
+- Slow feedback loop (human time scale)
 
 ## Overview
 
@@ -15,17 +29,37 @@ Sprint Review is **NOT**:
 Sprint Review **IS**:
 - ✅ A demo of **working software**
 - ✅ PO accepting or rejecting completed stories
-- ✅ Stakeholders providing feedback
+- ✅ PO providing feedback (representing stakeholders)
 - ✅ Collaborative discussion about what to build next
 
+## PO's Dual Role
+
+In regular sprint reviews, **PO represents stakeholder interests**:
+- **Voice of the customer**: "Users need this to be simpler"
+- **Business perspective**: "This doesn't deliver enough value"
+- **Strategic alignment**: "Let's focus on enterprise features next"
+
+This keeps the feedback loop **fast** (within simulation time). Real stakeholders review every 5 sprints asynchronously.
+
 ## Format
+
+### Regular Sprint Review (Most Sprints)
 
 For each completed story:
 1. **Team demonstrates** (5-10 min)
 2. **PO reviews acceptance criteria** (2-3 min)
 3. **PO accepts/rejects** (1 min)
-4. **Stakeholders provide feedback** (5 min)
+4. **PO provides feedback** (2-3 min)
 5. **Capture follow-up items** (as needed)
+
+### Major Stakeholder Review (Every 5 Sprints)
+
+After 5 sprints of accumulated work:
+1. **Simulation PAUSES** (human stakeholder time needed)
+2. **Team prepares demo** (highlights from 5 sprints)
+3. **Stakeholders review asynchronously** (hours/days in human time)
+4. **Strategic feedback captured** (roadmap adjustments, priorities)
+5. **Simulation RESUMES** with stakeholder feedback as backlog items
 
 ---
 
@@ -125,31 +159,63 @@ The PO will check each acceptance criterion:
 
 ---
 
-## Responding to Feedback
+## Responding to PO Feedback
 
-### Stakeholder Asks: "Can you add [new feature]?"
+### PO Asks: "Can you add [new feature]?"
 
 **Good response**:
-> "That's a great idea! Let's add it to the backlog and the PO can prioritize it for an upcoming sprint."
+> "That's a great idea! Let's add it to the backlog and you can prioritize it for an upcoming sprint."
 
 **Bad response**:
 > "Sure, we can add that this week!" ← **Don't scope creep mid-sprint!**
 
-### Stakeholder Asks: "Why didn't you implement [thing]?"
+### PO Asks: "Why didn't you implement [thing]?"
 
 **Good response**:
-> "That wasn't in the original acceptance criteria. If it's important, the PO can add it as a follow-up story."
+> "That wasn't in the original acceptance criteria. If it's important, we can add it as a follow-up story."
 
 **Bad response**:
 > "We didn't have time" ← Makes team look unprofessional
 
-### Stakeholder Says: "The UX isn't intuitive"
+### PO Says: "The UX isn't intuitive"
 
 **Good response**:
 > "Thanks for the feedback. Can you show me where you got confused? We can improve that in the next iteration."
 
 **Bad response**:
 > "It works fine for us" ← Defensive, dismisses feedback
+
+---
+
+## Major Stakeholder Review (Every 5 Sprints)
+
+When real stakeholders join (researchers, users), the dynamic is different:
+
+### Stakeholder Review Purpose
+- **Strategic alignment**: Are we building the right product?
+- **Priority validation**: Should we continue current direction?
+- **Roadmap adjustments**: What should next 5 sprints focus on?
+- **Research feedback**: How well is the simulated team performing?
+
+### What Stakeholders Review
+- **Cumulative demos**: Highlights from 5 sprints of work
+- **Velocity trends**: Story points delivered per sprint
+- **Quality metrics**: Test coverage, acceptance rate, cycle time
+- **Team dynamics**: Pairing patterns, meta-learnings, improvements
+
+### Stakeholder Feedback Format
+Since stakeholders review asynchronously (human time scale):
+- Written feedback document
+- New backlog items (epics, features)
+- Priority adjustments
+- Process change requests (if simulation needs tuning)
+
+### Integration Back Into Simulation
+After stakeholder review completes (hours/days later):
+1. PO translates feedback into backlog stories
+2. Simulation resumes with updated backlog
+3. Team works on stakeholder-driven priorities
+4. Next 5 sprints reflect stakeholder input
 
 ---
 
