@@ -21,7 +21,6 @@ class AgentConfig:
     specializations: List[str] = field(default_factory=list)  # List of specialization files
     role_archetype: str = ""                  # developer | tester | leader
     demographics: Dict[str, str] = field(default_factory=dict)  # pronouns, cultural_background, etc.
-    prompt_path: str = ""                     # DEPRECATED (for backward compatibility)
 
 
 # Canned responses used in mock mode, keyed by role_id
@@ -100,7 +99,7 @@ class BaseAgent:
     def _load_prompt(self) -> str:
         """Load and compose agent prompt from layered config files.
 
-        Composition order (NEW ARCHITECTURE):
+        Composition order:
         1. 00_base/base_agent.md (universal)
         2. 01_role_archetypes/{developer,tester,leader}.md
         3. 02_seniority/{junior,mid,senior}.md
@@ -108,13 +107,7 @@ class BaseAgent:
         5. 04_domain_knowledge/ (layered by seniority)
         6. 05_individuals/{name}.md
         7. Demographic modifiers (applied as text)
-
-        Falls back to old prompt_path system if new fields not present.
         """
-        # Backward compatibility: use old system if new fields not populated
-        if not self.config.individual and self.config.prompt_path:
-            return self._load_prompt_legacy()
-
         # Determine team_config directory
         # Try to find it from environment or default location
         team_config_dir = Path(os.environ.get("TEAM_CONFIG_DIR", "team_config"))
@@ -197,42 +190,6 @@ class BaseAgent:
             if "cultural_background" in self.config.demographics:
                 demo_text += f"Cultural Background: {self.config.demographics['cultural_background']}\n"
             parts.append(demo_text)
-
-        return "\n\n---\n\n".join(parts)
-
-    def _load_prompt_legacy(self) -> str:
-        """Legacy prompt loading for backward compatibility."""
-        if not self.config.prompt_path:
-            return "You are a helpful software engineering team member."
-
-        profile_path = Path(self.config.prompt_path)
-        if not profile_path.exists():
-            return "You are a helpful software engineering team member."
-
-        team_config_dir = profile_path.parent.parent
-
-        profile_text = profile_path.read_text()
-        inherit_match = re.search(r"\*\*Inherits\*\*:?\s*(.+)", profile_text)
-        archetype_files: List[str] = []
-        if inherit_match:
-            raw = inherit_match.group(1)
-            archetype_files = re.findall(r"`?(\w[\w.-]*\.md)`?", raw)
-
-        parts: List[str] = []
-
-        base_path = team_config_dir / "00_base" / "base_agent.md"
-        if base_path.exists():
-            parts.append(base_path.read_text())
-
-        archetypes_dir = team_config_dir / "01_role_archetypes"
-        for fname in archetype_files:
-            if fname == "base_agent.md":
-                continue
-            arch_path = archetypes_dir / fname
-            if arch_path.exists():
-                parts.append(arch_path.read_text())
-
-        parts.append(profile_text)
 
         return "\n\n---\n\n".join(parts)
 

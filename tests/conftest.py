@@ -33,7 +33,6 @@ def mock_agent_config():
         model="mock-model",
         temperature=0.7,
         max_tokens=100,
-        prompt_path="",
     )
 
 
@@ -57,6 +56,5 @@ def make_agent(role_id: str) -> BaseAgent:
         model="mock-model",
         temperature=0.7,
         max_tokens=100,
-        prompt_path="",
     )
     return BaseAgent(config, vllm_endpoint="mock://")
