@@ -344,3 +344,7 @@ remote_git:
 
   # Git author metadata for commit attribution
   author_email_domain: "agent.local"  # Generates emails like alex_senior_networking@agent.local
+
+# Sprint 0 Infrastructure Setup
+sprint_zero:
+  enabled: true  # Set to false to skip Sprint 0 and start with Sprint 1

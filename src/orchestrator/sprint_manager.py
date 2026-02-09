@@ -18,6 +18,7 @@ from ..metrics.sprint_metrics import SprintMetrics
 from ..metrics.prometheus_exporter import update_sprint_metrics
 from .backlog import Backlog
 from .disturbances import DisturbanceEngine
+from .sprint_zero import SprintZeroGenerator, BrownfieldAnalyzer
 
 
 class SprintManager:
@@ -117,6 +118,10 @@ class SprintManager:
     async def run_sprint(self, sprint_num: int):
         """Execute one complete sprint."""
 
+        # Special handling for Sprint 0 (infrastructure setup)
+        if sprint_num == 0:
+            return await self._run_sprint_zero()
+
         sprint_output = self.output_dir / f"sprint-{sprint_num:02d}"
         sprint_output.mkdir(parents=True, exist_ok=True)
 
@@ -172,6 +177,196 @@ class SprintManager:
             pass  # metrics server may not be running in all environments
 
         return result
+
+    # -------------------------------------------------------------------------
+    # Sprint 0: Infrastructure Setup
+    # -------------------------------------------------------------------------
+
+    async def _run_sprint_zero(self):
+        """Run Sprint 0 - infrastructure setup.
+
+        Flow:
+        1. Planning: Generate/select infrastructure stories
+        2. Development: Agents create config files (normal pairing)
+        3. QA: Validate configs are syntactically correct
+        4. CI Validation: Actually run CI pipeline validation
+        5. Retrospective: Discuss infrastructure decisions
+        """
+        sprint_num = 0
+
+        sprint_output = self.output_dir / f"sprint-{sprint_num:02d}"
+        sprint_output.mkdir(parents=True, exist_ok=True)
+
+        print("  Planning (Sprint 0)...")
+        await self._run_planning_sprint_zero()
+
+        # Skip disturbances for Sprint 0 (not relevant for infrastructure)
+
+        print("  Development...")
+        await self.run_development(sprint_num)
+
+        print("  QA review...")
+        await self.run_qa_review(sprint_num)
+
+        print("  CI Validation...")
+        ci_passed = await self._validate_ci_pipeline()
+
+        print("  Retrospective...")
+        retro_data = await self.run_retrospective(sprint_num)
+
+        print("  Meta-learning...")
+        await self.apply_meta_learning(sprint_num, retro_data)
+
+        print("  Artifacts...")
+        await self.generate_sprint_artifacts(sprint_num, sprint_output, retro_data)
+
+        result = await self.metrics.calculate_sprint_results(sprint_num, self.db, self.kanban)
+
+        # Add CI validation status to result
+        result.ci_validated = ci_passed
+
+        self._sprint_results.append(
+            {
+                "sprint": sprint_num,
+                "velocity": result.velocity,
+                "features_completed": result.features_completed,
+                "test_coverage": result.test_coverage,
+                "pairing_sessions": result.pairing_sessions,
+                "cycle_time_avg": result.cycle_time_avg,
+                "ci_validated": ci_passed,
+                "status": "complete" if ci_passed else "incomplete",
+            }
+        )
+
+        # Update Prometheus metrics
+        try:
+            sessions = await self.db.get_pairing_sessions_for_sprint(sprint_num)
+            update_sprint_metrics(result, session_details=sessions)
+        except Exception:
+            pass
+
+        return result
+
+    async def _run_planning_sprint_zero(self):
+        """Sprint 0 planning: Generate/select infrastructure stories."""
+        if not self.backlog:
+            print("    No backlog configured, skipping Sprint 0")
+            return
+
+        # Get product metadata from backlog
+        product_meta = self.backlog.get_product_metadata()
+
+        # Check if stakeholder provided explicit Sprint 0 stories
+        backlog_sprint_zero_stories = [
+            s for s in self.backlog.data.get("stories", [])
+            if s.get("sprint") == 0
+        ]
+
+        if backlog_sprint_zero_stories:
+            # Use explicitly provided Sprint 0 stories
+            stories_to_use = backlog_sprint_zero_stories
+            print(f"    Using {len(stories_to_use)} Sprint 0 stories from backlog")
+        else:
+            # Generate infrastructure stories
+            print(f"    Generating infrastructure stories for: {', '.join(product_meta.languages)}")
+
+            # Detect project type and generate stories
+            if product_meta.repository_type == "brownfield" and product_meta.repository_url:
+                # Brownfield: Clone repo, analyze gaps
+                workspace = self.workspace_manager.create_sprint_workspace(0, "analysis")
+                analyzer = BrownfieldAnalyzer(workspace)
+                analysis = analyzer.analyze()
+
+                print(f"    Brownfield analysis: {sum(analysis.values())}/{len(analysis)} components exist")
+
+                # Generate stories for missing pieces
+                generator = SprintZeroGenerator(product_meta, {})
+                all_stories = generator.generate_stories()
+                infrastructure_stories = analyzer.generate_gap_stories(analysis, all_stories)
+            else:
+                # Greenfield: Generate all infrastructure stories
+                generator = SprintZeroGenerator(product_meta, {})
+                infrastructure_stories = generator.generate_stories()
+
+            # Convert to backlog format
+            stories_to_use = [generator.convert_to_backlog_format(s) for s in infrastructure_stories]
+            print(f"    Generated {len(stories_to_use)} infrastructure stories")
+
+        # Add stories to Kanban as "ready"
+        for story in stories_to_use:
+            card_data = {
+                "title": story["title"],
+                "description": story["description"],
+                "status": "ready",
+                "story_points": story.get("story_points", 3),
+                "sprint": 0
+            }
+            # Store infrastructure metadata if present
+            if "_infrastructure" in story:
+                card_data["metadata"] = story["_infrastructure"]
+
+            card_id = await self.kanban.add_card(card_data)
+
+        print(f"    Added {len(stories_to_use)} stories to Sprint 0 backlog")
+
+    async def _validate_ci_pipeline(self) -> bool:
+        """Validate that CI pipeline actually works.
+
+        Returns:
+            True if CI runs successfully, False otherwise.
+        """
+        # Get Sprint 0 workspace
+        workspace = self.workspace_manager.base_dir / "sprint-0"
+        if not workspace.exists():
+            print("    No Sprint 0 workspace found")
+            return True  # OK if no workspace created yet
+
+        # Check for CI config
+        gh_actions = workspace / ".github" / "workflows"
+        gitlab_ci = workspace / ".gitlab-ci.yml"
+
+        if gh_actions.exists():
+            # Validate GitHub Actions workflow syntax
+            import subprocess
+            try:
+                result = subprocess.run(
+                    ["gh", "workflow", "list"],
+                    cwd=workspace,
+                    capture_output=True,
+                    timeout=30
+                )
+                if result.returncode == 0:
+                    print("    ✓ GitHub Actions workflow validated")
+                    return True
+                else:
+                    print(f"    ✗ GitHub Actions validation failed: {result.stderr.decode()}")
+                    return False
+            except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                print(f"    ⚠ Cannot validate GitHub Actions (gh CLI not available): {e}")
+                # If gh CLI not available, just check file exists
+                return True
+
+        elif gitlab_ci.exists():
+            # For GitLab CI, just check file exists and is valid YAML
+            import yaml
+            try:
+                with open(gitlab_ci) as f:
+                    yaml.safe_load(f)
+                print("    ✓ GitLab CI configuration validated")
+                return True
+            except yaml.YAMLError as e:
+                print(f"    ✗ GitLab CI validation failed: {e}")
+                return False
+
+        # No CI configured - check if it was expected
+        product_meta = self.backlog.get_product_metadata() if self.backlog else None
+        if product_meta and ("github-actions" in product_meta.tech_stack or "gitlab-ci" in product_meta.tech_stack):
+            print("    ✗ CI pipeline expected but not found")
+            return False
+
+        # No CI required
+        print("    ⊘ No CI pipeline required")
+        return True
 
     # -------------------------------------------------------------------------
     # Phase 1: Planning

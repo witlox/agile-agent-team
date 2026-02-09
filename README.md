@@ -16,6 +16,7 @@ This project implements an 11-agent team that operates like a real software deve
 
 ### Core Principles
 
+- **Sprint 0**: Infrastructure setup before feature development (CI/CD, linters, Docker, K8s)
 - **20-minute sprints** (simulated 2 weeks)
 - **XP practices**: Pair programming, TDD, continuous integration
 - **Kanban workflow** with WIP limits
@@ -199,8 +200,11 @@ MOCK_LLM=true python -m src.orchestrator.main \
   --output /tmp/test-run \
   --db-url mock://
 
-# Generated code will be in: /tmp/agent-workspace/sprint-01/
+# Sprint 0: Infrastructure configs in /tmp/agent-workspace/sprint-0/
+# Sprint 1+: Feature code in /tmp/agent-workspace/sprint-01/, sprint-02/, etc.
 ```
+
+**Note**: Sprint 0 runs automatically (configurable) to set up CI/CD, linters, Docker, and other infrastructure before feature development. See [docs/SPRINT_ZERO.md](docs/SPRINT_ZERO.md) for details.
 
 ### Basic Experiment (With Code Generation)
 

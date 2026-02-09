@@ -1,0 +1,139 @@
+# Example Backlog with Sprint 0 Infrastructure Setup
+#
+# This demonstrates Sprint 0 configuration for a multi-language microservices project.
+# The system will automatically generate infrastructure stories for Sprint 0.
+
+product:
+  name: "CloudTask - Distributed Task Queue"
+  description: >
+    A high-performance distributed task queue system built with microservices.
+    Supports Python workers, Go orchestration layer, and TypeScript web dashboard.
+
+  # Multi-language support - Sprint 0 will generate tooling for each
+  languages:
+    - python   # Worker nodes
+    - go       # Orchestration service
+    - typescript  # Web UI
+
+  # Infrastructure components - Sprint 0 will create configs
+  tech_stack:
+    - docker          # Containerization
+    - kubernetes      # Orchestration
+    - github-actions  # CI/CD (use 'gitlab-ci' for GitLab)
+    - prometheus      # Metrics (future)
+
+  # Repository configuration
+  repository:
+    type: greenfield  # Fresh project (use 'brownfield' for existing repos)
+    url: ""           # Leave empty for greenfield
+
+# Sprint 0 will automatically generate these infrastructure stories:
+# - INFRA-CI-GHA: GitHub Actions CI pipeline
+# - INFRA-PY-LINT: Python linting (black, ruff, mypy)
+# - INFRA-PY-TEST: Python testing (pytest, coverage)
+# - INFRA-GO-LINT: Go linting (golangci-lint)
+# - INFRA-TS-LINT: TypeScript linting (eslint, prettier, tsconfig)
+# - INFRA-DOCKER: Docker containerization
+# - INFRA-K8S: Kubernetes manifests
+
+# Feature stories begin in Sprint 1
+stories:
+  - id: US-001
+    title: "Task submission API"
+    description: "As a client, I can submit tasks to the queue via REST API"
+    acceptance_criteria:
+      - "POST /tasks endpoint accepts task payload"
+      - "Validates task schema"
+      - "Returns task ID"
+    story_points: 5
+    priority: 1
+
+  - id: US-002
+    title: "Worker task consumption"
+    description: "As a worker, I can fetch and execute tasks from the queue"
+    acceptance_criteria:
+      - "Workers poll for available tasks"
+      - "Task execution isolated in subprocess"
+      - "Results published to result queue"
+    story_points: 8
+    priority: 2
+
+  - id: US-003
+    title: "Task status tracking"
+    description: "As a client, I can check the status of submitted tasks"
+    acceptance_criteria:
+      - "GET /tasks/{id} returns task status"
+      - "Status values: pending, running, completed, failed"
+      - "Includes execution metadata (start time, duration)"
+    story_points: 3
+    priority: 3
+
+  - id: US-004
+    title: "Web dashboard"
+    description: "As an operator, I can view task queue status in a web UI"
+    acceptance_criteria:
+      - "Dashboard shows queue depth"
+      - "Lists recent tasks with status"
+      - "Updates in real-time (WebSocket)"
+    story_points: 8
+    priority: 4
+
+  - id: US-005
+    title: "Task retry logic"
+    description: "As a client, failed tasks are automatically retried up to 3 times"
+    acceptance_criteria:
+      - "Failed tasks re-queued with exponential backoff"
+      - "Max 3 retry attempts"
+      - "Final failure logged with reason"
+    story_points: 5
+    priority: 5
+
+  - id: US-006
+    title: "Task priority queues"
+    description: "As a client, I can submit tasks with priority levels"
+    acceptance_criteria:
+      - "Priority levels: low, normal, high, critical"
+      - "High-priority tasks processed first"
+      - "Workers respect priority ordering"
+    story_points: 5
+    priority: 6
+
+  - id: US-007
+    title: "Worker health monitoring"
+    description: "As an operator, I can see which workers are healthy"
+    acceptance_criteria:
+      - "Workers send heartbeat every 30 seconds"
+      - "Missing heartbeats mark worker as unhealthy"
+      - "Dashboard shows worker status"
+    story_points: 3
+    priority: 7
+
+  - id: US-008
+    title: "Task scheduling"
+    description: "As a client, I can schedule tasks to run at a future time"
+    acceptance_criteria:
+      - "POST /tasks accepts 'scheduled_at' timestamp"
+      - "Tasks held until scheduled time"
+      - "Scheduled tasks shown in dashboard"
+    story_points: 5
+    priority: 8
+
+  - id: US-009
+    title: "Distributed tracing"
+    description: "As an operator, I can trace task execution across services"
+    acceptance_criteria:
+      - "OpenTelemetry spans for each task stage"
+      - "Trace IDs propagated through system"
+      - "Traces viewable in Jaeger UI"
+    story_points: 8
+    priority: 9
+
+  - id: US-010
+    title: "API rate limiting"
+    description: "As an operator, the API is protected from abuse"
+    acceptance_criteria:
+      - "100 requests/minute per client IP"
+      - "429 response with Retry-After header"
+      - "Rate limits configurable via env vars"
+    story_points: 3
+    priority: 10

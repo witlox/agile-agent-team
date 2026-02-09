@@ -5,6 +5,21 @@ product:
     Teams can create projects, assign tasks, track progress, and
     collaborate in real time.
 
+  # Multi-language support for Sprint 0
+  languages: [python, typescript]
+
+  # Tech stack for infrastructure setup
+  tech_stack:
+    - docker
+    - github-actions
+    - pytest
+    - jest
+
+  # Repository configuration
+  repository:
+    type: greenfield  # or brownfield for existing repos
+    url: ""  # Empty for new projects
+
 stories:
   - id: US-001
     title: "User registration"

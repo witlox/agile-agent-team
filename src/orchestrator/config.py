@@ -43,6 +43,8 @@ class ExperimentConfig:
     remote_git_enabled: bool = False
     remote_git_provider: str = "github"  # "github" or "gitlab"
     remote_git_config: Dict[str, Dict] = field(default_factory=dict)
+    # Sprint 0 configuration
+    sprint_zero_enabled: bool = True  # Run Sprint 0 for infrastructure setup
 
 
 def load_config(config_path: str, database_url: Optional[str] = None) -> ExperimentConfig:
@@ -145,6 +147,11 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
             "author_email_domain": rg.get("author_email_domain", "agent.local")
         }
 
+    # Sprint 0 configuration
+    sprint_zero_enabled = True
+    if "sprint_zero" in data:
+        sprint_zero_enabled = data["sprint_zero"].get("enabled", True)
+
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
     resolved_db_url = (
         database_url
@@ -184,4 +191,5 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         remote_git_enabled=remote_git_enabled,
         remote_git_provider=remote_git_provider,
         remote_git_config=remote_git_config,
+        sprint_zero_enabled=sprint_zero_enabled,
     )

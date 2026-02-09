@@ -58,18 +58,31 @@ async def run_experiment(
         backlog=backlog,
     )
 
-    for sprint_num in range(1, num_sprints + 1):
+    # Determine sprint range based on sprint_zero_enabled
+    start_sprint = 0 if config.sprint_zero_enabled else 1
+    end_sprint = num_sprints if config.sprint_zero_enabled else num_sprints
+
+    for sprint_num in range(start_sprint, end_sprint + 1):
+        sprint_label = "SPRINT 0 (Infrastructure)" if sprint_num == 0 else f"SPRINT {sprint_num}"
         print(f"\n{'='*60}")
-        print(f"SPRINT {sprint_num}  [{datetime.now().strftime('%H:%M:%S')}]")
+        print(f"{sprint_label}  [{datetime.now().strftime('%H:%M:%S')}]")
         print(f"{'='*60}")
 
         result = await sprint_mgr.run_sprint(sprint_num)
 
-        print(
-            f"  velocity={result.velocity}pts  "
-            f"done={result.features_completed}  "
-            f"sessions={result.pairing_sessions}"
-        )
+        # Sprint 0 specific reporting
+        if sprint_num == 0:
+            ci_validated = getattr(result, 'ci_validated', True)
+            if ci_validated:
+                print(f"  ✓ Sprint 0 complete: Infrastructure validated")
+            else:
+                print(f"  ✗ Sprint 0 incomplete: CI validation failed")
+        else:
+            print(
+                f"  velocity={result.velocity}pts  "
+                f"done={result.features_completed}  "
+                f"sessions={result.pairing_sessions}"
+            )
 
         if sprint_num % config.sprints_per_stakeholder_review == 0:
             await sprint_mgr.stakeholder_review(sprint_num)
