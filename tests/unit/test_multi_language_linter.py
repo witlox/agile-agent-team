@@ -2,7 +2,6 @@
 
 import pytest
 import shutil
-from pathlib import Path
 from src.tools.agent_tools.linter import MultiLanguageLinter
 
 
@@ -33,7 +32,7 @@ async def test_lint_go_code(temp_workspace):
     """Test golangci-lint on Go code."""
     go_file = temp_workspace / "test.go"
     go_file.write_text("package main\nfunc main(){}")
-    
+
     assert go_file.exists()
 
 
@@ -42,7 +41,7 @@ async def test_lint_rust_code(temp_workspace):
     """Test clippy on Rust code."""
     rust_file = temp_workspace / "test.rs"
     rust_file.write_text("fn main(){}")
-    
+
     assert rust_file.exists()
 
 
@@ -51,7 +50,7 @@ async def test_lint_typescript_code(temp_workspace):
     """Test ESLint on TypeScript code."""
     ts_file = temp_workspace / "test.ts"
     ts_file.write_text("const x = 1;")
-    
+
     assert ts_file.exists()
 
 
@@ -60,7 +59,7 @@ async def test_lint_cpp_code(temp_workspace):
     """Test clang-tidy on C++ code."""
     cpp_file = temp_workspace / "test.cpp"
     cpp_file.write_text("#include<iostream>\nint main(){}")
-    
+
     assert cpp_file.exists()
 
 
@@ -68,7 +67,7 @@ async def test_lint_cpp_code(temp_workspace):
 async def test_language_detection(temp_workspace):
     """Test language detection from file extensions."""
     extensions = [".py", ".go", ".rs", ".ts", ".cpp"]
-    
+
     for ext in extensions:
         file_path = temp_workspace / f"test{ext}"
         file_path.touch()

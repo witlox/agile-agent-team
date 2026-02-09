@@ -1,7 +1,6 @@
 """Integration tests for technical planning ceremony (Phase 2 planning)."""
 
 import pytest
-import pytest_asyncio
 from src.orchestrator.technical_planning import TechnicalPlanningSession
 from src.orchestrator.story_refinement import RefinedStory
 from src.agents.base_agent import BaseAgent, AgentConfig
@@ -93,7 +92,9 @@ async def test_story_breakdown_into_tasks(
     """Test story broken into 2-4 technical tasks."""
     session = TechnicalPlanningSession(mock_developers, mock_dev_lead, mock_qa_lead)
 
-    tasks, dependencies = await session.plan_implementation(refined_stories, sprint_num=1)
+    tasks, dependencies = await session.plan_implementation(
+        refined_stories, sprint_num=1
+    )
 
     # Should create tasks for stories
     assert len(tasks) > 0, "Should create tasks"
@@ -118,7 +119,9 @@ async def test_task_owner_assignment_by_specialization(
     """Test task owners assigned based on specialization."""
     session = TechnicalPlanningSession(mock_developers, mock_dev_lead, mock_qa_lead)
 
-    tasks, dependencies = await session.plan_implementation(refined_stories, sprint_num=1)
+    tasks, dependencies = await session.plan_implementation(
+        refined_stories, sprint_num=1
+    )
 
     # All tasks should have owners
     assert all(
@@ -140,7 +143,9 @@ async def test_dependency_graph_creation(
     """Test dependency graph with upstream/downstream tasks."""
     session = TechnicalPlanningSession(mock_developers, mock_dev_lead, mock_qa_lead)
 
-    tasks, dependencies = await session.plan_implementation(refined_stories, sprint_num=1)
+    tasks, dependencies = await session.plan_implementation(
+        refined_stories, sprint_num=1
+    )
 
     # Dependencies should be a dictionary or graph structure
     assert dependencies is not None, "Should return dependency information"
@@ -157,11 +162,15 @@ async def test_initial_pairing_assignment(
     """Test initial pairs assigned (owner + navigator)."""
     session = TechnicalPlanningSession(mock_developers, mock_dev_lead, mock_qa_lead)
 
-    tasks, dependencies = await session.plan_implementation(refined_stories, sprint_num=1)
+    tasks, dependencies = await session.plan_implementation(
+        refined_stories, sprint_num=1
+    )
 
     # Tasks should have initial navigator assignments
     navigators_assigned = sum(
-        1 for task in tasks if hasattr(task, "initial_navigator") and task.initial_navigator
+        1
+        for task in tasks
+        if hasattr(task, "initial_navigator") and task.initial_navigator
     )
 
     assert navigators_assigned > 0, "Should assign initial navigators to some tasks"
@@ -175,7 +184,9 @@ async def test_max_tasks_equals_half_team_size(
     # Add more developers to test the constraint
     session = TechnicalPlanningSession(mock_developers, mock_dev_lead, mock_qa_lead)
 
-    tasks, dependencies = await session.plan_implementation(refined_stories, sprint_num=1)
+    tasks, dependencies = await session.plan_implementation(
+        refined_stories, sprint_num=1
+    )
 
     # With 3 developers, max concurrent tasks should be ~1-2 per story
     # This is a soft constraint - just verify reasonable task count

@@ -2,7 +2,6 @@
 
 import json
 import pytest
-from pathlib import Path
 from src.agents.base_agent import BaseAgent, AgentConfig
 
 
@@ -368,7 +367,9 @@ def test_meta_learnings_format_in_prompt(agent_with_team_config, temp_team_confi
     assert "keep" in prompt.lower()
 
 
-def test_meta_learnings_only_for_matching_agent(agent_with_team_config, temp_team_config):
+def test_meta_learnings_only_for_matching_agent(
+    agent_with_team_config, temp_team_config
+):
     """Test agent only loads their own learnings, not others."""
     jsonl_path = temp_team_config / "07_meta" / "meta_learnings.jsonl"
 

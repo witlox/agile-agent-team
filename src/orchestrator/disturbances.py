@@ -341,9 +341,7 @@ class DisturbanceEngine:
                     if card.get("id") == card_id:
                         desc = card.get("description", "")
                         if "[FLAKY TESTS" not in desc:
-                            new_desc = (
-                                f"[FLAKY TESTS: naturally detected - inconsistent test results] {desc}"
-                            )
+                            new_desc = f"[FLAKY TESTS: naturally detected - inconsistent test results] {desc}"
                             await db.update_card_field(card_id, "description", new_desc)
 
             self._detected_natural.add("flaky_test")

@@ -1,7 +1,6 @@
 """Unit tests for workspace manager (greenfield/brownfield support)."""
 
 import pytest
-from pathlib import Path
 from src.codegen.workspace import WorkspaceManager
 
 
@@ -124,7 +123,9 @@ async def test_clone_repo(temp_base, tmp_path):
         check=True,
     )
     (remote_repo / "file.txt").write_text("content")
-    subprocess.run(["git", "add", "."], cwd=remote_repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "add", "."], cwd=remote_repo, capture_output=True, check=True
+    )
     subprocess.run(
         ["git", "commit", "-m", "Test"],
         cwd=remote_repo,
@@ -171,7 +172,9 @@ async def test_pull_latest_incremental_mode(temp_base, tmp_path):
         check=True,
     )
     (remote_repo / "file.txt").write_text("v1")
-    subprocess.run(["git", "add", "."], cwd=remote_repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "add", "."], cwd=remote_repo, capture_output=True, check=True
+    )
     subprocess.run(
         ["git", "commit", "-m", "V1"],
         cwd=remote_repo,
@@ -199,7 +202,9 @@ async def test_pull_latest_incremental_mode(temp_base, tmp_path):
 
     # Update remote
     (remote_repo / "file.txt").write_text("v2")
-    subprocess.run(["git", "add", "."], cwd=remote_repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "add", "."], cwd=remote_repo, capture_output=True, check=True
+    )
     subprocess.run(
         ["git", "commit", "-m", "V2"],
         cwd=remote_repo,
@@ -276,4 +281,4 @@ async def test_brownfield_clone_failure_handling(temp_base):
 
     # Should handle clone failure gracefully
     with pytest.raises(Exception):
-        workspace = manager.create_sprint_workspace(sprint_num=1, story_id="us-001")
+        _ = manager.create_sprint_workspace(sprint_num=1, story_id="us-001")

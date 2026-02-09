@@ -159,7 +159,9 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
     # =========================================================================
 
     sprint_dirs = list(temp_output_dir.glob("sprint-*"))
-    assert len(sprint_dirs) == 3, f"Expected 3 sprint directories, found {len(sprint_dirs)}"
+    assert (
+        len(sprint_dirs) == 3
+    ), f"Expected 3 sprint directories, found {len(sprint_dirs)}"
 
     # Sort by sprint number
     sprint_dirs = sorted(sprint_dirs, key=lambda p: int(p.name.split("-")[1]))
@@ -177,7 +179,9 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
 
         # Verify kanban structure
         assert "ready" in kanban, f"Sprint {sprint_num}: 'ready' column missing"
-        assert "in_progress" in kanban, f"Sprint {sprint_num}: 'in_progress' column missing"
+        assert (
+            "in_progress" in kanban
+        ), f"Sprint {sprint_num}: 'in_progress' column missing"
         assert "review" in kanban, f"Sprint {sprint_num}: 'review' column missing"
         assert "done" in kanban, f"Sprint {sprint_num}: 'done' column missing"
 
@@ -213,7 +217,9 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
             pairing_log = json.load(f)
 
         # Verify pairing log is a list
-        assert isinstance(pairing_log, list), f"Sprint {sprint_num}: pairing_log not a list"
+        assert isinstance(
+            pairing_log, list
+        ), f"Sprint {sprint_num}: pairing_log not a list"
 
         # Count sessions
         total_pairing_sessions += len(pairing_log)
@@ -222,13 +228,20 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
         if pairing_log:
             session = pairing_log[0]
             assert "sprint" in session, f"Sprint {sprint_num}: Session missing 'sprint'"
-            assert "driver_id" in session, f"Sprint {sprint_num}: Session missing 'driver_id'"
-            assert "navigator_id" in session, f"Sprint {sprint_num}: Session missing 'navigator_id'"
-            assert "outcome" in session, f"Sprint {sprint_num}: Session missing 'outcome'"
+            assert (
+                "driver_id" in session
+            ), f"Sprint {sprint_num}: Session missing 'driver_id'"
+            assert (
+                "navigator_id" in session
+            ), f"Sprint {sprint_num}: Session missing 'navigator_id'"
+            assert (
+                "outcome" in session
+            ), f"Sprint {sprint_num}: Session missing 'outcome'"
 
             # Verify driver and navigator are different
-            assert session["driver_id"] != session["navigator_id"], \
-                f"Sprint {sprint_num}: Driver and navigator are the same"
+            assert (
+                session["driver_id"] != session["navigator_id"]
+            ), f"Sprint {sprint_num}: Driver and navigator are the same"
 
     # Verify we had at least some pairing sessions across all sprints
     assert total_pairing_sessions > 0, "No pairing sessions recorded across 3 sprints"
@@ -244,11 +257,18 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
         retro_content = retro_file.read_text()
 
         # Verify retro structure (Markdown format)
-        assert f"# Sprint {sprint_num} Retrospective" in retro_content, \
-            f"Sprint {sprint_num}: Retro header missing"
-        assert "## Keep" in retro_content, f"Sprint {sprint_num}: 'Keep' section missing"
-        assert "## Drop" in retro_content, f"Sprint {sprint_num}: 'Drop' section missing"
-        assert "## Puzzle" in retro_content, f"Sprint {sprint_num}: 'Puzzle' section missing"
+        assert (
+            f"# Sprint {sprint_num} Retrospective" in retro_content
+        ), f"Sprint {sprint_num}: Retro header missing"
+        assert (
+            "## Keep" in retro_content
+        ), f"Sprint {sprint_num}: 'Keep' section missing"
+        assert (
+            "## Drop" in retro_content
+        ), f"Sprint {sprint_num}: 'Drop' section missing"
+        assert (
+            "## Puzzle" in retro_content
+        ), f"Sprint {sprint_num}: 'Puzzle' section missing"
 
         # Verify at least some content in retro
         # (Mock mode generates canned responses, so there should be entries)
@@ -273,16 +293,20 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
             assert "sprint" in learning, "Meta-learning missing 'sprint'"
             assert "agent_id" in learning, "Meta-learning missing 'agent_id'"
             assert "learning_type" in learning, "Meta-learning missing 'learning_type'"
-            assert learning["learning_type"] in ["keep", "drop", "puzzle"], \
-                f"Invalid learning type: {learning['learning_type']}"
+            assert learning["learning_type"] in [
+                "keep",
+                "drop",
+                "puzzle",
+            ], f"Invalid learning type: {learning['learning_type']}"
             assert "content" in learning, "Meta-learning missing 'content'"
             assert "text" in learning["content"], "Meta-learning content missing 'text'"
 
         # Verify learnings from our 3 sprints exist
-        sprint_nums = {l["sprint"] for l in learnings}
+        sprint_nums = {learning["sprint"] for learning in learnings}
         # At least one learning from our test run
-        assert any(s in [1, 2, 3] for s in sprint_nums), \
-            "No meta-learnings from test sprints 1-3"
+        assert any(
+            s in [1, 2, 3] for s in sprint_nums
+        ), "No meta-learnings from test sprints 1-3"
 
     # =========================================================================
     # VERIFY: Final report
@@ -298,16 +322,24 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
     assert "experiment" in report, "Report missing 'experiment'"
     assert "total_sprints" in report, "Report missing 'total_sprints'"
     assert "sprints" in report, "Report missing 'sprints'"
-    assert report["total_sprints"] == 3, f"Expected 3 sprints, got {report['total_sprints']}"
+    assert (
+        report["total_sprints"] == 3
+    ), f"Expected 3 sprints, got {report['total_sprints']}"
 
     # Verify sprint entries
-    assert len(report["sprints"]) == 3, f"Expected 3 sprint entries, got {len(report['sprints'])}"
+    assert (
+        len(report["sprints"]) == 3
+    ), f"Expected 3 sprint entries, got {len(report['sprints'])}"
 
     for sprint_entry in report["sprints"]:
         assert "sprint" in sprint_entry, "Sprint entry missing 'sprint'"
         assert "velocity" in sprint_entry, "Sprint entry missing 'velocity'"
-        assert "features_completed" in sprint_entry, "Sprint entry missing 'features_completed'"
-        assert "pairing_sessions" in sprint_entry, "Sprint entry missing 'pairing_sessions'"
+        assert (
+            "features_completed" in sprint_entry
+        ), "Sprint entry missing 'features_completed'"
+        assert (
+            "pairing_sessions" in sprint_entry
+        ), "Sprint entry missing 'pairing_sessions'"
 
     # Verify aggregated metrics
     assert "avg_velocity" in report, "Report missing 'avg_velocity'"
@@ -344,8 +376,9 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
                     feature_files = list(features_dir.glob("*.feature"))
                     # If features dir exists, should have at least one feature file
                     if features_dir.is_dir():
-                        assert len(feature_files) > 0, \
-                            f"{story_dir}: features/ exists but no .feature files"
+                        assert (
+                            len(feature_files) > 0
+                        ), f"{story_dir}: features/ exists but no .feature files"
 
     # =========================================================================
     # VERIFY: Cross-sprint consistency
@@ -353,8 +386,11 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
 
     # Verify sprint numbers are sequential
     sprint_numbers = [s["sprint"] for s in report["sprints"]]
-    assert sprint_numbers == [1, 2, 3], \
-        f"Sprint numbers not sequential: {sprint_numbers}"
+    assert sprint_numbers == [
+        1,
+        2,
+        3,
+    ], f"Sprint numbers not sequential: {sprint_numbers}"
 
     # Verify velocity trend (can go up, down, or stay same)
     velocities = [s["velocity"] for s in report["sprints"]]
@@ -373,11 +409,11 @@ async def test_e2e_three_sprint_workflow(temp_output_dir, temp_backlog, tmp_path
     print("\n" + "=" * 70)
     print("E2E TEST SUMMARY")
     print("=" * 70)
-    print(f"✓ 3 sprints completed")
+    print("✓ 3 sprints completed")
     print(f"✓ Kanban snapshots verified ({len(sprint_dirs)} files)")
     print(f"✓ Pairing logs verified ({total_pairing_sessions} total sessions)")
-    print(f"✓ Retrospectives verified (3 retro.md files)")
-    print(f"✓ Final report verified")
+    print("✓ Retrospectives verified (3 retro.md files)")
+    print("✓ Final report verified")
     print(f"✓ Average velocity: {report['avg_velocity']:.1f} pts/sprint")
     print(f"✓ Total features: {report['total_features']}")
     print("=" * 70)
@@ -423,16 +459,19 @@ async def test_e2e_sprint_workflow_kanban_state_transitions(
 
     # In a successful sprint, we should have some done cards
     # (Mock mode might not always complete cards, but verify structure is correct)
-    print(f"\nKanban distribution: ready={ready_count}, in_progress={in_progress_count}, "
-          f"review={review_count}, done={done_count}")
+    print(
+        f"\nKanban distribution: ready={ready_count}, in_progress={in_progress_count}, "
+        f"review={review_count}, done={done_count}"
+    )
 
     # Verify no duplicate card IDs across columns
     all_card_ids = []
     for column in ["ready", "in_progress", "review", "done"]:
         all_card_ids.extend(card["id"] for card in kanban[column])
 
-    assert len(all_card_ids) == len(set(all_card_ids)), \
-        "Duplicate card IDs found across kanban columns"
+    assert len(all_card_ids) == len(
+        set(all_card_ids)
+    ), "Duplicate card IDs found across kanban columns"
 
 
 @pytest.mark.asyncio
@@ -480,7 +519,7 @@ async def test_e2e_sprint_workflow_pairing_diversity(temp_output_dir, temp_backl
         # Should have multiple navigators (rotation happening)
         assert len(all_navigators) > 1, "Only one navigator across all sessions"
 
-        print(f"\nPairing diversity:")
+        print("\nPairing diversity:")
         print(f"  Unique pairs: {len(all_pairs)}")
         print(f"  Unique drivers: {len(all_drivers)}")
         print(f"  Unique navigators: {len(all_navigators)}")

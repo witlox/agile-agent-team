@@ -1,7 +1,6 @@
 """Integration tests for sprint review ceremony."""
 
 import pytest
-import pytest_asyncio
 from src.orchestrator.sprint_review import SprintReviewSession
 from src.agents.base_agent import BaseAgent, AgentConfig
 
@@ -78,14 +77,19 @@ async def test_team_demonstrates_story(
     mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db, completed_stories
 ):
     """Test team generates demo narrative for story."""
-    session = SprintReviewSession(mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db)
+    session = SprintReviewSession(
+        mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db
+    )
 
     result = await session.run_review(sprint_num=1, completed_stories=completed_stories)
 
     # Should produce review outcome
     assert result is not None, "Should return review result"
     from src.orchestrator.sprint_review import SprintReviewOutcome
-    assert isinstance(result, SprintReviewOutcome), "Result should be SprintReviewOutcome"
+
+    assert isinstance(
+        result, SprintReviewOutcome
+    ), "Result should be SprintReviewOutcome"
 
 
 @pytest.mark.asyncio
@@ -93,9 +97,11 @@ async def test_po_reviews_acceptance_criteria(
     mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db, completed_stories
 ):
     """Test PO checks each acceptance criterion."""
-    session = SprintReviewSession(mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db)
+    session = SprintReviewSession(
+        mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db
+    )
 
-    result = await session.run_review(sprint_num=1, completed_stories=completed_stories)
+    _ = await session.run_review(sprint_num=1, completed_stories=completed_stories)
 
     # PO should review each story
     # Check if PO participated (conversation history)
@@ -107,7 +113,9 @@ async def test_po_accepts_story(
     mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db, completed_stories
 ):
     """Test story accepted when all criteria met."""
-    session = SprintReviewSession(mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db)
+    session = SprintReviewSession(
+        mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db
+    )
 
     result = await session.run_review(sprint_num=1, completed_stories=completed_stories)
 
@@ -116,9 +124,9 @@ async def test_po_accepts_story(
 
     # Result should contain acceptance information
     if isinstance(result, dict):
-        assert "sprint" in result or "stories_reviewed" in result, (
-            "Result should contain review data"
-        )
+        assert (
+            "sprint" in result or "stories_reviewed" in result
+        ), "Result should contain review data"
 
 
 @pytest.mark.asyncio
@@ -140,9 +148,13 @@ async def test_po_rejects_story_creates_follow_up(
         "sprint": 1,
     }
 
-    session = SprintReviewSession(mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db)
+    session = SprintReviewSession(
+        mock_po, mock_dev_lead, mock_qa_lead, mock_kanban, mock_db
+    )
 
-    result = await session.run_review(sprint_num=1, completed_stories=[incomplete_story])
+    result = await session.run_review(
+        sprint_num=1, completed_stories=[incomplete_story]
+    )
 
     # Review should complete (whether accepted or rejected)
     assert result is not None, "Review should complete"

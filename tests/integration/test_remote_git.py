@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from src.tools.agent_tools.remote_git import (
     GitHubProvider,
     GitLabProvider,
@@ -345,7 +345,7 @@ async def test_remote_git_disabled_skips_operations(temp_workspace):
 
     # Provider exists but in real usage, orchestrator would skip calling it
     assert provider is not None
-    assert provider.config.get("enabled") == False
+    assert provider.config.get("enabled") is False
 
 
 @pytest.mark.asyncio

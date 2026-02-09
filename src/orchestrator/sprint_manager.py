@@ -17,6 +17,7 @@ from ..tools.agent_tools.remote_git import create_provider
 from ..metrics.sprint_metrics import SprintMetrics
 from ..metrics.prometheus_exporter import update_sprint_metrics
 from .backlog import Backlog
+from .config import ExperimentConfig
 from .disturbances import DisturbanceEngine
 from .sprint_zero import SprintZeroGenerator, BrownfieldAnalyzer
 from .story_refinement import StoryRefinementSession
@@ -24,7 +25,7 @@ from .technical_planning import TechnicalPlanningSession
 from .daily_standup import DailyStandupSession
 from .sprint_review import SprintReviewSession
 from .pair_rotation import PairRotationManager
-from .specialist_consultant import SpecialistConsultantSystem, SpecialistRequest
+from .specialist_consultant import SpecialistConsultantSystem
 
 
 class SprintManager:
@@ -530,9 +531,7 @@ class SprintManager:
                 }
             )
 
-    def _parse_story_ids(
-        self, response: str, candidates: List[Dict]
-    ) -> List[Dict]:
+    def _parse_story_ids(self, response: str, candidates: List[Dict]) -> List[Dict]:
         """Extract story IDs from PO response; fall back to first 3 candidates."""
         found_ids = re.findall(r"US-\d+", response.upper())
         id_map = {s["id"]: s for s in candidates}

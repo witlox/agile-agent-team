@@ -1,7 +1,6 @@
 """Unit tests for BDD/Gherkin generator."""
 
 import pytest
-from pathlib import Path
 from src.codegen.bdd_generator import BDDGenerator
 
 
@@ -122,9 +121,9 @@ def test_feature_file_path_generation(bdd_generator, sample_story, tmp_path):
     assert feature_file.parent.name == "features", "Should be in features/ directory"
 
     # Should use story ID in filename
-    assert sample_story["id"].lower() in feature_file.name.lower(), (
-        "Filename should include story ID"
-    )
+    assert (
+        sample_story["id"].lower() in feature_file.name.lower()
+    ), "Filename should include story ID"
 
 
 def test_multiple_scenarios_in_feature(bdd_generator, tmp_path):
@@ -149,4 +148,6 @@ def test_multiple_scenarios_in_feature(bdd_generator, tmp_path):
     # Should have at least one scenario
     # (Note: Current implementation creates one "Basic acceptance" scenario from all criteria)
     scenario_count = content.count("Scenario:")
-    assert scenario_count >= 1, f"Should have at least one scenario (found {scenario_count})"
+    assert (
+        scenario_count >= 1
+    ), f"Should have at least one scenario (found {scenario_count})"

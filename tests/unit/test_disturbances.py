@@ -95,7 +95,9 @@ def disturbance_engine():
 
 
 @pytest.mark.asyncio
-async def test_dependency_break_fires(disturbance_engine, test_kanban, mock_agents, mock_db):
+async def test_dependency_break_fires(
+    disturbance_engine, test_kanban, mock_agents, mock_db
+):
     """Test dependency break disturbance selects a card and blocks it."""
     # Apply dependency break
     await disturbance_engine.apply(
@@ -107,9 +109,7 @@ async def test_dependency_break_fires(disturbance_engine, test_kanban, mock_agen
     all_cards = snapshot.get("ready", []) + snapshot.get("in_progress", [])
 
     # At least one card should have dependency break in description
-    blocked_cards = [
-        c for c in all_cards if "BLOCKED" in c.get("description", "")
-    ]
+    blocked_cards = [c for c in all_cards if "BLOCKED" in c.get("description", "")]
 
     assert len(blocked_cards) > 0, "Dependency break should mark a card as blocked"
 
@@ -120,7 +120,7 @@ async def test_production_incident_creates_hotfix(
 ):
     """Test production incident creates HOTFIX card."""
     initial_snapshot = await test_kanban.get_snapshot()
-    initial_count = sum(len(v) for v in initial_snapshot.values())
+    _ = sum(len(v) for v in initial_snapshot.values())
 
     # Apply production incident
     await disturbance_engine.apply(
@@ -144,7 +144,9 @@ async def test_production_incident_creates_hotfix(
 
 
 @pytest.mark.asyncio
-async def test_flaky_test_tags_card(disturbance_engine, test_kanban, mock_agents, mock_db):
+async def test_flaky_test_tags_card(
+    disturbance_engine, test_kanban, mock_agents, mock_db
+):
     """Test flaky test disturbance tags card with [FLAKY TESTS]."""
     # Apply flaky tests disturbance
     await disturbance_engine.apply("flaky_test", mock_agents, test_kanban, mock_db)
@@ -177,9 +179,7 @@ async def test_scope_creep_adds_unplanned_card(
     final_snapshot = await test_kanban.get_snapshot()
     final_count = sum(len(v) for v in final_snapshot.values())
 
-    assert (
-        final_count > initial_count
-    ), "Scope creep should add a new unplanned card"
+    assert final_count > initial_count, "Scope creep should add a new unplanned card"
 
     # Card should have Scope creep marker
     all_cards = (
@@ -198,9 +198,7 @@ async def test_junior_misunderstanding_tags_agent(
 ):
     """Test junior misunderstanding tags random junior agent."""
     # Filter for junior agents
-    junior_agents = [
-        a for a in mock_agents if a.config.seniority == "junior"
-    ]
+    junior_agents = [a for a in mock_agents if a.config.seniority == "junior"]
 
     if not junior_agents:
         pytest.skip("No junior agents available")
@@ -214,7 +212,9 @@ async def test_junior_misunderstanding_tags_agent(
     # The disturbance adds confusion to junior's conversation history
     # We can verify by checking the result contains affected agents
     assert result.get("impact") == "junior_confused", "Should mark junior as confused"
-    assert len(result.get("affected_agents", [])) > 0, "Should affect at least one junior"
+    assert (
+        len(result.get("affected_agents", [])) > 0
+    ), "Should affect at least one junior"
 
 
 @pytest.mark.asyncio
@@ -246,9 +246,7 @@ async def test_merge_conflict_tags_card_and_notifies_lead(
 ):
     """Test merge conflict tags card and notifies dev lead."""
     # Apply merge conflict
-    await disturbance_engine.apply(
-        "merge_conflict", mock_agents, test_kanban, mock_db
-    )
+    await disturbance_engine.apply("merge_conflict", mock_agents, test_kanban, mock_db)
 
     # Check that a card was tagged
     snapshot = await test_kanban.get_snapshot()
@@ -301,14 +299,12 @@ def test_rng_determinism():
     result1 = engine1.roll_for_sprint(1)
     result2 = engine2.roll_for_sprint(1)
 
-    assert (
-        result1 == result2
-    ), "Same seed should produce same disturbance sequence"
+    assert result1 == result2, "Same seed should produce same disturbance sequence"
 
     # Different seeds should (likely) produce different results
     rng3 = random.Random(99)
     engine3 = DisturbanceEngine(frequencies, {}, rng=rng3)
-    result3 = engine3.roll_for_sprint(1)
+    _ = engine3.roll_for_sprint(1)
 
     # Note: There's a small chance these could be equal by coincidence
     # but with 50% frequency, it's unlikely

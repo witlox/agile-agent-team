@@ -29,7 +29,9 @@ if TYPE_CHECKING:
     from ..orchestrator.disturbances import DisturbanceEngine
 from ..codegen import WorkspaceManager, BDDGenerator
 from ..tools.agent_tools.remote_git import create_provider, PullRequestConfig
-from ..metrics.custom_metrics import senior_learned_from_junior, reverse_mentorship_events
+from ..metrics.custom_metrics import (
+    reverse_mentorship_events,
+)
 
 
 class CodeGenPairingEngine:
@@ -190,7 +192,10 @@ class CodeGenPairingEngine:
         self._busy_agents.add(navigator.config.role_id)
 
         # Record reverse mentorship metric if junior is driver and navigator is senior
-        if driver.config.seniority == "junior" and navigator.config.seniority == "senior":
+        if (
+            driver.config.seniority == "junior"
+            and navigator.config.seniority == "senior"
+        ):
             reverse_mentorship_events.labels(
                 junior_id=driver.config.role_id,
                 senior_id=navigator.config.role_id,
@@ -239,7 +244,9 @@ class CodeGenPairingEngine:
             # Phase 3: Run tests if available
             if driver.runtime and self._has_tests(workspace):
                 card_id = task.get("id", "unknown")
-                test_result = await self._run_tests_with_iteration(driver, workspace, card_id=card_id)
+                test_result = await self._run_tests_with_iteration(
+                    driver, workspace, card_id=card_id
+                )
                 session_result["test_results"] = test_result
 
                 # Extract real coverage metrics if available
@@ -402,7 +409,11 @@ class CodeGenPairingEngine:
         }
 
     async def _run_tests_with_iteration(
-        self, agent: BaseAgent, workspace: Path, max_iterations: int = 3, card_id: str = "unknown"
+        self,
+        agent: BaseAgent,
+        workspace: Path,
+        max_iterations: int = 3,
+        card_id: str = "unknown",
     ) -> Dict:
         """Run tests and iterate on failures.
 
@@ -432,11 +443,13 @@ class CodeGenPairingEngine:
             )
 
             # Track this iteration's results
-            test_history.append({
-                "iteration": iteration + 1,
-                "passed": passed,
-                "output": result["content"][:500],  # Truncate for storage
-            })
+            test_history.append(
+                {
+                    "iteration": iteration + 1,
+                    "passed": passed,
+                    "output": result["content"][:500],  # Truncate for storage
+                }
+            )
 
             # Check if tests passed
             if passed:

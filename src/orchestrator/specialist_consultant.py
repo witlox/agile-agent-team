@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..agents.base_agent import BaseAgent
     from ..tools.shared_context import SharedContextDB
 
 from ..agents.base_agent import BaseAgent, AgentConfig
@@ -122,11 +121,24 @@ class SpecialistConsultantSystem:
         # Check for expertise gaps
         needs_ml = any(
             kw in blocker_lower
-            for kw in ["machine learning", "ml", "neural", "model", "training", "inference"]
+            for kw in [
+                "machine learning",
+                "ml",
+                "neural",
+                "model",
+                "training",
+                "inference",
+            ]
         )
         needs_security = any(
             kw in blocker_lower
-            for kw in ["security", "authentication", "oauth", "encryption", "vulnerability"]
+            for kw in [
+                "security",
+                "authentication",
+                "oauth",
+                "encryption",
+                "vulnerability",
+            ]
         )
         needs_performance = any(
             kw in blocker_lower
@@ -138,7 +150,13 @@ class SpecialistConsultantSystem:
         )
         needs_distributed = any(
             kw in blocker_lower
-            for kw in ["distributed", "microservices", "consistency", "eventual", "saga"]
+            for kw in [
+                "distributed",
+                "microservices",
+                "consistency",
+                "eventual",
+                "saga",
+            ]
         )
 
         # Check if team already has this expertise
@@ -184,9 +202,7 @@ class SpecialistConsultantSystem:
         trainee = self._select_trainee(team, request.domain)
 
         # Simulate consultation (1 day pairing)
-        outcome = await self._conduct_consultation(
-            specialist, trainee, request
-        )
+        outcome = await self._conduct_consultation(specialist, trainee, request)
 
         # Record outcome
         self.consultation_history.append(outcome)
@@ -234,7 +250,9 @@ class SpecialistConsultantSystem:
             Profile text with specialist expertise
         """
         # Try to load from team_config/07_specialists/
-        specialist_file = self.team_config_dir / "07_specialists" / f"{domain}_specialist.md"
+        specialist_file = (
+            self.team_config_dir / "07_specialists" / f"{domain}_specialist.md"
+        )
 
         if specialist_file.exists():
             return specialist_file.read_text()
@@ -273,7 +291,8 @@ You are an external consultant with deep expertise in {self.specialist_domains.g
             Selected team member
         """
         developers = [
-            a for a in team
+            a
+            for a in team
             if "developer" in a.config.role_archetype
             and not any(d in getattr(a.config, "specializations", []) for d in [domain])
         ]
@@ -337,9 +356,11 @@ You are an external consultant with deep expertise in {self.specialist_domains.g
             Summary dict with usage and outcomes
         """
         sprint_consultations = [
-            c for c in self.consultation_history
-            if any(sprint_num == getattr(r, 'sprint_num', 0)
-                   for r in [c])  # Match by sprint
+            c
+            for c in self.consultation_history
+            if any(
+                sprint_num == getattr(r, "sprint_num", 0) for r in [c]
+            )  # Match by sprint
         ]
 
         return {

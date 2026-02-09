@@ -312,7 +312,9 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
                     "owner": self.team[i % len(self.team)].config.role_id
                     if self.team
                     else "unknown",
-                    "initial_navigator": self.team[(i + 1) % len(self.team)].config.role_id
+                    "initial_navigator": self.team[
+                        (i + 1) % len(self.team)
+                    ].config.role_id
                     if len(self.team) > 1
                     else self.team[0].config.role_id,
                 }

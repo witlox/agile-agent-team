@@ -2,7 +2,6 @@
 
 import pytest
 import shutil
-from pathlib import Path
 from src.tools.agent_tools.formatter import MultiLanguageFormatter
 
 
@@ -76,7 +75,9 @@ async def test_format_typescript_code(temp_workspace):
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(not shutil.which("clang-format"), reason="clang-format not installed")
+@pytest.mark.skipif(
+    not shutil.which("clang-format"), reason="clang-format not installed"
+)
 async def test_format_cpp_code(temp_workspace):
     """Test clang-format formatting on C++ code."""
     cpp_file = temp_workspace / "test.cpp"

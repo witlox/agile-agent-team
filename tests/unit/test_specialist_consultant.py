@@ -1,7 +1,6 @@
 """Unit tests for specialist consultant system."""
 
 import pytest
-from pathlib import Path
 from src.orchestrator.specialist_consultant import (
     SpecialistConsultantSystem,
     SpecialistRequest,
@@ -139,7 +138,7 @@ async def test_max_consultations_enforced(specialist_system, mock_team):
             domain="ml",
             requesting_agent_id="dev_senior",
             sprint_num=1,
-            day_num=i+1,
+            day_num=i + 1,
         )
         outcome = await specialist_system.request_specialist(request, mock_team)
         assert outcome is not None

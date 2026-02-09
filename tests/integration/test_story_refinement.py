@@ -1,7 +1,6 @@
 """Integration tests for story refinement ceremony (Phase 1 planning)."""
 
 import pytest
-import pytest_asyncio
 from src.orchestrator.story_refinement import StoryRefinementSession
 from src.agents.base_agent import BaseAgent, AgentConfig
 
@@ -96,7 +95,7 @@ async def test_team_asks_clarifying_questions(
     """Test team generates clarifying questions."""
     session = StoryRefinementSession(mock_po, mock_team, mock_dev_lead)
 
-    refined = await session.refine_stories(
+    _ = await session.refine_stories(
         sample_stories, sprint_num=1, team_capacity=20
     )
 
@@ -104,7 +103,9 @@ async def test_team_asks_clarifying_questions(
     for agent in mock_team:
         if agent != mock_dev_lead:
             # Developers should have conversation history from refinement
-            assert len(agent.conversation_history) >= 0, "Agents participate in refinement"
+            assert (
+                len(agent.conversation_history) >= 0
+            ), "Agents participate in refinement"
 
 
 @pytest.mark.asyncio
@@ -120,8 +121,12 @@ async def test_team_estimates_story_points(
 
     # Refined stories should have estimates (or 0 in mock mode)
     for story in refined:
-        assert story.story_points >= 0, f"Story {story.id} should have story_points field"
-        assert hasattr(story, "story_points"), "RefinedStory should have story_points attribute"
+        assert (
+            story.story_points >= 0
+        ), f"Story {story.id} should have story_points field"
+        assert hasattr(
+            story, "story_points"
+        ), "RefinedStory should have story_points attribute"
 
 
 @pytest.mark.asyncio

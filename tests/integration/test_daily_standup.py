@@ -1,7 +1,6 @@
 """Integration tests for daily standup ceremony."""
 
 import pytest
-import pytest_asyncio
 from src.orchestrator.daily_standup import DailyStandupSession
 from src.agents.base_agent import BaseAgent, AgentConfig
 
@@ -73,13 +72,17 @@ async def test_standup_pairs_report_progress(
 
     # Run standup
     result = await session.run_standup(
-        sprint_num=1, day_num=2, active_pairs=sample_pairs, tasks_in_progress=sample_tasks
+        sprint_num=1,
+        day_num=2,
+        active_pairs=sample_pairs,
+        tasks_in_progress=sample_tasks,
     )
 
     # Should produce standup summary
     assert result is not None, "Should return standup result"
     # Result is StandupOutcome dataclass, not dict
     from src.orchestrator.daily_standup import StandupOutcome
+
     assert isinstance(result, StandupOutcome), "Result should be StandupOutcome"
 
 
@@ -147,8 +150,11 @@ async def test_standup_handles_architectural_discovery(
     """Test architectural assumptions surfaced and aligned."""
     session = DailyStandupSession(mock_dev_lead, mock_qa_lead, mock_db)
 
-    result = await session.run_standup(
-        sprint_num=1, day_num=4, active_pairs=sample_pairs, tasks_in_progress=sample_tasks
+    _ = await session.run_standup(
+        sprint_num=1,
+        day_num=4,
+        active_pairs=sample_pairs,
+        tasks_in_progress=sample_tasks,
     )
 
     # Dev lead should facilitate architectural discussions
@@ -166,11 +172,16 @@ async def test_standup_dev_lead_decisions(
     session = DailyStandupSession(mock_dev_lead, mock_qa_lead, mock_db)
 
     result = await session.run_standup(
-        sprint_num=1, day_num=5, active_pairs=sample_pairs, tasks_in_progress=sample_tasks
+        sprint_num=1,
+        day_num=5,
+        active_pairs=sample_pairs,
+        tasks_in_progress=sample_tasks,
     )
 
     # Dev lead should participate
     assert result is not None, "Standup should complete"
 
     # Verify dev lead was involved (has conversation history)
-    assert isinstance(mock_dev_lead.conversation_history, list), "Dev lead tracks context"
+    assert isinstance(
+        mock_dev_lead.conversation_history, list
+    ), "Dev lead tracks context"

@@ -167,7 +167,7 @@ class WorkspaceManager:
 
         # Pull latest changes with merge conflict detection
         try:
-            result = subprocess.run(
+            _ = subprocess.run(
                 ["git", "pull", "origin", branch],
                 cwd=workspace,
                 capture_output=True,
@@ -181,6 +181,7 @@ class WorkspaceManager:
                 # Detect merge conflict disturbance
                 if self.disturbance_engine and self.kanban and self.db:
                     import asyncio
+
                     asyncio.create_task(
                         self.disturbance_engine.detect_merge_conflict(
                             card_id="workspace_init",

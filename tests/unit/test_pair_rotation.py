@@ -36,7 +36,10 @@ def test_initial_rotation_assigns_all_navigators(
 
     # Day 1 rotation
     pairs = rotation_manager.get_rotation_for_day(
-        day_num=1, task_owners=task_owners, available_partners=all_partners, sprint_num=1
+        day_num=1,
+        task_owners=task_owners,
+        available_partners=all_partners,
+        sprint_num=1,
     )
 
     # Should have pairs for all task owners
@@ -76,9 +79,9 @@ def test_rotation_cycles_through_all_available_partners(
         seen_navigators.add(navigator)
 
     # Should have seen all available partners
-    assert len(seen_navigators) >= len(available) - 1, (
-        "Should cycle through most available partners"
-    )
+    assert (
+        len(seen_navigators) >= len(available) - 1
+    ), "Should cycle through most available partners"
 
 
 def test_rotation_excludes_task_owner(
@@ -138,12 +141,18 @@ def test_rotation_history_prevents_immediate_repeats(rotation_manager, all_partn
 
     # Get first day pairs
     day1_pairs = rotation_manager.get_rotation_for_day(
-        day_num=1, task_owners=task_owners, available_partners=all_partners, sprint_num=1
+        day_num=1,
+        task_owners=task_owners,
+        available_partners=all_partners,
+        sprint_num=1,
     )
 
     # Get second day pairs
     day2_pairs = rotation_manager.get_rotation_for_day(
-        day_num=2, task_owners=task_owners, available_partners=all_partners, sprint_num=1
+        day_num=2,
+        task_owners=task_owners,
+        available_partners=all_partners,
+        sprint_num=1,
     )
 
     # At least some pairs should differ (history should cause rotation)
@@ -162,12 +171,13 @@ def test_rotation_handles_odd_team_sizes(rotation_manager):
 
         # Should work without errors
         pairs = rotation_manager.get_rotation_for_day(
-            day_num=1, task_owners=task_owners, available_partners=partners, sprint_num=1
+            day_num=1,
+            task_owners=task_owners,
+            available_partners=partners,
+            sprint_num=1,
         )
 
-        assert len(pairs) == len(task_owners), (
-            f"Should handle team size {team_size}"
-        )
+        assert len(pairs) == len(task_owners), f"Should handle team size {team_size}"
 
 
 def test_rotation_fairness_over_10_days(rotation_manager, sample_developers):
@@ -180,7 +190,10 @@ def test_rotation_fairness_over_10_days(rotation_manager, sample_developers):
 
     for day in range(1, 11):
         pairs = rotation_manager.get_rotation_for_day(
-            day_num=day, task_owners=task_owners, available_partners=available, sprint_num=1
+            day_num=day,
+            task_owners=task_owners,
+            available_partners=available,
+            sprint_num=1,
         )
         for navigator in pairs.values():
             navigator_counts[navigator] += 1
@@ -193,7 +206,7 @@ def test_rotation_fairness_over_10_days(rotation_manager, sample_developers):
     # Verify fairness - no one should be drastically over/under utilized
     counts = list(navigator_counts.values())
     if counts:
-        avg_count = sum(counts) / len(counts)
+        _ = sum(counts) / len(counts)
         max_count = max(counts)
         min_count = min(counts)
 
@@ -201,7 +214,9 @@ def test_rotation_fairness_over_10_days(rotation_manager, sample_developers):
         # With 10 days and 2 tasks = 20 navigations across ~4 available navigators
         # Each should get ~5 navigations, allow variance of ±3
         variance = max_count - min_count
-        assert variance <= 6, f"Distribution should be fairly balanced (variance={variance})"
+        assert (
+            variance <= 6
+        ), f"Distribution should be fairly balanced (variance={variance})"
 
 
 def test_rotation_clears_history_per_sprint(rotation_manager, all_partners):
@@ -209,22 +224,31 @@ def test_rotation_clears_history_per_sprint(rotation_manager, all_partners):
     task_owners = ["dev1"]
 
     # Sprint 1, Day 1
-    sprint1_day1_pairs = rotation_manager.get_rotation_for_day(
-        day_num=1, task_owners=task_owners, available_partners=all_partners, sprint_num=1
+    _ = rotation_manager.get_rotation_for_day(
+        day_num=1,
+        task_owners=task_owners,
+        available_partners=all_partners,
+        sprint_num=1,
     )
 
     # Sprint 1, Day 2
-    sprint1_day2_pairs = rotation_manager.get_rotation_for_day(
-        day_num=2, task_owners=task_owners, available_partners=all_partners, sprint_num=1
+    _ = rotation_manager.get_rotation_for_day(
+        day_num=2,
+        task_owners=task_owners,
+        available_partners=all_partners,
+        sprint_num=1,
     )
 
     # Sprint 2, Day 1 (history should reset)
     sprint2_day1_pairs = rotation_manager.get_rotation_for_day(
-        day_num=1, task_owners=task_owners, available_partners=all_partners, sprint_num=2
+        day_num=1,
+        task_owners=task_owners,
+        available_partners=all_partners,
+        sprint_num=2,
     )
 
     # Sprint 2 Day 1 could match Sprint 1 Day 1 (history cleared)
     # Just verify no crash and returns valid pairs
-    assert len(sprint2_day1_pairs) == len(task_owners), (
-        "Sprint 2 should work after history reset"
-    )
+    assert len(sprint2_day1_pairs) == len(
+        task_owners
+    ), "Sprint 2 should work after history reset"

@@ -1,7 +1,6 @@
 """Unit tests for convention analyzer (brownfield support)."""
 
 import pytest
-from pathlib import Path
 from src.orchestrator.convention_analyzer import ConventionAnalyzer
 
 
@@ -112,9 +111,9 @@ linters:
     result = analyzer.analyze_go()
 
     # Should detect linter config
-    assert result is not None or analyzer._file_exists(".golangci.yml"), (
-        "Should detect golangci-lint config"
-    )
+    assert result is not None or analyzer._file_exists(
+        ".golangci.yml"
+    ), "Should detect golangci-lint config"
 
 
 def test_analyze_rust_with_cargo_toml(temp_workspace):
@@ -219,9 +218,9 @@ def test_analyze_empty_workspace_returns_defaults(temp_workspace):
 
     # Empty workspace should return None (no conventions detected)
     # Or return empty dict/default conventions depending on implementation
-    assert python_result is None or isinstance(python_result, dict), (
-        "Should handle empty workspace gracefully"
-    )
+    assert python_result is None or isinstance(
+        python_result, dict
+    ), "Should handle empty workspace gracefully"
 
 
 def test_analyze_partial_config_fills_gaps(temp_workspace):
