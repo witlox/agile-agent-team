@@ -19,6 +19,11 @@ from ..metrics.prometheus_exporter import update_sprint_metrics
 from .backlog import Backlog
 from .disturbances import DisturbanceEngine
 from .sprint_zero import SprintZeroGenerator, BrownfieldAnalyzer
+from .story_refinement import StoryRefinementSession
+from .technical_planning import TechnicalPlanningSession
+from .daily_standup import DailyStandupSession
+from .sprint_review import SprintReviewSession
+from .pair_rotation import PairRotationManager
 
 
 class SprintManager:
@@ -76,6 +81,21 @@ class SprintManager:
             )
         else:
             self.disturbance_engine = None
+
+        # Agile ceremony managers
+        po = self._agent("po")
+        dev_lead = self._agent("dev_lead") or self._agent("lead")
+        qa_lead = self._agent("qa_lead")
+
+        self.story_refinement = StoryRefinementSession(po, agents, dev_lead)
+        self.technical_planning = TechnicalPlanningSession(
+            [a for a in agents if hasattr(a.config, 'role_archetype') and 'developer' in a.config.role_archetype],
+            dev_lead,
+            qa_lead
+        )
+        self.daily_standup = DailyStandupSession(dev_lead, qa_lead, shared_db)
+        self.sprint_review = SprintReviewSession(po, dev_lead, qa_lead, self.kanban, shared_db)
+        self.pair_rotation_manager = PairRotationManager()
 
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
         """Find an agent by role_id."""
@@ -143,6 +163,11 @@ class SprintManager:
 
         print("  QA review...")
         await self.run_qa_review(sprint_num)
+
+        print("  Sprint Review/Demo...")
+        completed_cards = await self.kanban.get_cards_by_status("done")
+        completed_stories = [c for c in completed_cards if c.get('sprint') == sprint_num]
+        review_outcome = await self.sprint_review.run_review(sprint_num, completed_stories)
 
         print("  Retrospective...")
         retro_data = await self.run_retrospective(sprint_num)
@@ -373,52 +398,65 @@ class SprintManager:
     # -------------------------------------------------------------------------
 
     async def run_planning(self, sprint_num: int):
-        """Sprint planning — PO selects stories from backlog, team seeds Kanban."""
-        po = self._agent("po")
+        """Sprint planning — 2-phase process: Story refinement + Technical planning."""
 
+        # Get candidate stories from backlog
         if self.backlog and self.backlog.remaining > 0:
-            candidates = self.backlog.next_stories(5)
-            candidate_text = "\n".join(
-                f"- {s['id']}: {s['title']} ({s['story_points']} pts) — {s['description']}"
-                for s in candidates
-            )
-            if po:
-                prompt = (
-                    f"Sprint {sprint_num} planning for {self.backlog.summary()}.\n"
-                    f"Candidate stories:\n{candidate_text}\n\n"
-                    "Select 3-4 stories for this sprint. "
-                    "Reply with the story IDs on separate lines, e.g.:\nUS-001\nUS-002"
-                )
-                response = await po.generate(prompt)
-                selected = self._parse_story_ids(response, candidates)
-            else:
-                selected = candidates[:3]
-
-            # Return unselected candidates to pool
-            selected_ids = {s["id"] for s in selected}
-            for c in candidates:
-                if c["id"] not in selected_ids:
-                    self.backlog.mark_returned(c["id"])
+            candidates = self.backlog.next_stories(8)  # Get more candidates for refinement
         else:
-            # Fallback: generic tasks when backlog is exhausted or not provided
-            selected = [
+            # Fallback: generic tasks
+            candidates = [
                 {
                     "id": f"GEN-{sprint_num:02d}-{i}",
                     "title": f"Sprint {sprint_num} Task {i}",
                     "description": f"Implement feature {i} for sprint {sprint_num}",
-                    "story_points": 2,
+                    "story_points": 3,
+                    "acceptance_criteria": ["Feature works as described"],
                 }
                 for i in range(1, 4)
             ]
 
-        for story in selected:
+        # Calculate team capacity (developers only, half team = max concurrent tasks)
+        num_developers = len([
+            a for a in self.agents
+            if hasattr(a.config, 'role_archetype') and 'developer' in a.config.role_archetype
+        ])
+        team_capacity = num_developers * 3  # ~3 story points per developer per sprint
+
+        # Phase 1: Story Refinement (PO + Team)
+        refined_stories = await self.story_refinement.refine_stories(
+            candidates,
+            sprint_num,
+            team_capacity
+        )
+
+        # Return unselected candidates to backlog pool
+        if self.backlog:
+            selected_ids = {s.id for s in refined_stories}
+            for c in candidates:
+                if c["id"] not in selected_ids:
+                    self.backlog.mark_returned(c["id"])
+
+        # Phase 2: Technical Planning (Team only)
+        tasks, dependency_graph = await self.technical_planning.plan_implementation(
+            refined_stories,
+            sprint_num
+        )
+
+        # Add tasks to Kanban with dependencies and initial pairs
+        for task in tasks:
             await self.kanban.add_card(
                 {
-                    "title": story["title"],
-                    "description": story.get("description", ""),
+                    "id": task.id,
+                    "title": task.title,
+                    "description": task.description,
                     "status": "ready",
-                    "story_points": story.get("story_points", 2),
+                    "story_points": task.estimated_hours // 8,  # Convert hours to story points
                     "sprint": sprint_num,
+                    "story_id": task.story_id,
+                    "owner": task.owner,
+                    "initial_navigator": task.initial_navigator,
+                    "depends_on": task.depends_on,
                 }
             )
 
@@ -434,22 +472,125 @@ class SprintManager:
     # -------------------------------------------------------------------------
 
     async def run_development(self, sprint_num: int):
-        """Main development phase — pairs work on tasks until time or tasks exhausted."""
-        duration = getattr(self.config, "sprint_duration_minutes", 20)
-        end_time = datetime.now() + timedelta(minutes=duration)
+        """Development phase with daily standups and pair rotation.
 
-        while datetime.now() < end_time:
-            # Prune completed tasks from active_sessions
+        20 minutes wall-clock = 10 simulated days (2 weeks)
+        Each day: standup (except Day 1) + pairing sessions + rotation prep
+        """
+        duration = getattr(self.config, "sprint_duration_minutes", 20)
+        num_days = 10  # 2-week sprint = 10 working days
+        time_per_day = duration / num_days  # ~2 minutes per day
+
+        # Get initial task assignments and pairs
+        snapshot = await self.kanban.get_snapshot()
+        in_progress_tasks = snapshot.get("in_progress", [])
+
+        # Extract task owners and available partners
+        task_owners = [t.get('owner') for t in in_progress_tasks if t.get('owner')]
+        all_developers = [
+            a.agent_id for a in self.agents
+            if hasattr(a.config, 'role_archetype') and 'developer' in a.config.role_archetype
+        ]
+        all_testers = [
+            a.agent_id for a in self.agents
+            if hasattr(a.config, 'role_archetype') and 'tester' in a.config.role_archetype
+        ]
+        all_partners = all_developers + all_testers
+
+        # Track current day's pairs
+        current_pairs = {}  # owner_id -> navigator_id
+
+        for day_num in range(1, num_days + 1):
+            print(f"\n  === Day {day_num} of {num_days} ===")
+            day_start = datetime.now()
+            day_end = day_start + timedelta(minutes=time_per_day)
+
+            # Morning standup (except Day 1)
+            if day_num > 1:
+                active_pair_tuples = [(o, n) for o, n in current_pairs.items()]
+                await self.daily_standup.run_standup(
+                    sprint_num,
+                    day_num,
+                    active_pair_tuples,
+                    in_progress_tasks
+                )
+
+            # Get today's pair assignments (Day 1 uses initial, others rotate)
+            if day_num == 1:
+                # Use initial pairs from planning
+                for task in in_progress_tasks:
+                    owner = task.get('owner')
+                    navigator = task.get('initial_navigator')
+                    if owner and navigator:
+                        current_pairs[owner] = navigator
+            else:
+                # Rotate pairs
+                if task_owners and all_partners:
+                    current_pairs = self.pair_rotation_manager.get_rotation_for_day(
+                        day_num,
+                        task_owners,
+                        all_partners,
+                        sprint_num
+                    )
+
+            print(f"  Pairs today: {len(current_pairs)}")
+
+            # Run pairing sessions for the day
+            await self._run_day_pairing_sessions(
+                sprint_num,
+                day_num,
+                current_pairs,
+                day_end
+            )
+
+            # Update in-progress tasks for next day
+            snapshot = await self.kanban.get_snapshot()
+            in_progress_tasks = snapshot.get("in_progress", [])
+            task_owners = [t.get('owner') for t in in_progress_tasks if t.get('owner')]
+
+            # Exit early if no more work
+            if not in_progress_tasks and not snapshot.get("ready"):
+                print(f"  All work complete on Day {day_num}")
+                break
+
+        await self.pairing_engine.wait_for_completion()
+
+    async def _run_day_pairing_sessions(
+        self,
+        sprint_num: int,
+        day_num: int,
+        pairs: Dict[str, str],  # owner_id -> navigator_id
+        day_end: datetime
+    ):
+        """Run pairing sessions for one day."""
+
+        while datetime.now() < day_end:
+            # Prune completed tasks
             self.pairing_engine.active_sessions = [
                 t for t in self.pairing_engine.active_sessions if not t.done()
             ]
 
+            # Get available pairs (match against today's rotation)
             available_pairs = self.pairing_engine.get_available_pairs()
 
-            for pair in available_pairs:
-                task = await self.kanban.pull_ready_task()
+            for owner, navigator in pairs.items():
+                # Find agents for this pair
+                owner_agent = next((a for a in self.agents if a.agent_id == owner), None)
+                navigator_agent = next((a for a in self.agents if a.agent_id == navigator), None)
+
+                if not owner_agent or not navigator_agent:
+                    continue
+
+                pair = (owner_agent, navigator_agent)
+
+                # Check if this pair is available
+                if pair not in available_pairs:
+                    continue
+
+                # Pull task assigned to this owner (respect dependencies)
+                task = await self._pull_task_for_owner(owner)
                 if task:
-                    # CodeGenPairingEngine requires sprint_num parameter
+                    # Run pairing session
                     if isinstance(self.pairing_engine, CodeGenPairingEngine):
                         t = asyncio.create_task(
                             self.pairing_engine.run_pairing_session(pair, task, sprint_num)
@@ -460,15 +601,38 @@ class SprintManager:
                         )
                     self.pairing_engine.active_sessions.append(t)
 
-            # Exit early when all work is done
+            # Exit if no active work
             if not self.pairing_engine.active_sessions:
                 snapshot = await self.kanban.get_snapshot()
-                if not snapshot.get("ready"):
+                if not snapshot.get("ready") and not snapshot.get("in_progress"):
                     break
 
             await asyncio.sleep(0.1)
 
-        await self.pairing_engine.wait_for_completion()
+    async def _pull_task_for_owner(self, owner_id: str) -> Optional[Dict]:
+        """Pull a ready task assigned to specific owner, respecting dependencies."""
+        snapshot = await self.kanban.get_snapshot()
+        ready_tasks = snapshot.get("ready", [])
+
+        for task in ready_tasks:
+            if task.get('owner') != owner_id:
+                continue
+
+            # Check dependencies
+            depends_on = task.get('depends_on', [])
+            if depends_on:
+                # Check if all dependencies are done
+                done_tasks = snapshot.get("done", [])
+                done_ids = {t.get('id') for t in done_tasks}
+
+                if not all(dep_id in done_ids for dep_id in depends_on):
+                    # Task is blocked by dependencies
+                    continue
+
+            # Task is ready and belongs to this owner
+            return await self.kanban.pull_ready_task()
+
+        return None
 
     # -------------------------------------------------------------------------
     # Phase 3: QA review gate
