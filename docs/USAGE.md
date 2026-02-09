@@ -1,23 +1,25 @@
 # Usage Guide
 
-This guide covers everything you need to run the experiment locally (mock mode) or against a live vLLM cluster, and how to interpret the outputs.
+This guide covers everything you need to run experiments with agents that **generate real, tested code** — locally (mock mode) or against live LLM endpoints (vLLM or Anthropic API).
 
 ## Table of Contents
 
 1. [Quick start (local / mock mode)](#1-quick-start-local--mock-mode)
-2. [Configuration reference](#2-configuration-reference)
-3. [Disturbance injection](#3-disturbance-injection)
-4. [Profile swapping](#4-profile-swapping)
-5. [Simulated test coverage](#5-simulated-test-coverage)
-6. [Sprint artifacts](#6-sprint-artifacts)
-7. [Prometheus metrics](#7-prometheus-metrics)
-8. [Running against a live vLLM endpoint](#8-running-against-a-live-vllm-endpoint)
+2. [Deployment modes](#2-deployment-modes)
+3. [Configuration reference](#3-configuration-reference)
+4. [Code generation workflow](#4-code-generation-workflow)
+5. [Disturbance injection](#5-disturbance-injection)
+6. [Profile swapping](#6-profile-swapping)
+7. [Team culture features](#7-team-culture-features)
+8. [Simulated test coverage](#8-simulated-test-coverage)
+9. [Sprint artifacts](#9-sprint-artifacts)
+10. [Prometheus metrics](#10-prometheus-metrics)
 
 ---
 
 ## 1. Quick start (local / mock mode)
 
-No Kubernetes, no GPU, no database required.
+No Kubernetes, no GPU, no database required. **Agents still generate real code even in mock mode.**
 
 ```bash
 # Clone and set up
@@ -41,16 +43,35 @@ You should see output like:
 SPRINT 1  [14:05:11]
 ============================================================
   Planning...
-  [DISTURBANCE] flaky_test
+  [DISTURBANCE] merge_conflict
   [DISTURBANCE] junior_misunderstanding
   Development...
   QA review...
   Retrospective...
   Meta-learning...
   Artifacts...
-  velocity=5pts  done=2  sessions=3
+  velocity=5pts  done=2  sessions=3  coverage=89%
+
 ...
 Experiment complete. Output: /tmp/my-first-run
+```
+
+**View generated code:**
+
+```bash
+# Sprint artifacts (kanban, pairing logs, retros)
+ls -la /tmp/my-first-run/sprint-*/
+
+# Generated code workspaces (BDD features, implementation, tests, git repos)
+ls -la /tmp/agent-workspace/sprint-01/*/
+
+# Check a BDD feature file
+cat /tmp/agent-workspace/sprint-01/us-001/features/us-001.feature
+
+# Check git commits
+cd /tmp/agent-workspace/sprint-01/us-001/
+git log --oneline
+git branch
 ```
 
 ### Mock mode activation
@@ -63,20 +84,123 @@ Mock mode is triggered by **either**:
 | vLLM endpoint in config | `mock://` |
 | `--db-url` CLI flag | `mock://` |
 
-In mock mode agents return canned responses keyed on `role_id`, and an in-memory store replaces PostgreSQL.
+In mock mode:
+- Agents return canned responses keyed on `role_id`
+- In-memory store replaces PostgreSQL
+- **Agents still execute tools and generate real code**
 
 ### Running the tests
 
 ```bash
-pytest tests/unit/
-pytest tests/integration/
-pytest tests/qualification/
-pytest          # all tests
+pytest tests/unit/         # Kanban, tools, runtimes (10 tests)
+pytest tests/integration/  # Pairing, codegen, sprint (8 tests)
+pytest tests/qualification/  # Agent creation, prompts (6 tests)
+pytest                     # All 24 tests
 ```
 
 ---
 
-## 2. Configuration reference
+## 2. Deployment modes
+
+The system supports three deployment modes:
+
+### Mode 1: Fully Offline (Local vLLM)
+
+**No internet required.** All agents use local models with XML-based tool calling.
+
+```yaml
+# config.yaml
+runtimes:
+  local_vllm:
+    enabled: true
+    endpoint: "http://localhost:8000"  # or your vLLM server
+    tool_use_protocol: "xml"
+  anthropic:
+    enabled: false
+
+models:
+  agents:
+    all_agents:
+      runtime: "local_vllm"
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+```
+
+**Benefits:**
+- ✅ Full privacy (no data leaves your network)
+- ✅ No API costs
+- ✅ Works in air-gapped environments
+
+**Requirements:**
+- vLLM server running (GPU-accelerated recommended)
+- Models: DeepSeek, Qwen, or similar (70B+ recommended for quality)
+
+### Mode 2: Fully Online (Anthropic API)
+
+**Internet required.** All agents use Claude API with native tool use.
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+```yaml
+# config.yaml
+runtimes:
+  anthropic:
+    enabled: true
+    api_key_env: "ANTHROPIC_API_KEY"
+    default_model: "claude-sonnet-4-5"
+  local_vllm:
+    enabled: false
+
+models:
+  agents:
+    all_agents:
+      runtime: "anthropic"
+```
+
+**Benefits:**
+- ✅ Highest quality (Claude Opus 4.6 / Sonnet 4.5)
+- ✅ No infrastructure to manage
+- ✅ Faster response times
+
+**Costs:**
+- API usage charges (varies by model)
+
+### Mode 3: Hybrid (Mix Local and Anthropic)
+
+**Balance cost, quality, and latency** by assigning different runtimes per agent.
+
+```yaml
+models:
+  agents:
+    # Seniors and leads use Anthropic for highest quality
+    ahmed_senior_dev_lead:
+      runtime: "anthropic"
+      tools: ["filesystem", "git", "bash"]
+
+    alex_senior_networking:
+      runtime: "anthropic"
+      tools: ["filesystem", "git", "bash"]
+
+    # Mid-level use local for cost savings
+    marcus_mid_backend:
+      runtime: "local_vllm"
+      tools: ["filesystem", "git"]
+
+    # Juniors use local (appropriate for their level)
+    jamie_junior_fullstack:
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+```
+
+**Strategy:**
+- High-stakes decisions → Anthropic
+- Code generation → Anthropic for seniors, local for juniors
+- Testing/QA → Local is often sufficient
+
+---
+
+## 3. Configuration reference
 
 All experiment parameters live in `config.yaml`. The CLI only exposes:
 
@@ -88,7 +212,7 @@ All experiment parameters live in `config.yaml`. The CLI only exposes:
 | `--backlog` | `backlog.yaml` | Product backlog YAML |
 | `--db-url` | _(from config)_ | Override database URL |
 
-Everything else — disturbances, profile swapping, WIP limits, model endpoints — is set in `config.yaml`.
+Everything else — runtimes, disturbances, profile swapping, WIP limits, team constraints — is set in `config.yaml`.
 
 ### Key config sections
 
@@ -99,19 +223,36 @@ experiment:
   sprints_per_stakeholder_review: 5  # PO review cadence
 
 team:
+  max_engineers: 10                  # Excluding testers
+  max_total_team_size: 13            # Including testers/PO/leads
+
   wip_limits:
     in_progress: 4
     review: 2
 
+  # Turnover simulation (optional, for long experiments >5 months)
+  turnover:
+    enabled: false
+    starts_after_sprint: 10          # ~5 months
+    probability_per_sprint: 0.05     # 5% chance per sprint
+    backfill_enabled: true
+
+  # Tester participation in pairing
+  tester_pairing:
+    enabled: true
+    frequency: 0.20                  # 20% of sessions
+    role: "navigator"                # Testers always navigate
+
 disturbances:
-  enabled: true                      # set false to disable entirely
+  enabled: true
   frequencies:
-    dependency_breaks: 0.166         # probability per sprint (1 in ~6)
+    dependency_breaks: 0.166         # 1 in ~6 sprints
     production_incident: 0.125       # 1 in ~8
     flaky_test: 0.25                 # 1 in 4
     scope_creep: 0.20                # 1 in 5
     junior_misunderstanding: 0.33    # 1 in 3
     architectural_debt_surfaces: 0.166
+    merge_conflict: 0.30             # 1 in 3 (expected with gitflow)
   blast_radius_controls:
     max_velocity_impact: 0.30        # cap velocity drop at 30%
     max_quality_regression: 0.15     # cap coverage drop at 15%
@@ -127,15 +268,128 @@ profile_swapping:
     proficiency_reduction: 0.70      # 70% of specialist capability
     knowledge_decay_sprints: 1       # revert after 1 sprint unused
 
+# Runtime configurations
+runtimes:
+  anthropic:
+    enabled: true
+    api_key_env: "ANTHROPIC_API_KEY"
+    default_model: "claude-sonnet-4-5"
+
+  local_vllm:
+    enabled: true
+    endpoint: "http://vllm-gh200-module-1:8000"
+    tool_use_protocol: "xml"
+
+  tools:
+    workspace_root: "/tmp/agent-workspace"
+    allowed_commands: ["git", "pytest", "python", "pip", ...]
+
+# Agent definitions
 models:
-  vllm_endpoint: "http://vllm-gh200-module-1:8000"
+  agents:
+    alex_senior_networking:
+      runtime: "local_vllm"  # or "anthropic"
+      tools: ["filesystem", "git", "bash"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
 ```
 
 ---
 
-## 3. Disturbance injection
+## 4. Code generation workflow
 
-Disturbances are controlled-chaos events that fire probabilistically each sprint. They model realistic team stress: production fires, confused juniors, unplanned scope.
+When agents have runtimes configured, the system uses **CodeGenPairingEngine** for real code generation:
+
+### BDD-Driven Workflow
+
+```
+User Story (backlog.yaml with scenarios)
+    ↓
+Sprint Planning (PO selects stories)
+    ↓
+Workspace Setup
+  - Create /tmp/agent-workspace/sprint-N/story-id/
+  - Initialize git repo
+  - Create feature branch: feature/story-id
+    ↓
+BDD Generation
+  - Convert story to Gherkin feature file
+  - Extract Given/When/Then scenarios
+    ↓
+Pairing Session (Driver + Navigator)
+  - Driver uses execute_coding_task() with tools:
+    • write_file() - Create implementation
+    • edit_file() - Modify code
+    • read_file() - Read existing code
+    • bash() - Run commands
+  - Navigator reviews, guides, asks questions
+  - Checkpoints every 25% completion
+    ↓
+Test Execution (via RunTestsTool)
+  - Agent runs: pytest tests/
+  - Parse results: passed/failed/errors
+  - If tests fail:
+    • Read error output
+    • Fix code
+    • Re-run tests (max 3 iterations)
+    ↓
+Git Commit (if tests pass)
+  - git_status() - Check changes
+  - git_add() - Stage files
+  - git_commit() - Commit with message:
+    "feat: User registration (US-001)"
+    ↓
+Kanban Update
+  - Move card from in_progress → review
+```
+
+### Backlog Format with BDD
+
+```yaml
+# backlog.yaml
+stories:
+  - id: US-001
+    title: "User registration"
+    description: "As a new user I can register with email and password"
+    acceptance_criteria:
+      - "Email format validated"
+      - "Password hashed with bcrypt"
+    story_points: 3
+    priority: 1
+    scenarios:  # BDD scenarios (Given/When/Then)
+      - name: "Successful registration"
+        given:
+          - "the system is ready"
+          - "no user exists with email user@example.com"
+        when:
+          - "I register with email user@example.com and password SecurePass123"
+        then:
+          - "a new user account is created"
+          - "the password is hashed with bcrypt"
+```
+
+The system auto-generates Gherkin feature files from these scenarios.
+
+### Generated Artifacts
+
+**Per story workspace**:
+```
+/tmp/agent-workspace/sprint-01/us-001/
+├── features/
+│   └── us-001.feature           # Generated Gherkin
+├── src/
+│   └── registration.py          # Agent-generated code
+├── tests/
+│   └── test_registration.py     # Agent-generated tests
+└── .git/                        # Git repo on feature/us-001 branch
+```
+
+---
+
+## 5. Disturbance injection
+
+Disturbances are controlled-chaos events that fire probabilistically each sprint. They model realistic team stress.
 
 ### How it works
 
@@ -143,31 +397,33 @@ After sprint planning, `DisturbanceEngine.roll_for_sprint()` runs a Bernoulli tr
 
 ### Disturbance types
 
-| Type | Effect |
-|------|--------|
-| `dependency_breaks` | A random in-progress card is tagged `[BLOCKED: dependency unavailable]` |
-| `production_incident` | A `HOTFIX` card is injected into the backlog; all agents receive an `[INCIDENT ALERT]` system message |
-| `flaky_test` | A random review/in-progress card is tagged `[FLAKY TESTS: intermittent failures detected]` |
-| `scope_creep` | A new unplanned card is added to the sprint; the PO agent receives a scope-change notice |
-| `junior_misunderstanding` | A random junior agent receives a `[CONFUSION]` system message prompting re-reading |
-| `architectural_debt_surfaces` | A random in-progress card is tagged `[TECH DEBT: refactoring required]` |
+| Type | Effect | Frequency |
+|------|--------|-----------|
+| `dependency_breaks` | A random in-progress card is tagged `[BLOCKED: dependency unavailable]` | 16.6% (1 in 6) |
+| `production_incident` | A `HOTFIX` card injected; all agents receive `[INCIDENT ALERT]` | 12.5% (1 in 8) |
+| `flaky_test` | A random card is tagged `[FLAKY TESTS: intermittent failures detected]` | 25% (1 in 4) |
+| `scope_creep` | A new unplanned card added mid-sprint; PO notified | 20% (1 in 5) |
+| `junior_misunderstanding` | Random junior receives `[CONFUSION]` prompt to re-read | 33% (1 in 3) |
+| `architectural_debt_surfaces` | Random card tagged `[TECH DEBT: refactoring required]` | 16.6% (1 in 6) |
+| **`merge_conflict`** | Card tagged with merge conflict from parallel development; lead dev notified | **30% (1 in 3)** |
+
+### Merge Conflict Disturbance (NEW)
+
+Simulates realistic gitflow scenario:
+
+```
+[MERGE CONFLICT: main branch updated with overlapping changes]
+
+Another pair merged changes to the same files you're working on.
+You'll need to rebase your feature branch on main and resolve conflicts.
+Reach out to the other pair if needed to understand their changes.
+```
+
+**Lead dev is notified** to be available for conflict resolution assistance.
 
 ### Blast radius controls
 
-If too many disturbances fire at once and velocity or coverage would drop beyond the configured thresholds, the engine caps further injections. Thresholds are set in `blast_radius_controls`.
-
-### Logged events
-
-Every disturbance is written to the `disturbance_events` table (or in-memory store in mock mode) and appears in `final_report.json` under each sprint's `"disturbances"` list:
-
-```json
-{
-  "sprint": 1,
-  "velocity": 5,
-  "test_coverage": 89.0,
-  "disturbances": ["dependency_breaks", "junior_misunderstanding"]
-}
-```
+If velocity or coverage drops beyond configured thresholds (`max_velocity_impact`, `max_quality_regression`), the engine caps further injections.
 
 ### Disabling disturbances
 
@@ -178,15 +434,15 @@ disturbances:
 
 ---
 
-## 4. Profile swapping
+## 6. Profile swapping
 
-Profile swapping lets agents temporarily work outside their specialisation. It models cross-training, production incidents pulling specialists away, and organisational resilience.
+Profile swapping lets agents temporarily work outside their specialisation. It models cross-training, incidents, and organizational resilience.
 
 ### Modes
 
 | Mode | Behaviour |
 |------|-----------|
-| `none` | Agents never swap. Bottlenecks surface as knowledge silos. |
+| `none` | Agents never swap. Knowledge silos surface as bottlenecks. |
 | `constrained` | Swaps only when an `allowed_scenario` triggers (e.g. `production_incident`). Penalties applied. |
 | `free` | Any agent may cover any domain. No penalty. AI-optimal baseline. |
 
@@ -194,7 +450,7 @@ Profile swapping lets agents temporarily work outside their specialisation. It m
 
 1. A `production_incident` disturbance fires.
 2. `SprintManager._check_swap_triggers()` finds the senior DevOps or networking agent.
-3. `agent.swap_to(domain, proficiency)` is called, which appends a notice to the agent's system prompt:
+3. `agent.swap_to(domain, proficiency)` appends a notice to the agent's prompt:
 
 ```
 [PROFILE SWAP ACTIVE]
@@ -203,12 +459,12 @@ You are less familiar with this domain — ask more questions, verify assumption
 and expect to work 20% slower than your usual pace.
 ```
 
-4. If the swapped agent is involved in a pairing session, an extra checkpoint round is added (simulating the 20% slowdown).
-5. After the sprint ends, `decay_swap()` reduces proficiency or reverts the swap if `knowledge_decay_sprints` have elapsed.
+4. If the swapped agent is in a pairing session, an **extra checkpoint round** is added (simulating 20% slowdown).
+5. After the sprint, `decay_swap()` reduces proficiency or reverts if `knowledge_decay_sprints` elapsed.
 
-### Checking swap state
+### Swap state
 
-The `BaseAgent.is_swapped` property returns `True` while a swap is active. Swap state is visible in `agent._swap_state`:
+The `BaseAgent.is_swapped` property returns `True` while a swap is active. Swap state in `agent._swap_state`:
 
 ```python
 {
@@ -221,9 +477,54 @@ The `BaseAgent.is_swapped` property returns `True` while a swap is active. Swap 
 
 ---
 
-## 5. Simulated test coverage
+## 7. Team culture features
 
-Test coverage is a **process-based simulation** — it measures how thoroughly the TDD pairing protocol was followed, not actual code coverage.
+### Role-Based Pairing
+
+Pairing role assignment follows team culture:
+
+1. **Lead dev always navigates** (90%+ of sessions) - teaching role, team growth focus
+2. **Testers always navigate** when pairing with devs - quality perspective
+3. **Seniors navigate with juniors** - mentorship, knowledge transfer
+4. **Same level pairs** - random assignment
+
+**Example assignments**:
+- Ahmed (lead dev) + Marcus (mid backend) → Marcus drives, Ahmed navigates
+- Yuki (senior tester) + Elena (mid frontend) → Elena drives, Yuki navigates
+- Alex (senior) + Jamie (junior) → Jamie drives, Alex navigates
+
+### Git Workflow (Stable Main + Gitflow)
+
+**Documented in** `team_config/03_process_rules/git_workflow.md`
+
+- **Stable main**: Always deployable, always green, always tested
+- **Feature branches**: Created automatically per story (`feature/<story-id>`)
+- **Merge conflict resolution**: Expected, protocol documented
+- **"You break it, you fix it"**: Build ownership with team support
+- **Blameless post-mortems**: "We fix systems, not people"
+
+### Hiring Protocol
+
+**Documented in** `team_config/03_process_rules/hiring_protocol.md`
+
+- **3 rounds**: Technical → Domain Fit → Pairing Under Pressure
+- **Keyboard switching**: 5min → 3min → 2min → 1min (increasing pressure)
+- **Lead dev observes** behavior in Round 3 (not just code)
+- **A+ candidates only**: Must score A in all rounds
+
+**Note**: In the simulation, agents are static, but this documents the "in-universe" hiring culture.
+
+### Team Constraints
+
+- **Max 10 engineers** (excluding testers)
+- **Turnover simulation** (optional, for experiments >5 months)
+- **Tester pairing** (20% of sessions, always as navigator)
+
+---
+
+## 8. Simulated test coverage
+
+Test coverage is a **process-based simulation** — it measures how thoroughly the TDD pairing protocol was followed.
 
 ### Formula
 
@@ -244,7 +545,7 @@ If an agent is swapped in (extra checkpoint from 20% slowdown):
 
 ### Sprint-level aggregation
 
-Sprint coverage = story-point-weighted average across all completed pairing sessions:
+Sprint coverage = story-point-weighted average across completed sessions:
 
 ```
 sprint_coverage = Σ(session_coverage × story_points) / Σ(story_points)
@@ -254,24 +555,40 @@ This appears in `final_report.json` as `test_coverage` and is exported to the `t
 
 ---
 
-## 6. Sprint artifacts
+## 9. Sprint artifacts
 
-Each sprint writes to `<output>/sprint-NN/`:
+### Sprint Metadata (`<output>/sprint-NN/`)
 
 | File | Contents |
 |------|----------|
 | `kanban.json` | Full board snapshot: `ready`, `in_progress`, `review`, `done` |
-| `pairing_log.json` | All pairing session records for the sprint |
+| `pairing_log.json` | All pairing session records (driver, navigator, outcomes, coverage) |
 | `retro.md` | Keep / Drop / Puzzle retrospective notes |
 
-The experiment-level `final_report.json` contains:
+### Generated Code Workspaces (`/tmp/agent-workspace/sprint-NN/<story-id>/`)
+
+```
+sprint-01/
+├── us-001/
+│   ├── features/
+│   │   └── us-001.feature         # BDD Gherkin scenarios
+│   ├── src/
+│   │   └── registration.py        # Agent-generated implementation
+│   ├── tests/
+│   │   └── test_registration.py   # Agent-generated tests
+│   └── .git/                      # Git repo on feature/us-001 branch
+└── us-002/
+    └── ...
+```
+
+### Final Report (`<output>/final_report.json`)
 
 ```json
 {
   "experiment": "baseline-experiment",
   "total_sprints": 10,
-  "avg_velocity": 5.0,
-  "total_features": 20,
+  "avg_velocity": 5.2,
+  "total_features": 21,
   "sprints": [
     {
       "sprint": 1,
@@ -280,39 +597,42 @@ The experiment-level `final_report.json` contains:
       "test_coverage": 89.0,
       "pairing_sessions": 3,
       "cycle_time_avg": 0.00012,
-      "disturbances": ["flaky_test"]
+      "disturbances": ["merge_conflict", "flaky_test"]
     },
     ...
   ]
 }
 ```
 
-### Reading pairing session details
-
-Each entry in `pairing_log.json`:
+### Pairing Session Details (`pairing_log.json`)
 
 ```json
 {
   "sprint": 1,
-  "driver_id": "dev_mid_backend",
-  "navigator_id": "dev_jr_fullstack_a",
+  "driver_id": "marcus_mid_backend",
+  "navigator_id": "ahmed_senior_dev_lead",
   "task_id": 3,
   "start_time": "2026-02-08T14:05:11.123456",
   "end_time": "2026-02-08T14:05:11.234567",
   "outcome": "completed",
   "coverage_estimate": 89.0,
-  "decisions": {
-    "approach": "...",
-    "implementation": "..."
-  }
+  "workspace": "/tmp/agent-workspace/sprint-01/us-001",
+  "feature_file": "/tmp/agent-workspace/sprint-01/us-001/features/us-001.feature",
+  "files_changed": ["src/registration.py", "tests/test_registration.py"],
+  "test_results": {
+    "passed": true,
+    "iterations": 1,
+    "output": "2 passed in 0.05s"
+  },
+  "commit_sha": "committed"
 }
 ```
 
 ---
 
-## 7. Prometheus metrics
+## 10. Prometheus metrics
 
-The metrics server starts automatically on port 8080 when the experiment runs.
+The metrics server starts automatically on port 8080.
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -323,28 +643,22 @@ The metrics server starts automatically on port 8080 when the experiment runs.
 
 These are updated via `update_sprint_metrics()` after each sprint completes.
 
-Access raw metrics:
+**Access raw metrics:**
 
 ```bash
 curl http://localhost:8080/metrics
 ```
 
+**Grafana dashboards** (if deployed):
+- Sprint Overview: Velocity, quality metrics, cycle time
+- Team Health: Pairing activity, consensus time
+- Agent Performance: Response times, token usage
+
 ---
 
-## 8. Running against a live vLLM endpoint
+## Advanced Usage
 
-```bash
-# Edit config.yaml first:
-#   models.vllm_endpoint: "http://YOUR_HOST:8000"
-#   database.url: "postgresql://user:pass@host:5432/team_context"
-
-python -m src.orchestrator.main \
-  --config config.yaml \
-  --sprints 20 \
-  --output outputs/live-run-001
-```
-
-### Experiment variants
+### Experiment Variants
 
 | Goal | Config change |
 |------|--------------|
@@ -353,12 +667,43 @@ python -m src.orchestrator.main \
 | Free swapping (AI-optimal baseline) | `profile_swapping.mode: free` |
 | High disturbance rate (stress test) | Increase all `frequencies` values |
 | Shorter sprints (rapid iteration) | `sprint_duration_minutes: 10` |
+| Turnover simulation (long experiments) | `team.turnover.enabled: true` |
+| More tester participation | `team.tester_pairing.frequency: 0.40` |
 
-### Recommended experiment sequence
+### Recommended Experiment Sequence
 
 1. **Baseline**: `disturbances: false`, `swap: none` → 10 sprints
 2. **Disturbances only**: `disturbances: true`, `swap: none` → 10 sprints
 3. **Full chaos**: `disturbances: true`, `swap: constrained` → 20 sprints
 4. **AI-optimal**: `disturbances: true`, `swap: free` → 20 sprints
+5. **Long-term**: Enable turnover, run 30+ sprints
 
 Compare `final_report.json` across runs to measure resilience and learning curves.
+
+### Debugging
+
+**Check agent pairing roles:**
+```bash
+cat /tmp/experiment/sprint-01/pairing_log.json | jq '.[] | {driver: .driver_id, navigator: .navigator_id}'
+```
+
+**Check generated code quality:**
+```bash
+cd /tmp/agent-workspace/sprint-01/us-001/
+git log --oneline
+pytest tests/
+```
+
+**Check disturbance impact:**
+```bash
+cat /tmp/experiment/final_report.json | jq '.sprints[] | {sprint, velocity, disturbances}'
+```
+
+**Check meta-learnings:**
+```bash
+cat team_config/04_meta/meta_learnings.jsonl | jq 'select(.agent_id == "alex_senior_networking")'
+```
+
+---
+
+**Next**: See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details and [AGENT_RUNTIMES.md](AGENT_RUNTIMES.md) for runtime implementation.
