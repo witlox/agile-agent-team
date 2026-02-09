@@ -417,15 +417,25 @@ models:
       max_tokens: 3072
 
 # =============================================================================
-# EXTERNAL CONSULTANTS (5 domains - NOT in config, created on-demand)
+# EXTERNAL CONSULTANTS (10 guru-level domains - NOT in config, created on-demand)
 # =============================================================================
 # Managed by SpecialistConsultantSystem (src/orchestrator/specialist_consultant.py)
-# Available domains (profiles in team_config/08_specialists/):
-#   - ml: Machine Learning / AI (training, deployment, debugging)
-#   - security: Auth, OWASP Top 10, secure coding
-#   - performance: Optimization, profiling, benchmarking
-#   - cloud: AWS, GCP, Azure, Kubernetes
-#   - architecture: System design, scalability, patterns
+# Available domains (curated profiles in team_config/08_specialists/):
+#   - ml: Machine Learning / AI (PyTorch, TensorFlow, MLOps, model debugging)
+#   - security: Authentication, OWASP Top 10, OAuth, secure coding, compliance
+#   - performance: Profiling, optimization (Python, Go, Rust, JS, C++), query tuning
+#   - cloud: AWS, GCP, Azure, Kubernetes, Terraform, CI/CD, observability
+#   - architecture: System design, microservices, scalability, design patterns
+#   - database: PostgreSQL, MongoDB, Redis, query optimization, schema design
+#   - frontend: React, TypeScript, Next.js, performance, accessibility
+#   - distributed: Microservices, consistency, Saga, circuit breaker, resilience
+#   - data: Data pipelines, Airflow, Spark, dbt, data warehousing
+#   - mobile: iOS (Swift/SwiftUI), Android (Kotlin/Compose), React Native
+#
+# Each specialist is:
+#   - Guru-level expertise in their domain
+#   - Expert in 1+ programming languages relevant to domain
+#   - Focused on teaching and knowledge transfer
 #
 # Constraints:
 #   - Max 3 consultations per sprint (hard limit)

@@ -174,3 +174,49 @@ def test_specialist_domains(specialist_system):
     assert "performance" in specialist_system.specialist_domains
     assert "cloud" in specialist_system.specialist_domains
     assert "architecture" in specialist_system.specialist_domains
+    assert "database" in specialist_system.specialist_domains
+    assert "frontend" in specialist_system.specialist_domains
+    assert "distributed" in specialist_system.specialist_domains
+    assert "data" in specialist_system.specialist_domains
+    assert "mobile" in specialist_system.specialist_domains
+
+
+def test_all_specialist_profiles_loadable():
+    """Test all 10 specialist profiles can be loaded from team_config."""
+    from pathlib import Path
+
+    system = SpecialistConsultantSystem(
+        team_config_dir="team_config", max_per_sprint=3, velocity_penalty_per_consultation=2.0
+    )
+
+    # All 10 domains should have real profiles
+    expected_domains = [
+        "ml",
+        "security",
+        "performance",
+        "cloud",
+        "architecture",
+        "database",
+        "frontend",
+        "distributed",
+        "data",
+        "mobile",
+    ]
+
+    for domain in expected_domains:
+        # Load profile
+        profile = system._load_specialist_profile(domain)
+
+        # Should not be the synthetic fallback
+        assert not profile.startswith("# {domain.upper()} Specialist\n\nYou are an external consultant")
+        # Should have curated content
+        assert len(profile) > 500  # Real profiles are substantial
+        # Should be domain-specific
+        assert domain.replace("_", " ") in profile.lower() or domain in system.specialist_domains[domain].lower()
+
+    # Verify all files exist
+    specialists_dir = Path("team_config/08_specialists")
+    for domain in expected_domains:
+        profile_file = specialists_dir / f"{domain}_specialist.md"
+        assert profile_file.exists(), f"Missing {domain}_specialist.md"
+        assert profile_file.stat().st_size > 500, f"{domain}_specialist.md is too small"
