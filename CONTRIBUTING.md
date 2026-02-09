@@ -157,6 +157,19 @@ pytest tests/integration/
 ./scripts/qualify-all-agents.sh --vllm-endpoint http://<host>:8000
 ```
 
+### Tool and Runtime Tests
+
+```bash
+# Test tool execution (filesystem, git, bash)
+pytest tests/unit/test_runtime.py -v
+
+# Test code generation workflow
+pytest tests/integration/test_agent_codegen.py -v
+
+# Test sprint integration with code generation
+pytest tests/integration/test_sprint_codegen.py -v
+```
+
 ## Submitting Changes
 
 ### 1. Commit Your Changes
@@ -212,10 +225,11 @@ Fixes #123
 
 ### High Priority
 
-1. **Model qualification tests** - Verify more models work
-2. **Real code execution** - Replace simulated implementation
-3. **Additional metrics** - Track more team dynamics
+1. **Model qualification tests** - Verify more models work with tool calling
+2. **Code generation improvements** - Better BDD scenarios, test iteration strategies
+3. **Additional metrics** - Track code quality, test effectiveness
 4. **Performance optimization** - Reduce sprint wall-clock time
+5. **Real repository integration** - Work with existing GitHub/GitLab projects
 
 ### Medium Priority
 
@@ -351,6 +365,61 @@ The factory autodiscovers profiles via glob — no code registration needed.
 3. Update orchestrator if enforcement needed
 4. Add tests to verify rule is followed
 5. Update ARCHITECTURE.md
+
+### Add New Tool for Agents
+
+1. Create tool class in `src/tools/agent_tools/`
+   ```python
+   class MyTool(Tool):
+       @property
+       def name(self) -> str:
+           return "my_tool"
+
+       @property
+       def description(self) -> str:
+           return "What this tool does"
+
+       @property
+       def parameters(self) -> Dict[str, Any]:
+           return {"type": "object", "properties": {...}}
+
+       async def execute(self, **kwargs) -> ToolResult:
+           # Implementation
+           pass
+   ```
+
+2. Register in `src/tools/agent_tools/factory.py`
+   ```python
+   TOOL_REGISTRY = {
+       "my_tool": MyTool,
+       # ... existing tools
+   }
+   ```
+
+3. Add to tool sets if appropriate
+   ```python
+   TOOL_SETS = {
+       "my_set": ["my_tool", "other_tool"],
+       # ... existing sets
+   }
+   ```
+
+4. Test the tool
+   ```python
+   # tests/unit/test_my_tool.py
+   async def test_my_tool():
+       tool = MyTool(workspace_root="/tmp/test")
+       result = await tool.execute(param="value")
+       assert result.success
+   ```
+
+5. Add to agent configs in `config.yaml`
+   ```yaml
+   models:
+     agents:
+       alex_senior_networking:
+         tools: ["filesystem", "git", "my_tool"]
+   ```
 
 ---
 

@@ -1,13 +1,13 @@
 # Agile Agent Team Experiment
 
-A simulation of a mature, high-performing agile development team implemented as a multi-agent AI system.
+A multi-agent AI system that operates as a mature, high-performing software development team that **produces actual working code**.
 
 **_Critical remark:_** this whole thing is generated using AI, it stems from conversations with Claude to setup the premise and test the hypotheses.
 Any code that is in this repo is AI generated as well, the experiment is thus 2-fold :)
 
 ## Overview
 
-This project implements an 11-agent team that operates like a real software development team:
+This project implements an 11-agent team that operates like a real software development team and **generates real, tested code**:
 - **1 Dev Lead** (Qwen2.5-Coder-32B)
 - **1 QA Lead** (Qwen2.5-72B)
 - **1 Product Owner** (Qwen2.5-72B)
@@ -21,6 +21,8 @@ This project implements an 11-agent team that operates like a real software deve
 - **Kanban workflow** with WIP limits
 - **Clean house policy**: No technical debt beyond 1 sprint
 - **Definition of Done**: All features must be fully tested and production-ready
+- **BDD/DDD**: Behavior-Driven Development with Gherkin scenarios
+- **Real code generation**: Agents use tools to write, test, and commit actual code
 
 ## Quick Start
 
@@ -58,44 +60,86 @@ python src/orchestrator/main.py --sprints 10
 
 ### Technology Stack
 
-- **Model Serving**: vLLM on GH200 nodes
+- **Model Serving**: vLLM on GH200 nodes (offline) OR Anthropic API (online)
+- **Tool-Using Agents**: File operations, git, bash, pytest execution
 - **Orchestration**: Python asyncio-based
 - **State Management**: PostgreSQL + Redis
+- **Code Generation**: BDD/Gherkin → Implementation → Testing → Git commits
 - **Monitoring**: Prometheus + Grafana
 - **Container Platform**: Kubernetes
 
 ### Key Components
 
 1. **Orchestrator** (`src/orchestrator/`): Manages sprint lifecycle, time simulation, process enforcement
-2. **Agents** (`src/agents/`): Individual agent implementations with role-specific prompts
-3. **Pairing Engine** (`src/agents/pairing.py`): Handles TDD dialogue-driven pairing
-4. **Shared Context** (`src/tools/shared_context.py`): Database access layer
-5. **Metrics** (`src/metrics/`): Prometheus instrumentation and custom metrics
+2. **Agents** (`src/agents/`): Tool-using agents with compositional profiles (8 layers)
+3. **Runtimes** (`src/agents/runtime/`): VLLMRuntime (offline) + AnthropicRuntime (online)
+4. **Tool System** (`src/tools/agent_tools/`): Filesystem, git, bash, test execution
+5. **Pairing Engines**:
+   - `CodeGenPairingEngine`: BDD-driven real code generation
+   - `PairingEngine`: Dialogue-based (legacy fallback)
+6. **Code Generation** (`src/codegen/`):
+   - `WorkspaceManager`: Per-sprint/story git workspaces
+   - `BDDGenerator`: User stories → Gherkin features
+7. **Shared Context** (`src/tools/shared_context.py`): Database access layer
+8. **Metrics** (`src/metrics/`): Prometheus instrumentation and custom metrics
+
+### Deployment Modes
+
+**Fully Offline (Local vLLM)**
+- All agents use local models
+- XML-based tool calling
+- No internet required
+- Lower cost, full privacy
+
+**Fully Online (Anthropic API)**
+- All agents use Claude API
+- Native tool use
+- Requires ANTHROPIC_API_KEY
+- Higher quality, faster responses
+
+**Hybrid**
+- Mix local and Anthropic per agent
+- Balance cost/quality/latency
+- Example: Seniors use Anthropic, juniors use local
 
 ## Team Configuration
 
-Agent profiles are defined in `team_config/`:
+### Compositional Agent Profiles (8 Layers)
+
+Each agent's prompt is composed from 8 layers:
+
+1. **Base** (`00_base/base_agent.md`) - Universal agent behavior
+2. **Role Archetype** (`01_role_archetypes/`) - Developer/Tester/Leader traits
+3. **Seniority** (`02_seniority/`) - Junior/Mid/Senior cognitive patterns
+4. **Specializations** (`03_specializations/`) - Domain expertise (networking, backend, etc.)
+5. **Domain Knowledge** (`04_domain/`) - Technical depth in specific areas
+6. **Individual Personality** (`05_individuals/`) - Unique communication styles
+7. **Demographics** (configured in YAML) - Pronouns, cultural background
+8. **Meta-Learnings** (`04_meta/meta_learnings.jsonl`) - Dynamic, per-agent retrospective insights
 
 ```
 team_config/
 ├── 00_base/
-│   └── base_agent.md                 # Common agent behavior
+│   └── base_agent.md                 # Layer 1: Common agent behavior
 ├── 01_role_archetypes/
-│   ├── developer.md                  # Base developer traits
-│   ├── tester.md                     # Base tester traits
-│   └── leader.md                     # Leadership overlay
-├── 02_individuals/
-│   ├── dev_lead.md                   # Development team leader
-│   ├── qa_lead.md                    # Quality assurance leader
-│   ├── po.md                         # Product owner
-│   ├── dev_sr_networking.md          # Senior: Networking specialist
-│   ├── dev_sr_devops.md              # Senior: DevOps specialist
-│   ├── dev_mid_backend.md            # Mid-level: Backend focus
-│   ├── dev_mid_frontend.md           # Mid-level: Frontend focus
-│   ├── dev_jr_fullstack_a.md         # Junior: Learning phase
-│   ├── dev_jr_fullstack_b.md         # Junior: Learning phase
-│   ├── tester_integration.md         # Senior tester: Integration
-│   └── tester_e2e.md                 # Senior tester: E2E
+│   ├── developer.md                  # Layer 2: Base developer traits
+│   ├── tester.md                     # Layer 2: Base tester traits
+│   └── leader.md                     # Layer 2: Leadership overlay
+├── 02_seniority/
+│   ├── junior.md                     # Layer 3: Junior patterns
+│   ├── mid.md                        # Layer 3: Mid-level patterns
+│   └── senior.md                     # Layer 3: Senior patterns
+├── 03_specializations/
+│   ├── networking.md                 # Layer 4: Networking expertise
+│   ├── devops.md                     # Layer 4: DevOps expertise
+│   ├── backend.md                    # Layer 4: Backend expertise
+│   └── ...                           # Other specializations
+├── 04_domain/
+│   └── (domain-specific knowledge)   # Layer 5: Deep technical content
+├── 05_individuals/
+│   ├── alex_chen.md                  # Layer 6: Individual personalities
+│   ├── priya_sharma.md
+│   └── ...
 ├── 03_process_rules/
 │   ├── xp_practices.md               # TDD, pairing, refactoring
 │   ├── kanban_workflow.md            # Flow management
@@ -104,8 +148,40 @@ team_config/
 │   └── artifact_standards.md         # Sprint deliverables
 └── 04_meta/
     ├── retro_template.md             # Keep/Drop/Puzzle format
-    ├── meta_learnings.jsonl          # Append-only learning log
+    ├── meta_learnings.jsonl          # Layer 8: Append-only learning log
     └── team_evolution.md             # Prompt modification rules
+```
+
+### Runtime and Tool Configuration
+
+In `config.yaml`:
+
+```yaml
+runtimes:
+  anthropic:
+    enabled: true
+    api_key_env: "ANTHROPIC_API_KEY"
+    default_model: "claude-sonnet-4-5"
+
+  local_vllm:
+    enabled: true
+    endpoint: "http://vllm-gh200-module-1:8000"
+    tool_use_protocol: "xml"
+
+  tools:
+    workspace_root: "/tmp/agent-workspace"
+    allowed_commands: ["git", "pytest", "python", "pip", ...]
+
+models:
+  agents:
+    alex_senior_networking:
+      individual: alex_chen
+      seniority: senior
+      specializations: [networking, security]
+      role_archetype: developer+leader
+      runtime: "local_vllm"  # or "anthropic"
+      tools: ["filesystem", "git", "bash"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
 ```
 
 ## Running Experiments
@@ -113,18 +189,62 @@ team_config/
 ### Quick start (no GPU required)
 
 ```bash
-# Mock mode — no vLLM or database needed
+# Mock mode — no vLLM or database needed, agents generate real code
 MOCK_LLM=true python -m src.orchestrator.main \
   --sprints 3 \
   --output /tmp/test-run \
   --db-url mock://
+
+# Generated code will be in: /tmp/agent-workspace/sprint-01/
 ```
 
-### Basic Experiment
+### Basic Experiment (With Code Generation)
 
 ```bash
-# Run 10 sprints with default configuration
+# Run 10 sprints with agents writing real code
 python -m src.orchestrator.main --sprints 10 --output outputs/experiment-001
+
+# View generated code:
+ls -la /tmp/agent-workspace/sprint-01/*/
+```
+
+### Deployment Modes
+
+**1. Fully Offline (No Internet)**
+```yaml
+# config.yaml
+runtimes:
+  local_vllm:
+    enabled: true
+    endpoint: "http://localhost:8000"
+  anthropic:
+    enabled: false
+
+models:
+  agents:
+    all_agents:
+      runtime: "local_vllm"
+```
+
+**2. Fully Online (Anthropic)**
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# config.yaml - set all agents to runtime: "anthropic"
+python -m src.orchestrator.main --sprints 10
+```
+
+**3. Hybrid (Mix)**
+```yaml
+models:
+  agents:
+    # Seniors use Anthropic for quality
+    alex_senior_networking:
+      runtime: "anthropic"
+
+    # Juniors use local for cost
+    jamie_junior_fullstack:
+      runtime: "local_vllm"
 ```
 
 ### With Disturbances / Profile Swapping
@@ -165,15 +285,24 @@ Key dashboards:
 
 Each sprint produces:
 
-1. **Kanban Board Snapshot** (JSON)
-2. **Pairing Log** (JSONL)
-3. **Retro Notes** (Markdown)
-4. **Meta-Learning Diff** (changes to agent prompts)
-5. **Test Coverage Report** (JSON)
-6. **Architectural Decision Records** (ADRs)
-7. **Code Repository** (Git-like structure)
+1. **Kanban Board Snapshot** (JSON) - Card states and transitions
+2. **Pairing Log** (JSONL) - Dialogue, decisions, checkpoints
+3. **Retro Notes** (Markdown) - Keep/Drop/Puzzle retrospective
+4. **Meta-Learning Updates** (JSONL) - New learnings added to prompts
+5. **Test Coverage Report** (JSON) - Process-based coverage metrics
+6. **Generated Code** (Git workspaces):
+   ```
+   /tmp/agent-workspace/sprint-01/us-001/
+   ├── features/us-001.feature      # BDD Gherkin scenarios
+   ├── src/implementation.py        # Agent-generated code
+   ├── tests/test_implementation.py # Agent-generated tests
+   └── .git/                        # Git repo with commits
+   ```
+7. **Architectural Decision Records** (ADRs) - Design choices
 
-Artifacts are stored in: `outputs/<experiment-id>/sprint-<N>/`
+Artifacts are stored in:
+- Sprint metadata: `outputs/<experiment-id>/sprint-<N>/`
+- Code workspaces: `/tmp/agent-workspace/sprint-<N>/<story-id>/`
 
 ## Qualification System
 
