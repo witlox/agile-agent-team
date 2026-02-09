@@ -8,12 +8,18 @@ if TYPE_CHECKING:
     from ..metrics.sprint_metrics import SprintResult
 
 # Define metrics
-sprint_velocity = Gauge('sprint_velocity', 'Story points per sprint')
-test_coverage = Gauge('test_coverage_percent', 'Real line coverage from pytest-cov')
-process_coverage = Gauge('process_coverage_percent', 'Process-based coverage (TDD protocol adherence)')
-branch_coverage = Gauge('branch_coverage_percent', 'Real branch coverage from pytest-cov')
-pairing_sessions = Counter('pairing_sessions_total', 'Total sessions', ['driver', 'navigator'])
-consensus_time = Histogram('consensus_seconds', 'Time to consensus')
+sprint_velocity = Gauge("sprint_velocity", "Story points per sprint")
+test_coverage = Gauge("test_coverage_percent", "Real line coverage from pytest-cov")
+process_coverage = Gauge(
+    "process_coverage_percent", "Process-based coverage (TDD protocol adherence)"
+)
+branch_coverage = Gauge(
+    "branch_coverage_percent", "Real branch coverage from pytest-cov"
+)
+pairing_sessions = Counter(
+    "pairing_sessions_total", "Total sessions", ["driver", "navigator"]
+)
+consensus_time = Histogram("consensus_seconds", "Time to consensus")
 
 
 def start_metrics_server(port: int = 8080):

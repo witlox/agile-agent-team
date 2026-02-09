@@ -2,7 +2,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...tools.agent_tools.base import Tool, ToolResult
 
 
 @dataclass
@@ -75,18 +78,14 @@ class AgentRuntime(ABC):
         tool = self.tools.get(name)
         if tool is None:
             from ..agent_tools import ToolResult
-            return ToolResult(
-                success=False,
-                output="",
-                error=f"Unknown tool: {name}"
-            )
+
+            return ToolResult(success=False, output="", error=f"Unknown tool: {name}")
 
         try:
             return await tool.execute(**params)
         except Exception as e:
             from ..agent_tools import ToolResult
+
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Tool execution error: {str(e)}"
+                success=False, output="", error=f"Tool execution error: {str(e)}"
             )

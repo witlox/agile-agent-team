@@ -26,7 +26,7 @@ async def test_sprint_manager_with_codegen_pairing_engine():
                 "model": "test-model",
                 "tool_use_protocol": "xml",
                 "max_tokens": 1000,
-                "temperature": 0.7
+                "temperature": 0.7,
             }
             tools = create_tools(["write_file", "read_file"], str(workspace))
             runtime = VLLMRuntime(runtime_config, tools)
@@ -40,13 +40,11 @@ async def test_sprint_manager_with_codegen_pairing_engine():
                 role_archetype="developer",
                 model="test-model",
                 temperature=0.7,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             agent = BaseAgent(
-                config=agent_config,
-                vllm_endpoint="mock://",
-                runtime=runtime
+                config=agent_config, vllm_endpoint="mock://", runtime=runtime
             )
             agents.append(agent)
 
@@ -57,7 +55,7 @@ async def test_sprint_manager_with_codegen_pairing_engine():
             database_url="mock://",
             team_config_dir="team_config",
             vllm_endpoint="mock://",
-            tools_workspace_root=str(workspace)
+            tools_workspace_root=str(workspace),
         )
 
         # Create shared DB
@@ -68,14 +66,12 @@ async def test_sprint_manager_with_codegen_pairing_engine():
         output_dir.mkdir()
 
         manager = SprintManager(
-            agents=agents,
-            shared_db=db,
-            config=config,
-            output_dir=output_dir
+            agents=agents, shared_db=db, config=config, output_dir=output_dir
         )
 
         # Verify CodeGenPairingEngine is used
         from src.agents.pairing_codegen import CodeGenPairingEngine
+
         assert isinstance(manager.pairing_engine, CodeGenPairingEngine)
 
         # Verify workspace manager is configured
@@ -95,13 +91,11 @@ async def test_sprint_manager_without_runtimes_uses_legacy_pairing():
                 name=f"Developer {i}",
                 model="test-model",
                 temperature=0.7,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             agent = BaseAgent(
-                config=agent_config,
-                vllm_endpoint="mock://",
-                runtime=None  # No runtime
+                config=agent_config, vllm_endpoint="mock://", runtime=None  # No runtime
             )
             agents.append(agent)
 
@@ -111,7 +105,7 @@ async def test_sprint_manager_without_runtimes_uses_legacy_pairing():
             sprint_duration_minutes=1,
             database_url="mock://",
             team_config_dir="team_config",
-            vllm_endpoint="mock://"
+            vllm_endpoint="mock://",
         )
 
         # Create shared DB
@@ -122,14 +116,12 @@ async def test_sprint_manager_without_runtimes_uses_legacy_pairing():
         output_dir.mkdir()
 
         manager = SprintManager(
-            agents=agents,
-            shared_db=db,
-            config=config,
-            output_dir=output_dir
+            agents=agents, shared_db=db, config=config, output_dir=output_dir
         )
 
         # Verify PairingEngine is used (not CodeGenPairingEngine)
         from src.agents.pairing import PairingEngine
         from src.agents.pairing_codegen import CodeGenPairingEngine
+
         assert isinstance(manager.pairing_engine, PairingEngine)
         assert not isinstance(manager.pairing_engine, CodeGenPairingEngine)

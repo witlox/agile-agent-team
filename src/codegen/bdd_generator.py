@@ -8,10 +8,7 @@ class BDDGenerator:
     """Generates Gherkin feature files from user stories."""
 
     def generate_feature_file(
-        self,
-        story: Dict,
-        workspace: Path,
-        language: str = "python"
+        self, story: Dict, workspace: Path, language: str = "python"
     ) -> Path:
         """Generate a Gherkin feature file for a user story.
 
@@ -24,8 +21,8 @@ class BDDGenerator:
             Path to generated feature file
         """
         story_id = story["id"]
-        title = story["title"]
-        description = story.get("description", "")
+        _title = story["title"]
+        _description = story.get("description", "")
 
         # Create features directory
         features_dir = workspace / "features"
@@ -99,8 +96,8 @@ class BDDGenerator:
 
             # Simple scenario from first AC
             if len(acceptance_criteria) > 0:
-                lines.append(f"    Given the system is ready")
-                lines.append(f"    When I complete the feature")
+                lines.append("    Given the system is ready")
+                lines.append("    When I complete the feature")
 
                 for ac in acceptance_criteria:
                     lines.append(f"    Then {ac}")
@@ -110,9 +107,7 @@ class BDDGenerator:
         return lines
 
     def generate_step_definitions_template(
-        self,
-        feature_file: Path,
-        language: str = "python"
+        self, feature_file: Path, language: str = "python"
     ) -> Path:
         """Generate a template for step definitions.
 
@@ -164,13 +159,15 @@ class BDDGenerator:
             decorator = step_type.lower()
             func_name = self._step_text_to_function_name(step_text)
 
-            template_lines.extend([
-                f"@{decorator}('{step_text}')",
-                f"def {func_name}():",
-                f'    """TODO: Implement this step"""',
-                "    pass",
-                "",
-            ])
+            template_lines.extend(
+                [
+                    f"@{decorator}('{step_text}')",
+                    f"def {func_name}():",
+                    '    """TODO: Implement this step"""',
+                    "    pass",
+                    "",
+                ]
+            )
 
         steps_file.write_text("\n".join(template_lines))
         return steps_file
@@ -182,7 +179,7 @@ class BDDGenerator:
             line = line.strip()
             for step_type in ["Given", "When", "Then", "And"]:
                 if line.startswith(step_type + " "):
-                    step_text = line[len(step_type) + 1:]
+                    step_text = line[len(step_type) + 1 :]
                     steps.append((step_type, step_text))
         return steps
 
@@ -190,7 +187,8 @@ class BDDGenerator:
         """Convert step text to a Python function name."""
         # Simple conversion: lowercase, replace spaces with underscores
         import re
+
         name = step_text.lower()
-        name = re.sub(r'[^a-z0-9_]+', '_', name)
-        name = re.sub(r'_+', '_', name).strip('_')
+        name = re.sub(r"[^a-z0-9_]+", "_", name)
+        name = re.sub(r"_+", "_", name).strip("_")
         return name[:50]  # Limit length

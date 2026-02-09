@@ -1,10 +1,11 @@
 """Anthropic (Claude) runtime with native tool use support."""
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 try:
     import anthropic
+
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
@@ -64,14 +65,14 @@ class AnthropicRuntime(AgentRuntime):
                     max_tokens=self.max_tokens,
                     system=system_prompt,
                     messages=messages,
-                    tools=tool_schemas if tool_schemas else anthropic.NOT_GIVEN
+                    tools=tool_schemas if tool_schemas else anthropic.NOT_GIVEN,
                 )
             except Exception as e:
                 return RuntimeResult(
                     success=False,
                     content="",
                     turns=turn + 1,
-                    error=f"API error: {str(e)}"
+                    error=f"API error: {str(e)}",
                 )
 
             # Check stop reason
@@ -83,34 +84,28 @@ class AnthropicRuntime(AgentRuntime):
                     if content_block.type == "tool_use":
                         # Execute tool
                         result = await self._execute_tool(
-                            content_block.name,
-                            content_block.input
+                            content_block.name, content_block.input
                         )
 
-                        all_tool_calls.append({
-                            "name": content_block.name,
-                            "params": content_block.input
-                        })
+                        all_tool_calls.append(
+                            {"name": content_block.name, "params": content_block.input}
+                        )
 
                         if result.files_changed:
                             files_changed.extend(result.files_changed)
 
                         # Format result for Claude
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": content_block.id,
-                            "content": self._format_tool_result(result)
-                        })
+                        tool_results.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": content_block.id,
+                                "content": self._format_tool_result(result),
+                            }
+                        )
 
                 # Add assistant message and tool results to conversation
-                messages.append({
-                    "role": "assistant",
-                    "content": response.content
-                })
-                messages.append({
-                    "role": "user",
-                    "content": tool_results
-                })
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "user", "content": tool_results})
 
             elif response.stop_reason == "end_turn":
                 # Task complete
@@ -121,7 +116,7 @@ class AnthropicRuntime(AgentRuntime):
                     content=final_text,
                     turns=turn + 1,
                     tool_calls=all_tool_calls,
-                    files_changed=files_changed
+                    files_changed=files_changed,
                 )
 
             elif response.stop_reason == "max_tokens":
@@ -134,7 +129,7 @@ class AnthropicRuntime(AgentRuntime):
                     turns=turn + 1,
                     tool_calls=all_tool_calls,
                     files_changed=files_changed,
-                    error="Hit max tokens limit"
+                    error="Hit max tokens limit",
                 )
 
             else:
@@ -143,7 +138,7 @@ class AnthropicRuntime(AgentRuntime):
                     success=False,
                     content="",
                     turns=turn + 1,
-                    error=f"Unexpected stop reason: {response.stop_reason}"
+                    error=f"Unexpected stop reason: {response.stop_reason}",
                 )
 
         # Max turns reached
@@ -153,7 +148,7 @@ class AnthropicRuntime(AgentRuntime):
             turns=max_turns,
             tool_calls=all_tool_calls,
             files_changed=files_changed,
-            error="Maximum turns reached"
+            error="Maximum turns reached",
         )
 
     def _tool_to_anthropic_schema(self, tool: Tool) -> Dict:
@@ -161,7 +156,7 @@ class AnthropicRuntime(AgentRuntime):
         return {
             "name": tool.name,
             "description": tool.description,
-            "input_schema": tool.parameters
+            "input_schema": tool.parameters,
         }
 
     def _format_tool_result(self, result: ToolResult) -> str:

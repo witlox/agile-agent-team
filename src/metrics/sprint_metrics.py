@@ -50,7 +50,7 @@ class SprintMetrics:
                 if start and end:
                     try:
                         from datetime import datetime
-                        fmt = "%Y-%m-%dT%H:%M:%S.%f"
+
                         t_start = datetime.fromisoformat(start)
                         t_end = datetime.fromisoformat(end)
                         durations.append((t_end - t_start).total_seconds())

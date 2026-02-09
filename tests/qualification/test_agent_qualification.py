@@ -1,6 +1,5 @@
 """Qualification tests for agent configuration, prompt loading, and factory."""
 
-import os
 from pathlib import Path
 
 import pytest
@@ -52,7 +51,10 @@ def test_prompt_loading_minimal():
     agent = BaseAgent(config, vllm_endpoint="mock://")
     assert agent.prompt  # non-empty
     # Should at least load base agent
-    assert "agile development team" in agent.prompt.lower() or "base agent" in agent.prompt.lower()
+    assert (
+        "agile development team" in agent.prompt.lower()
+        or "base agent" in agent.prompt.lower()
+    )
 
 
 def test_agent_config_creation():
@@ -67,14 +69,19 @@ def test_agent_config_creation():
                 "seniority": "senior",
                 "specializations": ["devops", "cloud_architecture"],
                 "role_archetype": "developer",
-                "demographics": {"pronouns": "she/her", "cultural_background": "Indian"},
+                "demographics": {
+                    "pronouns": "she/her",
+                    "cultural_background": "Indian",
+                },
                 "model": "TestModel",
                 "temperature": 0.5,
                 "max_tokens": 512,
             }
         },
     )
-    config = factory._create_agent_config("test_agent", factory.agent_model_configs["test_agent"])
+    config = factory._create_agent_config(
+        "test_agent", factory.agent_model_configs["test_agent"]
+    )
     assert config.role_id == "test_agent"
     assert config.individual == "priya_sharma"
     assert config.seniority == "senior"
@@ -123,7 +130,9 @@ async def test_all_agents_created():
             "max_tokens": 100,
         },
     }
-    factory = AgentFactory(str(TEAM_CONFIG_DIR), "mock://", agent_model_configs=agent_configs)
+    factory = AgentFactory(
+        str(TEAM_CONFIG_DIR), "mock://", agent_model_configs=agent_configs
+    )
     agents = await factory.create_all_agents()
     assert len(agents) == 3
     assert all(isinstance(agent, BaseAgent) for agent in agents)

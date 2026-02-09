@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 
@@ -30,7 +31,6 @@ class Tool(ABC):
             workspace_root: Root directory for file operations
             config: Optional tool-specific configuration
         """
-        from pathlib import Path
         self.workspace = Path(workspace_root)
         self.config = config or {}
 
@@ -86,7 +86,6 @@ class Tool(ABC):
         Raises:
             ValueError: If path attempts to escape workspace
         """
-        from pathlib import Path
 
         # Resolve relative to workspace
         full_path = (self.workspace / path).resolve()

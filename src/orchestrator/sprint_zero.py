@@ -11,6 +11,7 @@ from .convention_analyzer import ConventionAnalyzer
 @dataclass
 class InfrastructureStory:
     """Infrastructure story for Sprint 0."""
+
     id: str
     title: str
     description: str
@@ -45,10 +46,9 @@ class BrownfieldAnalyzer:
 
     def _has_ci_pipeline(self) -> bool:
         """Check for CI config files."""
-        return (
-            (self.workspace / ".github" / "workflows").exists() or
-            (self.workspace / ".gitlab-ci.yml").exists()
-        )
+        return (self.workspace / ".github" / "workflows").exists() or (
+            self.workspace / ".gitlab-ci.yml"
+        ).exists()
 
     def _has_docker(self) -> bool:
         """Check for Docker configuration."""
@@ -80,10 +80,9 @@ class BrownfieldAnalyzer:
 
     def _has_typescript_linting(self) -> bool:
         """Check for TypeScript linting config."""
-        return (
-            (self.workspace / "tsconfig.json").exists() and
-            (self.workspace / ".eslintrc.json").exists()
-        )
+        return (self.workspace / "tsconfig.json").exists() and (
+            self.workspace / ".eslintrc.json"
+        ).exists()
 
     def _has_cpp_linting(self) -> bool:
         """Check for C++ linting config."""
@@ -92,15 +91,13 @@ class BrownfieldAnalyzer:
     def _has_kubernetes(self) -> bool:
         """Check for Kubernetes manifests."""
         return (
-            (self.workspace / "k8s").exists() or
-            (self.workspace / "kubernetes").exists() or
-            (self.workspace / "helm").exists()
+            (self.workspace / "k8s").exists()
+            or (self.workspace / "kubernetes").exists()
+            or (self.workspace / "helm").exists()
         )
 
     def generate_gap_stories(
-        self,
-        analysis: Dict[str, bool],
-        available_stories: List[InfrastructureStory]
+        self, analysis: Dict[str, bool], available_stories: List[InfrastructureStory]
     ) -> List[InfrastructureStory]:
         """Generate stories only for missing infrastructure."""
         gaps = [key for key, exists in analysis.items() if not exists]
@@ -167,7 +164,7 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 """
-            }
+            },
         ),
         InfrastructureStory(
             id="INFRA-PY-TEST",
@@ -202,7 +199,7 @@ show_missing = true
 precision = 2
 fail_under = 85
 """
-            }
+            },
         ),
     ]
 
@@ -246,8 +243,8 @@ run:
 go 1.21
 
 require ()
-"""
-            }
+""",
+            },
         ),
     ]
 
@@ -280,8 +277,8 @@ edition = "2021"
 [dependencies]
 
 [dev-dependencies]
-"""
-            }
+""",
+            },
         ),
     ]
 
@@ -335,8 +332,8 @@ edition = "2021"
   "tabWidth": 2,
   "printWidth": 100
 }
-"""
-            }
+""",
+            },
         ),
     ]
 
@@ -369,8 +366,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Add your source files here
-"""
-            }
+""",
+            },
         ),
     ]
 
@@ -413,8 +410,8 @@ services:
 .venv
 tests
 *.md
-"""
-            }
+""",
+            },
         ),
     ]
 
@@ -432,7 +429,11 @@ tests
             story_points=5,
             priority=9,
             assigned_specializations=["devops", "networking"],
-            config_files=["k8s/deployment.yaml", "k8s/service.yaml", "k8s/configmap.yaml"],
+            config_files=[
+                "k8s/deployment.yaml",
+                "k8s/service.yaml",
+                "k8s/configmap.yaml",
+            ],
             validation_command="kubectl apply --dry-run=client -f k8s/",
             template_content={
                 "k8s/deployment.yaml": """apiVersion: apps/v1
@@ -483,8 +484,8 @@ metadata:
   name: app-config
 data:
   ENV: "production"
-"""
-            }
+""",
+            },
         ),
     ]
 
@@ -547,7 +548,7 @@ jobs:
         with:
           file: ./coverage.xml
 """
-            }
+            },
         ),
         InfrastructureStory(
             id="INFRA-CI-GITLAB",
@@ -600,16 +601,23 @@ test:
         coverage_format: cobertura
         path: coverage.xml
 """
-            }
+            },
         ),
     ]
 
-    def __init__(self, product_metadata: ProductMetadata, team_config: Dict, workspace: Optional[Path] = None):
+    def __init__(
+        self,
+        product_metadata: ProductMetadata,
+        team_config: Dict,
+        workspace: Optional[Path] = None,
+    ):
         self.product = product_metadata
         self.team = team_config
         self.workspace = workspace
 
-    def generate_stories(self, brownfield_mode: bool = False) -> List[InfrastructureStory]:
+    def generate_stories(
+        self, brownfield_mode: bool = False
+    ) -> List[InfrastructureStory]:
         """Generate all infrastructure stories based on tech stack and languages.
 
         Args:
@@ -631,7 +639,9 @@ test:
             for lang in self.product.languages:
                 lang_lower = lang.lower()
                 conventions = convention_analyzer.analyze(lang_lower)
-                augmented = convention_analyzer.generate_augmented_config(lang_lower, conventions)
+                augmented = convention_analyzer.generate_augmented_config(
+                    lang_lower, conventions
+                )
 
                 # Log detected conventions (would be used by agents during implementation)
                 if conventions:
@@ -647,9 +657,15 @@ test:
         stories = []
 
         # CI/CD pipeline (always needed)
-        if "github-actions" in self.product.tech_stack or "github" in str(self.product.repository_url).lower():
+        if (
+            "github-actions" in self.product.tech_stack
+            or "github" in str(self.product.repository_url).lower()
+        ):
             stories.extend(self._generate_ci_stories_with_all_languages("github"))
-        elif "gitlab-ci" in self.product.tech_stack or "gitlab" in str(self.product.repository_url).lower():
+        elif (
+            "gitlab-ci" in self.product.tech_stack
+            or "gitlab" in str(self.product.repository_url).lower()
+        ):
             stories.extend(self._generate_ci_stories_with_all_languages("gitlab"))
         else:
             # Default to GitHub Actions if not specified
@@ -670,7 +686,10 @@ test:
                 stories.extend(self.CPP_STORIES)
 
         # Build validation stories for compiled languages
-        if any(lang.lower() in ["go", "rust", "c++", "cpp", "c"] for lang in self.product.languages):
+        if any(
+            lang.lower() in ["go", "rust", "c++", "cpp", "c"]
+            for lang in self.product.languages
+        ):
             stories.extend(self._generate_build_validation_stories())
 
         # Containerization
@@ -683,7 +702,9 @@ test:
 
         return stories
 
-    def _generate_ci_stories_with_all_languages(self, provider: str) -> List[InfrastructureStory]:
+    def _generate_ci_stories_with_all_languages(
+        self, provider: str
+    ) -> List[InfrastructureStory]:
         """Generate CI story templates that include all project languages.
 
         Args:
@@ -705,7 +726,8 @@ test:
         ci_steps = []
 
         if "python" in languages:
-            ci_steps.append("""      - name: Set up Python
+            ci_steps.append(
+                """      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -726,10 +748,12 @@ test:
         run: mypy .
 
       - name: Test (Python)
-        run: pytest --cov=src --cov-report=xml --cov-report=term""")
+        run: pytest --cov=src --cov-report=xml --cov-report=term"""
+            )
 
         if "go" in languages:
-            ci_steps.append("""      - name: Set up Go
+            ci_steps.append(
+                """      - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
@@ -741,10 +765,12 @@ test:
         run: golangci-lint run
 
       - name: Test (Go)
-        run: go test -race -cover ./...""")
+        run: go test -race -cover ./..."""
+            )
 
         if "rust" in languages:
-            ci_steps.append("""      - name: Set up Rust
+            ci_steps.append(
+                """      - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -757,10 +783,12 @@ test:
         run: cargo clippy -- -D warnings
 
       - name: Test (Rust)
-        run: cargo test""")
+        run: cargo test"""
+            )
 
         if any(lang in languages for lang in ["typescript", "ts", "javascript", "js"]):
-            ci_steps.append("""      - name: Set up Node.js
+            ci_steps.append(
+                """      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
@@ -778,10 +806,12 @@ test:
         run: npx tsc --noEmit
 
       - name: Test (TypeScript)
-        run: npm test""")
+        run: npm test"""
+            )
 
         if any(lang in languages for lang in ["c++", "cpp", "c"]):
-            ci_steps.append("""      - name: Install C++ tools
+            ci_steps.append(
+                """      - name: Install C++ tools
         run: sudo apt-get update && sudo apt-get install -y cmake clang-format clang-tidy
 
       - name: Format check (C++)
@@ -795,7 +825,8 @@ test:
           make
 
       - name: Test (C++)
-        run: cd build && ctest""")
+        run: cd build && ctest"""
+            )
 
         workflow_content = f"""name: CI
 
@@ -835,7 +866,7 @@ jobs:
             assigned_specializations=["devops"],
             config_files=[".github/workflows/ci.yml"],
             validation_command="gh workflow list",
-            template_content={".github/workflows/ci.yml": workflow_content}
+            template_content={".github/workflows/ci.yml": workflow_content},
         )
 
     def _customize_gitlab_ci_template(self) -> InfrastructureStory:
@@ -849,23 +880,24 @@ jobs:
         stories = []
 
         if "go" in [lang.lower() for lang in self.product.languages]:
-            stories.append(InfrastructureStory(
-                id="INFRA-GO-BUILD",
-                title="Setup Go build validation",
-                description="Ensure Go code builds successfully with all dependencies",
-                acceptance_criteria=[
-                    "go.mod includes all dependencies",
-                    "go build ./... succeeds",
-                    "go mod tidy keeps dependencies clean",
-                    "Build produces working binary",
-                ],
-                story_points=2,
-                priority=7,
-                assigned_specializations=["golang_specialist", "backend"],
-                config_files=["Makefile"],
-                validation_command="go build ./...",
-                template_content={
-                    "Makefile": """build:
+            stories.append(
+                InfrastructureStory(
+                    id="INFRA-GO-BUILD",
+                    title="Setup Go build validation",
+                    description="Ensure Go code builds successfully with all dependencies",
+                    acceptance_criteria=[
+                        "go.mod includes all dependencies",
+                        "go build ./... succeeds",
+                        "go mod tidy keeps dependencies clean",
+                        "Build produces working binary",
+                    ],
+                    story_points=2,
+                    priority=7,
+                    assigned_specializations=["golang_specialist", "backend"],
+                    config_files=["Makefile"],
+                    validation_command="go build ./...",
+                    template_content={
+                        "Makefile": """build:
 \tgo build -v ./...
 
 test:
@@ -880,27 +912,29 @@ fmt:
 
 .PHONY: build test lint fmt
 """
-                }
-            ))
+                    },
+                )
+            )
 
         if "rust" in [lang.lower() for lang in self.product.languages]:
-            stories.append(InfrastructureStory(
-                id="INFRA-RUST-BUILD",
-                title="Setup Rust build validation",
-                description="Ensure Rust code builds successfully in debug and release modes",
-                acceptance_criteria=[
-                    "cargo build succeeds",
-                    "cargo build --release succeeds",
-                    "cargo check runs quickly for validation",
-                    "All dependencies compile",
-                ],
-                story_points=2,
-                priority=8,
-                assigned_specializations=["rust_specialist", "systems_programming"],
-                config_files=["Makefile"],
-                validation_command="cargo build",
-                template_content={
-                    "Makefile": """build:
+            stories.append(
+                InfrastructureStory(
+                    id="INFRA-RUST-BUILD",
+                    title="Setup Rust build validation",
+                    description="Ensure Rust code builds successfully in debug and release modes",
+                    acceptance_criteria=[
+                        "cargo build succeeds",
+                        "cargo build --release succeeds",
+                        "cargo check runs quickly for validation",
+                        "All dependencies compile",
+                    ],
+                    story_points=2,
+                    priority=8,
+                    assigned_specializations=["rust_specialist", "systems_programming"],
+                    config_files=["Makefile"],
+                    validation_command="cargo build",
+                    template_content={
+                        "Makefile": """build:
 \tcargo build
 
 release:
@@ -920,27 +954,29 @@ check:
 
 .PHONY: build release test lint fmt check
 """
-                }
-            ))
+                    },
+                )
+            )
 
         if any(lang.lower() in ["c++", "cpp", "c"] for lang in self.product.languages):
-            stories.append(InfrastructureStory(
-                id="INFRA-CPP-BUILD",
-                title="Setup C++ build validation",
-                description="Ensure C++ code builds successfully with CMake",
-                acceptance_criteria=[
-                    "CMakeLists.txt configures project",
-                    "Debug build succeeds",
-                    "Release build succeeds with optimizations",
-                    "Tests compile and link",
-                ],
-                story_points=3,
-                priority=9,
-                assigned_specializations=["cpp_specialist", "systems_programming"],
-                config_files=["CMakeLists.txt", "Makefile"],
-                validation_command="cmake -B build && cmake --build build",
-                template_content={
-                    "CMakeLists.txt": """cmake_minimum_required(VERSION 3.20)
+            stories.append(
+                InfrastructureStory(
+                    id="INFRA-CPP-BUILD",
+                    title="Setup C++ build validation",
+                    description="Ensure C++ code builds successfully with CMake",
+                    acceptance_criteria=[
+                        "CMakeLists.txt configures project",
+                        "Debug build succeeds",
+                        "Release build succeeds with optimizations",
+                        "Tests compile and link",
+                    ],
+                    story_points=3,
+                    priority=9,
+                    assigned_specializations=["cpp_specialist", "systems_programming"],
+                    config_files=["CMakeLists.txt", "Makefile"],
+                    validation_command="cmake -B build && cmake --build build",
+                    template_content={
+                        "CMakeLists.txt": """cmake_minimum_required(VERSION 3.20)
 project(MyProject CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -956,7 +992,7 @@ add_executable(myapp src/main.cpp)
 
 enable_testing()
 """,
-                    "Makefile": """build:
+                        "Makefile": """build:
 \tmkdir -p build && cd build && cmake .. && make
 
 release:
@@ -969,9 +1005,10 @@ clean:
 \trm -rf build
 
 .PHONY: build release test clean
-"""
-                }
-            ))
+""",
+                    },
+                )
+            )
 
         return stories
 
@@ -990,5 +1027,5 @@ clean:
                 "config_files": story.config_files,
                 "validation_command": story.validation_command,
                 "template_content": story.template_content,
-            }
+            },
         }

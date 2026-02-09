@@ -4,7 +4,7 @@ import asyncio
 import json
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, List
 
 from .base import Tool, ToolResult
 
@@ -63,7 +63,9 @@ class MultiLanguageTestRunner(Tool):
 
     @property
     def description(self) -> str:
-        return "Auto-detect language and run tests (pytest/go test/cargo test/jest/gtest)"
+        return (
+            "Auto-detect language and run tests (pytest/go test/cargo test/jest/gtest)"
+        )
 
     @property
     def parameters(self) -> Dict[str, Any]:
@@ -73,24 +75,24 @@ class MultiLanguageTestRunner(Tool):
                 "path": {
                     "type": "string",
                     "description": "Path to tests (optional, auto-detects)",
-                    "default": ""
+                    "default": "",
                 },
                 "language": {
                     "type": "string",
                     "description": "Force specific language (python|go|rust|typescript|cpp)",
-                    "default": ""
+                    "default": "",
                 },
                 "verbose": {
                     "type": "boolean",
                     "description": "Verbose test output",
-                    "default": False
+                    "default": False,
                 },
                 "collect_coverage": {
                     "type": "boolean",
                     "description": "Collect code coverage metrics",
-                    "default": True
-                }
-            }
+                    "default": True,
+                },
+            },
         }
 
     async def execute(
@@ -98,7 +100,7 @@ class MultiLanguageTestRunner(Tool):
         path: str = "",
         language: str = "",
         verbose: bool = False,
-        collect_coverage: bool = True
+        collect_coverage: bool = True,
     ) -> ToolResult:
         """Run tests with language auto-detection."""
         try:
@@ -109,7 +111,7 @@ class MultiLanguageTestRunner(Tool):
                     return ToolResult(
                         success=False,
                         output="",
-                        error="No recognized language found in workspace"
+                        error="No recognized language found in workspace",
                     )
                 # Use first detected language
                 language = detected[0]
@@ -127,16 +129,12 @@ class MultiLanguageTestRunner(Tool):
                 return await self._run_cpp_tests(verbose)
             else:
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"Unsupported language: {language}"
+                    success=False, output="", error=f"Unsupported language: {language}"
                 )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error running tests: {str(e)}"
+                success=False, output="", error=f"Error running tests: {str(e)}"
             )
 
     async def _run_python_tests(
@@ -156,12 +154,14 @@ class MultiLanguageTestRunner(Tool):
             cmd.append("-q")
 
         if collect_coverage:
-            cmd.extend([
-                "--cov=src",
-                "--cov-report=term-missing",
-                "--cov-report=json",
-                "--cov-branch"
-            ])
+            cmd.extend(
+                [
+                    "--cov=src",
+                    "--cov-report=term-missing",
+                    "--cov-report=json",
+                    "--cov-branch",
+                ]
+            )
 
         cmd.extend(["--tb=short", "--no-header"])
 
@@ -220,13 +220,15 @@ class MultiLanguageTestRunner(Tool):
                     *coverage_cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    cwd=str(self.workspace)
+                    cwd=str(self.workspace),
                 )
                 stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
                 if proc.returncode == 0:
                     coverage_data = json.loads(stdout.decode())
                     if "coverage" in coverage_data:
-                        result.metadata["line_coverage"] = round(coverage_data["coverage"], 1)
+                        result.metadata["line_coverage"] = round(
+                            coverage_data["coverage"], 1
+                        )
             except (FileNotFoundError, asyncio.TimeoutError, json.JSONDecodeError):
                 # Tarpaulin not available or failed, skip coverage
                 pass
@@ -266,7 +268,7 @@ class MultiLanguageTestRunner(Tool):
             return ToolResult(
                 success=False,
                 output="",
-                error="Build directory not found. Run 'cmake -B build' first."
+                error="Build directory not found. Run 'cmake -B build' first.",
             )
 
         cmd = ["ctest", "--test-dir", str(build_dir)]
@@ -278,22 +280,19 @@ class MultiLanguageTestRunner(Tool):
 
         return await self._run_command(cmd, "ctest")
 
-    async def _run_command(
-        self, cmd: List[str], tool_name: str
-    ) -> ToolResult:
+    async def _run_command(self, cmd: List[str], tool_name: str) -> ToolResult:
         """Execute command and return result."""
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=self.config.get("test_timeout", 300)
+                    proc.communicate(), timeout=self.config.get("test_timeout", 300)
                 )
             except asyncio.TimeoutError:
                 proc.kill()
@@ -301,7 +300,7 @@ class MultiLanguageTestRunner(Tool):
                 return ToolResult(
                     success=False,
                     output="",
-                    error=f"{tool_name} timed out (exceeded 5 minutes)"
+                    error=f"{tool_name} timed out (exceeded 5 minutes)",
                 )
 
             output = stdout.decode("utf-8", errors="replace")
@@ -316,26 +315,18 @@ class MultiLanguageTestRunner(Tool):
             # Parse test summary based on tool
             summary = self._parse_test_output(output, tool_name)
 
-            return ToolResult(
-                success=success,
-                output=output.strip(),
-                metadata=summary
-            )
+            return ToolResult(success=success, output=output.strip(), metadata=summary)
 
         except FileNotFoundError:
             return ToolResult(
                 success=False,
                 output="",
-                error=f"{tool_name} not found - is it installed?"
+                error=f"{tool_name} not found - is it installed?",
             )
 
     def _parse_test_output(self, output: str, tool: str) -> Dict:
         """Parse test output for summary info."""
-        summary = {
-            "passed": 0,
-            "failed": 0,
-            "total": 0
-        }
+        summary = {"passed": 0, "failed": 0, "total": 0}
 
         if tool == "pytest":
             # "5 passed, 2 failed in 1.23s"
@@ -393,10 +384,13 @@ class MultiLanguageTestRunner(Tool):
         try:
             # Run go tool cover to get percentage
             proc = await asyncio.create_subprocess_exec(
-                "go", "tool", "cover", "-func=coverage.out",
+                "go",
+                "tool",
+                "cover",
+                "-func=coverage.out",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
 

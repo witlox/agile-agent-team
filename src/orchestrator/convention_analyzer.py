@@ -2,8 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Dict, Optional, List
-from collections import Counter
+from typing import Dict
 
 
 class ConventionAnalyzer:
@@ -78,7 +77,9 @@ class ConventionAnalyzer:
                 continue
 
         if sum(quotes.values()) > 0:
-            conventions["quote_style"] = "single" if quotes["single"] > quotes["double"] else "double"
+            conventions["quote_style"] = (
+                "single" if quotes["single"] > quotes["double"] else "double"
+            )
 
         # Analyze indentation
         indents = []
@@ -97,6 +98,7 @@ class ConventionAnalyzer:
             # Find GCD of indentations (common indent size)
             from math import gcd
             from functools import reduce
+
             conventions["indent_size"] = reduce(gcd, indents)
 
         # Check for type hints
@@ -124,7 +126,10 @@ class ConventionAnalyzer:
             pyproject_content = (self.workspace / "pyproject.toml").read_text()
             if "[tool.black]" in pyproject_content:
                 conventions["existing_tools"].append("black")
-            if "[tool.ruff]" in pyproject_content or "[tool.flake8]" in pyproject_content:
+            if (
+                "[tool.ruff]" in pyproject_content
+                or "[tool.flake8]" in pyproject_content
+            ):
                 conventions["existing_tools"].append("ruff/flake8")
             if "[tool.mypy]" in pyproject_content:
                 conventions["existing_tools"].append("mypy")
@@ -148,7 +153,9 @@ class ConventionAnalyzer:
             conventions["existing_tools"].append("go modules")
 
         # Check for golangci-lint config
-        if (self.workspace / ".golangci.yml").exists() or (self.workspace / ".golangci.yaml").exists():
+        if (self.workspace / ".golangci.yml").exists() or (
+            self.workspace / ".golangci.yaml"
+        ).exists():
             conventions["has_golangci_config"] = True
             conventions["existing_tools"].append("golangci-lint")
 
@@ -183,7 +190,9 @@ class ConventionAnalyzer:
                 pass
 
         # Check for rustfmt config
-        if (self.workspace / "rustfmt.toml").exists() or (self.workspace / ".rustfmt.toml").exists():
+        if (self.workspace / "rustfmt.toml").exists() or (
+            self.workspace / ".rustfmt.toml"
+        ).exists():
             conventions["has_rustfmt_config"] = True
             conventions["existing_tools"].append("rustfmt")
 
@@ -209,6 +218,7 @@ class ConventionAnalyzer:
 
             try:
                 import json
+
                 config = json.loads(tsconfig.read_text())
                 if config.get("compilerOptions", {}).get("strict"):
                     conventions["strict_mode"] = True
@@ -233,10 +243,16 @@ class ConventionAnalyzer:
                 # Try to read Prettier config
                 try:
                     prettier_path = self.workspace / prettier_file
-                    if prettier_path.suffix == ".json" or prettier_file == ".prettierrc":
+                    if (
+                        prettier_path.suffix == ".json"
+                        or prettier_file == ".prettierrc"
+                    ):
                         import json
+
                         config = json.loads(prettier_path.read_text())
-                        conventions["quote_style"] = "single" if config.get("singleQuote") else "double"
+                        conventions["quote_style"] = (
+                            "single" if config.get("singleQuote") else "double"
+                        )
                         conventions["semicolons"] = config.get("semi", True)
                 except (json.JSONDecodeError, UnicodeDecodeError):
                     pass
@@ -337,9 +353,13 @@ class ConventionAnalyzer:
         missing_tools = []
         if "black" not in detected.get("existing_tools", []):
             missing_tools.append("black")
-        if "ruff" not in detected.get("existing_tools", []) and "flake8" not in detected.get("existing_tools", []):
+        if "ruff" not in detected.get(
+            "existing_tools", []
+        ) and "flake8" not in detected.get("existing_tools", []):
             missing_tools.append("ruff")
-        if "mypy" not in detected.get("existing_tools", []) and not detected.get("has_type_hints"):
+        if "mypy" not in detected.get("existing_tools", []) and not detected.get(
+            "has_type_hints"
+        ):
             missing_tools.append("mypy")
         if "pytest" not in detected.get("existing_tools", []):
             missing_tools.append("pytest")

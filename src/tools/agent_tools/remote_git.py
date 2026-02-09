@@ -43,7 +43,9 @@ class RemoteGitProvider(ABC):
         self.config = config
 
     @abstractmethod
-    async def create_pull_request(self, pr_config: PullRequestConfig) -> PullRequestResult:
+    async def create_pull_request(
+        self, pr_config: PullRequestConfig
+    ) -> PullRequestResult:
         """Create a pull/merge request."""
         pass
 
@@ -54,17 +56,13 @@ class RemoteGitProvider(ABC):
 
     @abstractmethod
     async def merge_pull_request(
-        self,
-        pr_number: int,
-        merge_method: str = "squash"
+        self, pr_number: int, merge_method: str = "squash"
     ) -> bool:
         """Merge a pull/merge request."""
         pass
 
     async def _run_command(
-        self,
-        command: str,
-        timeout: int = 30
+        self, command: str, timeout: int = 30
     ) -> tuple[bool, str, str]:
         """Run a shell command and return (success, stdout, stderr)."""
         try:
@@ -72,7 +70,7 @@ class RemoteGitProvider(ABC):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -81,7 +79,7 @@ class RemoteGitProvider(ABC):
             return (
                 success,
                 stdout.decode("utf-8", errors="replace"),
-                stderr.decode("utf-8", errors="replace")
+                stderr.decode("utf-8", errors="replace"),
             )
 
         except asyncio.TimeoutError:
@@ -109,7 +107,9 @@ class GitHubProvider(RemoteGitProvider):
         if token:
             os.environ["GH_TOKEN"] = token
 
-    async def create_pull_request(self, pr_config: PullRequestConfig) -> PullRequestResult:
+    async def create_pull_request(
+        self, pr_config: PullRequestConfig
+    ) -> PullRequestResult:
         """Create GitHub pull request using gh CLI."""
         # Escape quotes in title and body
         title = pr_config.title.replace('"', '\\"')
@@ -121,7 +121,7 @@ class GitHubProvider(RemoteGitProvider):
             f'--title "{title}"',
             f'--body "{body}"',
             f"--base {pr_config.base_branch}",
-            f"--head {pr_config.head_branch}"
+            f"--head {pr_config.head_branch}",
         ]
 
         if pr_config.draft:
@@ -159,9 +159,7 @@ class GitHubProvider(RemoteGitProvider):
         return success
 
     async def merge_pull_request(
-        self,
-        pr_number: int,
-        merge_method: str = "squash"
+        self, pr_number: int, merge_method: str = "squash"
     ) -> bool:
         """Merge GitHub PR using gh CLI."""
         # gh CLI merge methods: merge, squash, rebase
@@ -191,7 +189,9 @@ class GitLabProvider(RemoteGitProvider):
             if token:
                 os.environ["GITLAB_TOKEN"] = token
 
-    async def create_pull_request(self, pr_config: PullRequestConfig) -> PullRequestResult:
+    async def create_pull_request(
+        self, pr_config: PullRequestConfig
+    ) -> PullRequestResult:
         """Create GitLab merge request using glab CLI."""
         # Escape quotes in title and body
         title = pr_config.title.replace('"', '\\"')
@@ -203,7 +203,7 @@ class GitLabProvider(RemoteGitProvider):
             f'--title "{title}"',
             f'--description "{body}"',
             f"--target-branch {pr_config.base_branch}",
-            f"--source-branch {pr_config.head_branch}"
+            f"--source-branch {pr_config.head_branch}",
         ]
 
         if pr_config.draft:
@@ -240,9 +240,7 @@ class GitLabProvider(RemoteGitProvider):
         return success
 
     async def merge_pull_request(
-        self,
-        pr_number: int,
-        merge_method: str = "squash"
+        self, pr_number: int, merge_method: str = "squash"
     ) -> bool:
         """Merge GitLab MR using glab CLI."""
         # glab merge methods: merge, squash
@@ -256,9 +254,7 @@ class GitLabProvider(RemoteGitProvider):
 
 
 def create_provider(
-    provider_type: str,
-    workspace: Path,
-    config: Dict
+    provider_type: str, workspace: Path, config: Dict
 ) -> Optional[RemoteGitProvider]:
     """Factory function to create provider instance.
 
@@ -270,10 +266,7 @@ def create_provider(
     Returns:
         Provider instance or None if provider_type is invalid
     """
-    providers = {
-        "github": GitHubProvider,
-        "gitlab": GitLabProvider
-    }
+    providers = {"github": GitHubProvider, "gitlab": GitLabProvider}
 
     provider_class = providers.get(provider_type.lower())
     if provider_class:

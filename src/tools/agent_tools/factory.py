@@ -1,6 +1,5 @@
 """Tool factory for creating tool instances."""
 
-from pathlib import Path
 from typing import List, Dict, Any
 
 from .base import Tool
@@ -9,10 +8,17 @@ from .filesystem import (
     WriteFileTool,
     EditFileTool,
     ListFilesTool,
-    SearchCodeTool
+    SearchCodeTool,
 )
 from .bash import BashTool
-from .git import GitStatusTool, GitDiffTool, GitAddTool, GitCommitTool, GitRemoteTool, GitPushTool
+from .git import (
+    GitStatusTool,
+    GitDiffTool,
+    GitAddTool,
+    GitCommitTool,
+    GitRemoteTool,
+    GitPushTool,
+)
 from .test_runner import RunBDDTestsTool
 from .test_runner_multi import MultiLanguageTestRunner
 from .formatter import MultiLanguageFormatter
@@ -44,20 +50,38 @@ TOOL_REGISTRY = {
 # Predefined tool sets
 TOOL_SETS = {
     "filesystem": ["read_file", "write_file", "edit_file", "list_files", "search_code"],
-    "git": ["git_status", "git_diff", "git_add", "git_commit", "git_remote", "git_push"],
+    "git": [
+        "git_status",
+        "git_diff",
+        "git_add",
+        "git_commit",
+        "git_remote",
+        "git_push",
+    ],
     "bash": ["bash"],
     "test_runner": ["run_tests", "run_bdd_tests"],
     "code_quality": ["format_code", "lint_code", "build_code"],
     "basic": ["read_file", "write_file", "list_files"],
-    "developer": ["read_file", "write_file", "edit_file", "list_files", "search_code", "git_status", "git_diff", "git_add", "git_commit", "format_code", "lint_code", "run_tests"],
+    "developer": [
+        "read_file",
+        "write_file",
+        "edit_file",
+        "list_files",
+        "search_code",
+        "git_status",
+        "git_diff",
+        "git_add",
+        "git_commit",
+        "format_code",
+        "lint_code",
+        "run_tests",
+    ],
     "full": list(TOOL_REGISTRY.keys()),
 }
 
 
 def create_tools(
-    tool_names: List[str],
-    workspace_root: str,
-    config: Dict[str, Any] = None
+    tool_names: List[str], workspace_root: str, config: Dict[str, Any] = None
 ) -> List[Tool]:
     """Create tool instances from a list of names.
 

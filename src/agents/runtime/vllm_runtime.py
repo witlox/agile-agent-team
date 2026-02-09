@@ -3,7 +3,7 @@
 import os
 import re
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import httpx
 
@@ -43,7 +43,7 @@ class VLLMRuntime(AgentRuntime):
 
         conversation = [
             {"role": "system", "content": enhanced_prompt},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": user_message},
         ]
 
         all_tool_calls = []
@@ -63,18 +63,16 @@ class VLLMRuntime(AgentRuntime):
                     content=response,
                     turns=turn + 1,
                     tool_calls=all_tool_calls,
-                    files_changed=files_changed
+                    files_changed=files_changed,
                 )
 
             # Execute tools
             tool_results = []
             for call in tool_calls:
                 result = await self._execute_tool(call["name"], call["params"])
-                tool_results.append({
-                    "tool": call["name"],
-                    "params": call["params"],
-                    "result": result
-                })
+                tool_results.append(
+                    {"tool": call["name"], "params": call["params"], "result": result}
+                )
                 all_tool_calls.append(call)
 
                 # Track files changed
@@ -83,10 +81,9 @@ class VLLMRuntime(AgentRuntime):
 
             # Add to conversation
             conversation.append({"role": "assistant", "content": response})
-            conversation.append({
-                "role": "user",
-                "content": self._format_tool_results(tool_results)
-            })
+            conversation.append(
+                {"role": "user", "content": self._format_tool_results(tool_results)}
+            )
 
         # Max turns reached
         return RuntimeResult(
@@ -95,7 +92,7 @@ class VLLMRuntime(AgentRuntime):
             turns=max_turns,
             tool_calls=all_tool_calls,
             files_changed=files_changed,
-            error="Maximum turns reached without task completion"
+            error="Maximum turns reached without task completion",
         )
 
     def _build_tool_prompt(self, system_prompt: str) -> str:
@@ -154,18 +151,22 @@ You have access to the following tools to complete coding tasks:
                 required_mark = " (required)" if param_name in required else ""
 
                 params_doc.append(
-                    f"    <{param_name} type=\"{param_type}\"{required_mark}>{param_desc}</{param_name}>"
+                    f'    <{param_name} type="{param_type}"{required_mark}>{param_desc}</{param_name}>'
                 )
 
-            params_str = "\n".join(params_doc) if params_doc else "    <no parameters needed/>"
+            params_str = (
+                "\n".join(params_doc) if params_doc else "    <no parameters needed/>"
+            )
 
-            tools_xml.append(f"""
+            tools_xml.append(
+                f"""
 <tool name="{tool.name}">
   <description>{tool.description}</description>
   <parameters>
 {params_str}
   </parameters>
-</tool>""")
+</tool>"""
+            )
 
         return "\n".join(tools_xml)
 
@@ -283,12 +284,14 @@ After each tool call, you'll receive the result. Then continue with next steps o
                 status = "ERROR"
                 content = result.error or "Unknown error"
 
-            formatted.append(f"""
+            formatted.append(
+                f"""
 Tool: {tool_name}
 Status: {status}
 Output:
 {content}
-""")
+"""
+            )
 
         return "\n".join(formatted)
 
@@ -306,8 +309,8 @@ Output:
                         "prompt": prompt,
                         "max_tokens": self.max_tokens,
                         "temperature": self.temperature,
-                        "stop": ["</tool_call>", "\n\nUser:", "\n\nHuman:"]
-                    }
+                        "stop": ["</tool_call>", "\n\nUser:", "\n\nHuman:"],
+                    },
                 )
 
                 if response.status_code != 200:
@@ -339,10 +342,9 @@ Output:
 
     def _is_mock_mode(self) -> bool:
         """Check if running in mock mode."""
-        return (
-            os.environ.get("MOCK_LLM", "").lower() == "true"
-            or self.endpoint.startswith("mock://")
-        )
+        return os.environ.get(
+            "MOCK_LLM", ""
+        ).lower() == "true" or self.endpoint.startswith("mock://")
 
     def _mock_execute(self, system_prompt: str, user_message: str) -> RuntimeResult:
         """Mock execution for testing without vLLM."""
@@ -355,5 +357,5 @@ Output:
             content=mock_response,
             turns=1,
             tool_calls=[{"name": "write_file", "params": {"path": "src/example.py"}}],
-            files_changed=["src/example.py"]
+            files_changed=["src/example.py"],
         )

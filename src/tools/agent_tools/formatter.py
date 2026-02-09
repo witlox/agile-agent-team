@@ -1,7 +1,6 @@
 """Multi-language code formatting tools."""
 
 import asyncio
-from pathlib import Path
 from typing import Dict, Any, List
 
 from .base import Tool, ToolResult
@@ -27,26 +26,23 @@ class MultiLanguageFormatter(Tool):
                 "path": {
                     "type": "string",
                     "description": "Path to format (optional, defaults to entire workspace)",
-                    "default": ""
+                    "default": "",
                 },
                 "language": {
                     "type": "string",
                     "description": "Force specific language (python|go|rust|typescript|cpp)",
-                    "default": ""
+                    "default": "",
                 },
                 "check_only": {
                     "type": "boolean",
                     "description": "Check formatting without modifying files",
-                    "default": False
-                }
-            }
+                    "default": False,
+                },
+            },
         }
 
     async def execute(
-        self,
-        path: str = "",
-        language: str = "",
-        check_only: bool = False
+        self, path: str = "", language: str = "", check_only: bool = False
     ) -> ToolResult:
         """Format code with language-specific formatter."""
         try:
@@ -57,7 +53,7 @@ class MultiLanguageFormatter(Tool):
                     return ToolResult(
                         success=False,
                         output="",
-                        error="No recognized language found in workspace"
+                        error="No recognized language found in workspace",
                     )
                 language = detected[0]
 
@@ -74,16 +70,12 @@ class MultiLanguageFormatter(Tool):
                 return await self._format_cpp(path, check_only)
             else:
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"Unsupported language: {language}"
+                    success=False, output="", error=f"Unsupported language: {language}"
                 )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error formatting code: {str(e)}"
+                success=False, output="", error=f"Error formatting code: {str(e)}"
             )
 
     async def _format_python(self, path: str, check_only: bool) -> ToolResult:
@@ -160,19 +152,14 @@ class MultiLanguageFormatter(Tool):
         if path:
             files = [path]
         else:
-            files = [
-                str(f) for f in self.workspace.glob("**/*.cpp")
-            ] + [
-                str(f) for f in self.workspace.glob("**/*.h")
-            ] + [
-                str(f) for f in self.workspace.glob("**/*.hpp")
-            ]
+            files = (
+                [str(f) for f in self.workspace.glob("**/*.cpp")]
+                + [str(f) for f in self.workspace.glob("**/*.h")]
+                + [str(f) for f in self.workspace.glob("**/*.hpp")]
+            )
 
         if not files:
-            return ToolResult(
-                success=True,
-                output="No C++ files found to format"
-            )
+            return ToolResult(success=True, output="No C++ files found to format")
 
         if check_only:
             cmd = ["clang-format", "--dry-run", "--Werror"] + files
@@ -188,21 +175,18 @@ class MultiLanguageFormatter(Tool):
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=60  # Formatters should be fast
+                    proc.communicate(), timeout=60  # Formatters should be fast
                 )
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.wait()
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"{tool_name} timed out"
+                    success=False, output="", error=f"{tool_name} timed out"
                 )
 
             output = stdout.decode("utf-8", errors="replace")
@@ -216,14 +200,11 @@ class MultiLanguageFormatter(Tool):
             if success and not output:
                 output = f"Code formatted successfully with {tool_name}"
 
-            return ToolResult(
-                success=success,
-                output=output.strip()
-            )
+            return ToolResult(success=success, output=output.strip())
 
         except FileNotFoundError:
             return ToolResult(
                 success=False,
                 output="",
-                error=f"{tool_name} not found - is it installed?"
+                error=f"{tool_name} not found - is it installed?",
             )

@@ -1,6 +1,5 @@
 """Shared pytest fixtures for all test suites."""
 
-import os
 import pytest
 import pytest_asyncio
 

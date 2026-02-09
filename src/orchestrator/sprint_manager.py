@@ -5,7 +5,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from ..agents.base_agent import BaseAgent
 from ..agents.pairing import PairingEngine
@@ -33,7 +33,7 @@ class SprintManager:
         self,
         agents: List[BaseAgent],
         shared_db: SharedContextDB,
-        config,
+        config: "ExperimentConfig",
         output_dir: Path,
         backlog: Optional[Backlog] = None,
     ):
@@ -51,7 +51,9 @@ class SprintManager:
         workspace_root = getattr(config, "tools_workspace_root", "/tmp/agent-workspace")
         repo_config = getattr(config, "repo_config", None)
         workspace_mode = getattr(config, "workspace_mode", "per_story")
-        self.workspace_manager = WorkspaceManager(workspace_root, repo_config, workspace_mode)
+        self.workspace_manager = WorkspaceManager(
+            workspace_root, repo_config, workspace_mode
+        )
 
         # Use CodeGenPairingEngine if agents have runtimes, else fallback to PairingEngine
         if self._agents_have_runtimes():
@@ -62,13 +64,15 @@ class SprintManager:
                 kanban=self.kanban,
                 config=config,
                 remote_git_config={
-                    'enabled': getattr(config, 'remote_git_enabled', False),
-                    'provider': getattr(config, 'remote_git_provider', 'github'),
-                    **getattr(config, 'remote_git_config', {})
-                }
+                    "enabled": getattr(config, "remote_git_enabled", False),
+                    "provider": getattr(config, "remote_git_provider", "github"),
+                    **getattr(config, "remote_git_config", {}),
+                },
             )
         else:
-            self.pairing_engine = PairingEngine(agents, db=shared_db, kanban=self.kanban)
+            self.pairing_engine = PairingEngine(
+                agents, db=shared_db, kanban=self.kanban
+            )
 
         self.metrics = SprintMetrics()
         self._sprint_results: List[Dict] = []
@@ -89,12 +93,19 @@ class SprintManager:
 
         self.story_refinement = StoryRefinementSession(po, agents, dev_lead)
         self.technical_planning = TechnicalPlanningSession(
-            [a for a in agents if hasattr(a.config, 'role_archetype') and 'developer' in a.config.role_archetype],
+            [
+                a
+                for a in agents
+                if hasattr(a.config, "role_archetype")
+                and "developer" in a.config.role_archetype
+            ],
             dev_lead,
-            qa_lead
+            qa_lead,
         )
         self.daily_standup = DailyStandupSession(dev_lead, qa_lead, shared_db)
-        self.sprint_review = SprintReviewSession(po, dev_lead, qa_lead, self.kanban, shared_db)
+        self.sprint_review = SprintReviewSession(
+            po, dev_lead, qa_lead, self.kanban, shared_db
+        )
         self.pair_rotation_manager = PairRotationManager()
 
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
@@ -105,7 +116,9 @@ class SprintManager:
         """Check if any agent has a runtime configured."""
         return any(a.runtime is not None for a in self.agents)
 
-    async def _check_swap_triggers(self, disturbances_fired: List[str], sprint_num: int):
+    async def _check_swap_triggers(
+        self, disturbances_fired: List[str], sprint_num: int
+    ):
         """Trigger profile swaps when disturbances warrant it."""
         swap_mode = getattr(self.config, "profile_swap_mode", "none")
         if swap_mode == "none":
@@ -116,7 +129,9 @@ class SprintManager:
 
         if "production_incident" in disturbances_fired:
             # Find a senior devops or networking agent to cover the incident
-            specialist = self._agent("dev_sr_devops") or self._agent("dev_sr_networking")
+            specialist = self._agent("dev_sr_devops") or self._agent(
+                "dev_sr_networking"
+            )
             if specialist and not specialist.is_swapped:
                 specialist.swap_to(
                     target_role_id="incident_responder",
@@ -133,7 +148,9 @@ class SprintManager:
         )
         for agent in self.agents:
             if agent.is_swapped:
-                agent.decay_swap(current_sprint, knowledge_decay_sprints=int(decay_sprints))
+                agent.decay_swap(
+                    current_sprint, knowledge_decay_sprints=int(decay_sprints)
+                )
 
     async def run_sprint(self, sprint_num: int):
         """Execute one complete sprint."""
@@ -154,7 +171,9 @@ class SprintManager:
             disturbances_fired = self.disturbance_engine.roll_for_sprint(sprint_num)
             for dtype in disturbances_fired:
                 print(f"  [DISTURBANCE] {dtype}")
-                await self.disturbance_engine.apply(dtype, self.agents, self.kanban, self.db)
+                await self.disturbance_engine.apply(
+                    dtype, self.agents, self.kanban, self.db
+                )
             # Check whether a production incident warrants a profile swap
             await self._check_swap_triggers(disturbances_fired, sprint_num)
 
@@ -166,8 +185,12 @@ class SprintManager:
 
         print("  Sprint Review/Demo...")
         completed_cards = await self.kanban.get_cards_by_status("done")
-        completed_stories = [c for c in completed_cards if c.get('sprint') == sprint_num]
-        review_outcome = await self.sprint_review.run_review(sprint_num, completed_stories)
+        completed_stories = [
+            c for c in completed_cards if c.get("sprint") == sprint_num
+        ]
+        _review_outcome = await self.sprint_review.run_review(
+            sprint_num, completed_stories
+        )
 
         print("  Retrospective...")
         retro_data = await self.run_retrospective(sprint_num)
@@ -181,7 +204,9 @@ class SprintManager:
         # Decay swaps for the just-completed sprint
         self._decay_swaps(sprint_num)
 
-        result = await self.metrics.calculate_sprint_results(sprint_num, self.db, self.kanban)
+        result = await self.metrics.calculate_sprint_results(
+            sprint_num, self.db, self.kanban
+        )
         self._sprint_results.append(
             {
                 "sprint": sprint_num,
@@ -245,7 +270,9 @@ class SprintManager:
         print("  Artifacts...")
         await self.generate_sprint_artifacts(sprint_num, sprint_output, retro_data)
 
-        result = await self.metrics.calculate_sprint_results(sprint_num, self.db, self.kanban)
+        result = await self.metrics.calculate_sprint_results(
+            sprint_num, self.db, self.kanban
+        )
 
         # Add CI validation status to result
         result.ci_validated = ci_passed
@@ -283,8 +310,7 @@ class SprintManager:
 
         # Check if stakeholder provided explicit Sprint 0 stories
         backlog_sprint_zero_stories = [
-            s for s in self.backlog.data.get("stories", [])
-            if s.get("sprint") == 0
+            s for s in self.backlog.data.get("stories", []) if s.get("sprint") == 0
         ]
 
         if backlog_sprint_zero_stories:
@@ -293,28 +319,41 @@ class SprintManager:
             print(f"    Using {len(stories_to_use)} Sprint 0 stories from backlog")
         else:
             # Generate infrastructure stories
-            print(f"    Generating infrastructure stories for: {', '.join(product_meta.languages)}")
+            print(
+                f"    Generating infrastructure stories for: {', '.join(product_meta.languages)}"
+            )
 
             # Detect project type and generate stories
-            if product_meta.repository_type == "brownfield" and product_meta.repository_url:
+            if (
+                product_meta.repository_type == "brownfield"
+                and product_meta.repository_url
+            ):
                 # Brownfield: Clone repo, analyze gaps
-                workspace = self.workspace_manager.create_sprint_workspace(0, "analysis")
+                workspace = self.workspace_manager.create_sprint_workspace(
+                    0, "analysis"
+                )
                 analyzer = BrownfieldAnalyzer(workspace)
                 analysis = analyzer.analyze()
 
-                print(f"    Brownfield analysis: {sum(analysis.values())}/{len(analysis)} components exist")
+                print(
+                    f"    Brownfield analysis: {sum(analysis.values())}/{len(analysis)} components exist"
+                )
 
                 # Generate stories for missing pieces
                 generator = SprintZeroGenerator(product_meta, {})
                 all_stories = generator.generate_stories()
-                infrastructure_stories = analyzer.generate_gap_stories(analysis, all_stories)
+                infrastructure_stories = analyzer.generate_gap_stories(
+                    analysis, all_stories
+                )
             else:
                 # Greenfield: Generate all infrastructure stories
                 generator = SprintZeroGenerator(product_meta, {})
                 infrastructure_stories = generator.generate_stories()
 
             # Convert to backlog format
-            stories_to_use = [generator.convert_to_backlog_format(s) for s in infrastructure_stories]
+            stories_to_use = [
+                generator.convert_to_backlog_format(s) for s in infrastructure_stories
+            ]
             print(f"    Generated {len(stories_to_use)} infrastructure stories")
 
         # Add stories to Kanban as "ready"
@@ -324,13 +363,13 @@ class SprintManager:
                 "description": story["description"],
                 "status": "ready",
                 "story_points": story.get("story_points", 3),
-                "sprint": 0
+                "sprint": 0,
             }
             # Store infrastructure metadata if present
             if "_infrastructure" in story:
                 card_data["metadata"] = story["_infrastructure"]
 
-            card_id = await self.kanban.add_card(card_data)
+            _card_id = await self.kanban.add_card(card_data)
 
         print(f"    Added {len(stories_to_use)} stories to Sprint 0 backlog")
 
@@ -353,27 +392,33 @@ class SprintManager:
         if gh_actions.exists():
             # Validate GitHub Actions workflow syntax
             import subprocess
+
             try:
                 result = subprocess.run(
                     ["gh", "workflow", "list"],
                     cwd=workspace,
                     capture_output=True,
-                    timeout=30
+                    timeout=30,
                 )
                 if result.returncode == 0:
                     print("    ✓ GitHub Actions workflow validated")
                     return True
                 else:
-                    print(f"    ✗ GitHub Actions validation failed: {result.stderr.decode()}")
+                    print(
+                        f"    ✗ GitHub Actions validation failed: {result.stderr.decode()}"
+                    )
                     return False
             except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-                print(f"    ⚠ Cannot validate GitHub Actions (gh CLI not available): {e}")
+                print(
+                    f"    ⚠ Cannot validate GitHub Actions (gh CLI not available): {e}"
+                )
                 # If gh CLI not available, just check file exists
                 return True
 
         elif gitlab_ci.exists():
             # For GitLab CI, just check file exists and is valid YAML
             import yaml
+
             try:
                 with open(gitlab_ci) as f:
                     yaml.safe_load(f)
@@ -385,7 +430,10 @@ class SprintManager:
 
         # No CI configured - check if it was expected
         product_meta = self.backlog.get_product_metadata() if self.backlog else None
-        if product_meta and ("github-actions" in product_meta.tech_stack or "gitlab-ci" in product_meta.tech_stack):
+        if product_meta and (
+            "github-actions" in product_meta.tech_stack
+            or "gitlab-ci" in product_meta.tech_stack
+        ):
             print("    ✗ CI pipeline expected but not found")
             return False
 
@@ -402,7 +450,9 @@ class SprintManager:
 
         # Get candidate stories from backlog
         if self.backlog and self.backlog.remaining > 0:
-            candidates = self.backlog.next_stories(8)  # Get more candidates for refinement
+            candidates = self.backlog.next_stories(
+                8
+            )  # Get more candidates for refinement
         else:
             # Fallback: generic tasks
             candidates = [
@@ -417,17 +467,19 @@ class SprintManager:
             ]
 
         # Calculate team capacity (developers only, half team = max concurrent tasks)
-        num_developers = len([
-            a for a in self.agents
-            if hasattr(a.config, 'role_archetype') and 'developer' in a.config.role_archetype
-        ])
+        num_developers = len(
+            [
+                a
+                for a in self.agents
+                if hasattr(a.config, "role_archetype")
+                and "developer" in a.config.role_archetype
+            ]
+        )
         team_capacity = num_developers * 3  # ~3 story points per developer per sprint
 
         # Phase 1: Story Refinement (PO + Team)
         refined_stories = await self.story_refinement.refine_stories(
-            candidates,
-            sprint_num,
-            team_capacity
+            candidates, sprint_num, team_capacity
         )
 
         # Return unselected candidates to backlog pool
@@ -439,8 +491,7 @@ class SprintManager:
 
         # Phase 2: Technical Planning (Team only)
         tasks, dependency_graph = await self.technical_planning.plan_implementation(
-            refined_stories,
-            sprint_num
+            refined_stories, sprint_num
         )
 
         # Add tasks to Kanban with dependencies and initial pairs
@@ -451,7 +502,8 @@ class SprintManager:
                     "title": task.title,
                     "description": task.description,
                     "status": "ready",
-                    "story_points": task.estimated_hours // 8,  # Convert hours to story points
+                    "story_points": task.estimated_hours
+                    // 8,  # Convert hours to story points
                     "sprint": sprint_num,
                     "story_id": task.story_id,
                     "owner": task.owner,
@@ -460,7 +512,9 @@ class SprintManager:
                 }
             )
 
-    def _parse_story_ids(self, response: str, candidates: List[Dict]) -> List[Dict]:
+    def _parse_story_ids(
+        self, response: str, candidates: List[Dict]
+    ) -> List[Dict]:
         """Extract story IDs from PO response; fall back to first 3 candidates."""
         found_ids = re.findall(r"US-\d+", response.upper())
         id_map = {s["id"]: s for s in candidates}
@@ -486,14 +540,18 @@ class SprintManager:
         in_progress_tasks = snapshot.get("in_progress", [])
 
         # Extract task owners and available partners
-        task_owners = [t.get('owner') for t in in_progress_tasks if t.get('owner')]
+        task_owners = [t.get("owner") for t in in_progress_tasks if t.get("owner")]
         all_developers = [
-            a.agent_id for a in self.agents
-            if hasattr(a.config, 'role_archetype') and 'developer' in a.config.role_archetype
+            a.agent_id
+            for a in self.agents
+            if hasattr(a.config, "role_archetype")
+            and "developer" in a.config.role_archetype
         ]
         all_testers = [
-            a.agent_id for a in self.agents
-            if hasattr(a.config, 'role_archetype') and 'tester' in a.config.role_archetype
+            a.agent_id
+            for a in self.agents
+            if hasattr(a.config, "role_archetype")
+            and "tester" in a.config.role_archetype
         ]
         all_partners = all_developers + all_testers
 
@@ -509,44 +567,35 @@ class SprintManager:
             if day_num > 1:
                 active_pair_tuples = [(o, n) for o, n in current_pairs.items()]
                 await self.daily_standup.run_standup(
-                    sprint_num,
-                    day_num,
-                    active_pair_tuples,
-                    in_progress_tasks
+                    sprint_num, day_num, active_pair_tuples, in_progress_tasks
                 )
 
             # Get today's pair assignments (Day 1 uses initial, others rotate)
             if day_num == 1:
                 # Use initial pairs from planning
                 for task in in_progress_tasks:
-                    owner = task.get('owner')
-                    navigator = task.get('initial_navigator')
+                    owner = task.get("owner")
+                    navigator = task.get("initial_navigator")
                     if owner and navigator:
                         current_pairs[owner] = navigator
             else:
                 # Rotate pairs
                 if task_owners and all_partners:
                     current_pairs = self.pair_rotation_manager.get_rotation_for_day(
-                        day_num,
-                        task_owners,
-                        all_partners,
-                        sprint_num
+                        day_num, task_owners, all_partners, sprint_num
                     )
 
             print(f"  Pairs today: {len(current_pairs)}")
 
             # Run pairing sessions for the day
             await self._run_day_pairing_sessions(
-                sprint_num,
-                day_num,
-                current_pairs,
-                day_end
+                sprint_num, day_num, current_pairs, day_end
             )
 
             # Update in-progress tasks for next day
             snapshot = await self.kanban.get_snapshot()
             in_progress_tasks = snapshot.get("in_progress", [])
-            task_owners = [t.get('owner') for t in in_progress_tasks if t.get('owner')]
+            task_owners = [t.get("owner") for t in in_progress_tasks if t.get("owner")]
 
             # Exit early if no more work
             if not in_progress_tasks and not snapshot.get("ready"):
@@ -560,7 +609,7 @@ class SprintManager:
         sprint_num: int,
         day_num: int,
         pairs: Dict[str, str],  # owner_id -> navigator_id
-        day_end: datetime
+        day_end: datetime,
     ):
         """Run pairing sessions for one day."""
 
@@ -575,8 +624,12 @@ class SprintManager:
 
             for owner, navigator in pairs.items():
                 # Find agents for this pair
-                owner_agent = next((a for a in self.agents if a.agent_id == owner), None)
-                navigator_agent = next((a for a in self.agents if a.agent_id == navigator), None)
+                owner_agent = next(
+                    (a for a in self.agents if a.agent_id == owner), None
+                )
+                navigator_agent = next(
+                    (a for a in self.agents if a.agent_id == navigator), None
+                )
 
                 if not owner_agent or not navigator_agent:
                     continue
@@ -593,7 +646,9 @@ class SprintManager:
                     # Run pairing session
                     if isinstance(self.pairing_engine, CodeGenPairingEngine):
                         t = asyncio.create_task(
-                            self.pairing_engine.run_pairing_session(pair, task, sprint_num)
+                            self.pairing_engine.run_pairing_session(
+                                pair, task, sprint_num
+                            )
                         )
                     else:
                         t = asyncio.create_task(
@@ -615,15 +670,15 @@ class SprintManager:
         ready_tasks = snapshot.get("ready", [])
 
         for task in ready_tasks:
-            if task.get('owner') != owner_id:
+            if task.get("owner") != owner_id:
                 continue
 
             # Check dependencies
-            depends_on = task.get('depends_on', [])
+            depends_on = task.get("depends_on", [])
             if depends_on:
                 # Check if all dependencies are done
                 done_tasks = snapshot.get("done", [])
-                done_ids = {t.get('id') for t in done_tasks}
+                done_ids = {t.get("id") for t in done_tasks}
 
                 if not all(dep_id in done_ids for dep_id in depends_on):
                     # Task is blocked by dependencies
@@ -659,7 +714,9 @@ class SprintManager:
 
             # Approve PR if remote git enabled and card approved
             if approved and self.config.remote_git_enabled:
-                await self._approve_pr_if_exists(card, qa, response if qa else "Auto-approved")
+                await self._approve_pr_if_exists(
+                    card, qa, response if qa else "Auto-approved"
+                )
 
             new_status = "done" if approved else "in_progress"
             try:
@@ -671,7 +728,9 @@ class SprintManager:
             except Exception:
                 pass  # WIP limit may block; leave card where it is
 
-    async def _approve_pr_if_exists(self, card: Dict, qa_agent: Optional[BaseAgent], review_comment: str):
+    async def _approve_pr_if_exists(
+        self, card: Dict, qa_agent: Optional[BaseAgent], review_comment: str
+    ):
         """Approve PR/MR if it exists in card metadata."""
         try:
             # Extract PR URL from metadata
@@ -698,27 +757,38 @@ class SprintManager:
 
             # Create provider and approve
             provider_type = self.config.remote_git_provider
-            provider_config = self.config.remote_git_config.get(provider_type, {}).copy()
+            provider_config = self.config.remote_git_config.get(
+                provider_type, {}
+            ).copy()
 
             # Add QA agent's metadata
             if qa_agent:
                 author_name = qa_agent.config.name.split(" (")[0]
                 author_email = f"{qa_agent.config.role_id}@{self.config.remote_git_config.get('author_email_domain', 'agent.local')}"
-                provider_config['author_name'] = author_name
-                provider_config['author_email'] = author_email
+                provider_config["author_name"] = author_name
+                provider_config["author_email"] = author_email
 
                 # Handle per-agent tokens for GitLab
                 if provider_type == "gitlab":
-                    token_pattern = provider_config.get("token_env_pattern", "GITLAB_TOKEN_{role_id}")
-                    token_env = token_pattern.replace("{role_id}", qa_agent.config.role_id)
-                    provider_config['token_env'] = token_env
+                    token_pattern = provider_config.get(
+                        "token_env_pattern", "GITLAB_TOKEN_{role_id}"
+                    )
+                    token_env = token_pattern.replace(
+                        "{role_id}", qa_agent.config.role_id
+                    )
+                    provider_config["token_env"] = token_env
 
             # Workspace path (approximate - may need adjustment based on actual workspace structure)
-            workspace = Path(self.config.tools_workspace_root) / f"sprint-{self.current_sprint if hasattr(self, 'current_sprint') else 'current'}"
+            workspace = (
+                Path(self.config.tools_workspace_root)
+                / f"sprint-{self.current_sprint if hasattr(self, 'current_sprint') else 'current'}"
+            )
 
             provider = create_provider(provider_type, workspace, provider_config)
             if provider:
-                await provider.approve_pull_request(pr_number, review_comment[:500])  # Truncate comment
+                await provider.approve_pull_request(
+                    pr_number, review_comment[:500]
+                )  # Truncate comment
 
         except Exception:
             # Don't fail QA review if PR approval fails
@@ -751,23 +821,34 @@ class SprintManager:
 
             # Create provider and merge
             provider_type = self.config.remote_git_provider
-            provider_config = self.config.remote_git_config.get(provider_type, {}).copy()
+            provider_config = self.config.remote_git_config.get(
+                provider_type, {}
+            ).copy()
 
             # Use dev lead or first available agent for merge
-            merge_agent = self._agent("dev_lead") or (self.agents[0] if self.agents else None)
+            merge_agent = self._agent("dev_lead") or (
+                self.agents[0] if self.agents else None
+            )
             if merge_agent:
                 author_name = merge_agent.config.name.split(" (")[0]
                 author_email = f"{merge_agent.config.role_id}@{self.config.remote_git_config.get('author_email_domain', 'agent.local')}"
-                provider_config['author_name'] = author_name
-                provider_config['author_email'] = author_email
+                provider_config["author_name"] = author_name
+                provider_config["author_email"] = author_email
 
                 # Handle per-agent tokens for GitLab
                 if provider_type == "gitlab":
-                    token_pattern = provider_config.get("token_env_pattern", "GITLAB_TOKEN_{role_id}")
-                    token_env = token_pattern.replace("{role_id}", merge_agent.config.role_id)
-                    provider_config['token_env'] = token_env
+                    token_pattern = provider_config.get(
+                        "token_env_pattern", "GITLAB_TOKEN_{role_id}"
+                    )
+                    token_env = token_pattern.replace(
+                        "{role_id}", merge_agent.config.role_id
+                    )
+                    provider_config["token_env"] = token_env
 
-            workspace = Path(self.config.tools_workspace_root) / f"sprint-{self.current_sprint if hasattr(self, 'current_sprint') else 'current'}"
+            workspace = (
+                Path(self.config.tools_workspace_root)
+                / f"sprint-{self.current_sprint if hasattr(self, 'current_sprint') else 'current'}"
+            )
 
             provider = create_provider(provider_type, workspace, provider_config)
             if provider:
@@ -806,7 +887,7 @@ class SprintManager:
 
         return retro
 
-    def _parse_retro_response(self, text: str):
+    def _parse_retro_response(self, text: str) -> Tuple[str, str, str]:
         """Extract KEEP / DROP / PUZZLE from agent response."""
         keep = drop = puzzle = ""
         for line in text.splitlines():

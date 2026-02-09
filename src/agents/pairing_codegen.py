@@ -18,9 +18,14 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .base_agent import BaseAgent
+
+if TYPE_CHECKING:
+    from ..orchestrator.config import ExperimentConfig
+    from ..tools.kanban import KanbanBoard
+    from ..tools.shared_context import SharedContextDB
 from ..codegen import WorkspaceManager, BDDGenerator
 from ..tools.agent_tools.remote_git import create_provider, PullRequestConfig
 
@@ -32,10 +37,10 @@ class CodeGenPairingEngine:
         self,
         agents: List[BaseAgent],
         workspace_manager: WorkspaceManager,
-        db=None,
-        kanban=None,
-        config=None,
-        remote_git_config=None
+        db: Optional["SharedContextDB"] = None,
+        kanban: Optional["KanbanBoard"] = None,
+        config: Optional["ExperimentConfig"] = None,
+        remote_git_config: Optional[Dict] = None,
     ):
         self.agents = agents
         self.workspace_manager = workspace_manager
@@ -49,13 +54,17 @@ class CodeGenPairingEngine:
 
     def _is_lead_dev(self, agent: BaseAgent) -> bool:
         """Check if agent is the development lead."""
-        return "dev_lead" in agent.config.role_id or "lead" in agent.config.role_archetype
+        return (
+            "dev_lead" in agent.config.role_id or "lead" in agent.config.role_archetype
+        )
 
     def _is_tester(self, agent: BaseAgent) -> bool:
         """Check if agent is a tester."""
         return "tester" in agent.config.role_archetype or "qa" in agent.config.role_id
 
-    def _assign_roles(self, agent1: BaseAgent, agent2: BaseAgent) -> Tuple[BaseAgent, BaseAgent]:
+    def _assign_roles(
+        self, agent1: BaseAgent, agent2: BaseAgent
+    ) -> Tuple[BaseAgent, BaseAgent]:
         """Assign driver and navigator roles based on team culture.
 
         Rules:
@@ -83,8 +92,12 @@ class CodeGenPairingEngine:
 
         # Rule 3: Senior navigates with junior (teaching)
         seniority_order = {"senior": 3, "mid": 2, "junior": 1}
-        agent1_seniority = seniority_order.get(getattr(agent1.config, "seniority", "mid"), 2)
-        agent2_seniority = seniority_order.get(getattr(agent2.config, "seniority", "mid"), 2)
+        agent1_seniority = seniority_order.get(
+            getattr(agent1.config, "seniority", "mid"), 2
+        )
+        agent2_seniority = seniority_order.get(
+            getattr(agent2.config, "seniority", "mid"), 2
+        )
 
         if agent1_seniority > agent2_seniority:
             # agent1 is more senior, navigates
@@ -107,7 +120,9 @@ class CodeGenPairingEngine:
         - Testers always navigate when pairing with devs
         - Seniors navigate with juniors
         """
-        available = [a for a in self.agents if a.config.role_id not in self._busy_agents]
+        available = [
+            a for a in self.agents if a.config.role_id not in self._busy_agents
+        ]
 
         # Separate developers and testers
         developers = [a for a in available if not self._is_tester(a)]
@@ -116,11 +131,20 @@ class CodeGenPairingEngine:
         pairs: List[Tuple[BaseAgent, BaseAgent]] = []
 
         # Pair testers with developers if tester pairing enabled
-        tester_pairing_enabled = getattr(self.config, "tester_pairing_enabled", True) if self.config else True
-        tester_pairing_frequency = getattr(self.config, "tester_pairing_frequency", 0.20) if self.config else 0.20
+        tester_pairing_enabled = (
+            getattr(self.config, "tester_pairing_enabled", True)
+            if self.config
+            else True
+        )
+        tester_pairing_frequency = (
+            getattr(self.config, "tester_pairing_frequency", 0.20)
+            if self.config
+            else 0.20
+        )
 
         if tester_pairing_enabled and testers and developers:
             import random
+
             # 20% of pairs include a tester (configurable)
             if random.random() < tester_pairing_frequency and len(developers) > 0:
                 tester = testers.pop(0)
@@ -136,10 +160,7 @@ class CodeGenPairingEngine:
         return pairs
 
     async def run_pairing_session(
-        self,
-        pair: Tuple[BaseAgent, BaseAgent],
-        task: Dict,
-        sprint_num: int
+        self, pair: Tuple[BaseAgent, BaseAgent], task: Dict, sprint_num: int
     ) -> Dict:
         """Execute pairing session with real code generation.
 
@@ -179,7 +200,9 @@ class CodeGenPairingEngine:
         try:
             # Phase 0: Setup workspace
             story_id = task.get("id", f"task-{sprint_num}")
-            workspace = self.workspace_manager.create_sprint_workspace(sprint_num, story_id)
+            workspace = self.workspace_manager.create_sprint_workspace(
+                sprint_num, story_id
+            )
             session_result["workspace"] = str(workspace)
 
             # Phase 1: Generate BDD feature file (if story has BDD info)
@@ -196,7 +219,9 @@ class CodeGenPairingEngine:
                 session_result.update(impl_result)
             else:
                 # Fallback to dialogue-based (legacy)
-                impl_result = await self._implement_with_dialogue(driver, navigator, task)
+                impl_result = await self._implement_with_dialogue(
+                    driver, navigator, task
+                )
                 session_result.update(impl_result)
 
             # Phase 3: Run tests if available
@@ -207,8 +232,12 @@ class CodeGenPairingEngine:
                 # Extract real coverage metrics if available
                 if "line_coverage" in test_result:
                     session_result["line_coverage"] = test_result["line_coverage"]
-                    session_result["branch_coverage"] = test_result.get("branch_coverage", 0.0)
-                    session_result["covered_lines"] = test_result.get("covered_lines", 0)
+                    session_result["branch_coverage"] = test_result.get(
+                        "branch_coverage", 0.0
+                    )
+                    session_result["covered_lines"] = test_result.get(
+                        "covered_lines", 0
+                    )
                     session_result["total_lines"] = test_result.get("total_lines", 0)
 
                 # Calculate process-based coverage (how well TDD protocol was followed)
@@ -219,14 +248,18 @@ class CodeGenPairingEngine:
                 consensus_bonus = 5.0 if impl_result.get("consensus", False) else 0.0
                 max_coverage = 95.0
                 process_coverage = min(
-                    base_coverage + checkpoints_completed * per_checkpoint + consensus_bonus,
+                    base_coverage
+                    + checkpoints_completed * per_checkpoint
+                    + consensus_bonus,
                     max_coverage,
                 )
                 session_result["process_coverage"] = process_coverage
 
                 # For backward compatibility, coverage_estimate uses real coverage if available
                 # Falls back to process coverage if real coverage not available
-                session_result["coverage_estimate"] = session_result.get("line_coverage", process_coverage)
+                session_result["coverage_estimate"] = session_result.get(
+                    "line_coverage", process_coverage
+                )
 
             # Phase 4: Commit if tests pass
             if session_result.get("test_results", {}).get("passed", False):
@@ -235,16 +268,16 @@ class CodeGenPairingEngine:
                 session_result["outcome"] = "completed"
 
                 # Phase 4.5: Push and create PR if remote git enabled
-                pr_url = await self._push_and_create_pr(driver, workspace, task, commit_sha)
+                pr_url = await self._push_and_create_pr(
+                    driver, workspace, task, commit_sha
+                )
                 if pr_url:
                     session_result["pr_url"] = pr_url
                     # Store PR URL in kanban card metadata
                     if self.kanban and task.get("id"):
                         try:
                             await self.db.update_card_field(
-                                task["id"],
-                                "metadata",
-                                json.dumps({"pr_url": pr_url})
+                                task["id"], "metadata", json.dumps({"pr_url": pr_url})
                             )
                         except Exception:
                             pass
@@ -278,7 +311,7 @@ class CodeGenPairingEngine:
         navigator: BaseAgent,
         task: Dict,
         workspace: Path,
-        feature_file: Optional[Path]
+        feature_file: Optional[Path],
     ) -> Dict:
         """Implement code using driver's runtime (tool-using agent)."""
 
@@ -287,8 +320,7 @@ class CodeGenPairingEngine:
 
         # Driver implements using agentic loop
         result = await driver.execute_coding_task(
-            task_description=task_prompt,
-            max_turns=20
+            task_description=task_prompt, max_turns=20
         )
 
         return {
@@ -296,14 +328,11 @@ class CodeGenPairingEngine:
             "files_changed": result["files_changed"],
             "tool_calls": len(result["tool_calls"]),
             "turns": result["turns"],
-            "success": result["success"]
+            "success": result["success"],
         }
 
     def _build_implementation_prompt(
-        self,
-        task: Dict,
-        workspace: Path,
-        feature_file: Optional[Path]
+        self, task: Dict, workspace: Path, feature_file: Optional[Path]
     ) -> str:
         """Build implementation task prompt for agent."""
         prompt_parts = []
@@ -320,9 +349,13 @@ class CodeGenPairingEngine:
 
         # BDD feature reference
         if feature_file:
-            prompt_parts.append(f"\n## BDD Feature")
-            prompt_parts.append(f"A Gherkin feature file has been created at: {feature_file.relative_to(workspace)}")
-            prompt_parts.append("Your implementation should make the scenarios in this feature pass.")
+            prompt_parts.append("\n## BDD Feature")
+            prompt_parts.append(
+                f"A Gherkin feature file has been created at: {feature_file.relative_to(workspace)}"
+            )
+            prompt_parts.append(
+                "Your implementation should make the scenarios in this feature pass."
+            )
 
         # Implementation instructions
         prompt_parts.append("\n## Task")
@@ -332,15 +365,14 @@ class CodeGenPairingEngine:
         prompt_parts.append("3. Creating or updating test files")
         prompt_parts.append("4. Running tests to verify your implementation")
         prompt_parts.append("5. Iterating until all tests pass")
-        prompt_parts.append("\nUse your tools (read_file, write_file, edit_file, bash, run_tests) to complete this task.")
+        prompt_parts.append(
+            "\nUse your tools (read_file, write_file, edit_file, bash, run_tests) to complete this task."
+        )
 
         return "\n".join(prompt_parts)
 
     async def _implement_with_dialogue(
-        self,
-        driver: BaseAgent,
-        navigator: BaseAgent,
-        task: Dict
+        self, driver: BaseAgent, navigator: BaseAgent, task: Dict
     ) -> Dict:
         """Fallback: dialogue-based implementation (no real code)."""
         task_desc = task.get("description", task.get("title", "unknown task"))
@@ -353,14 +385,11 @@ class CodeGenPairingEngine:
             "files_changed": [],
             "tool_calls": 0,
             "turns": 1,
-            "success": True
+            "success": True,
         }
 
     async def _run_tests_with_iteration(
-        self,
-        agent: BaseAgent,
-        workspace: Path,
-        max_iterations: int = 3
+        self, agent: BaseAgent, workspace: Path, max_iterations: int = 3
     ) -> Dict:
         """Run tests and iterate on failures."""
         for iteration in range(max_iterations):
@@ -368,29 +397,28 @@ class CodeGenPairingEngine:
             test_prompt = "Run the tests using the run_tests tool. If tests fail, read the error output and fix the code."
 
             result = await agent.execute_coding_task(
-                task_description=test_prompt,
-                max_turns=10
+                task_description=test_prompt, max_turns=10
             )
 
             # Check if tests passed (look for success in tool calls or output)
-            if "passed" in result["content"].lower() or "all tests passed" in result["content"].lower():
+            if (
+                "passed" in result["content"].lower()
+                or "all tests passed" in result["content"].lower()
+            ):
                 return {
                     "passed": True,
                     "iterations": iteration + 1,
-                    "output": result["content"]
+                    "output": result["content"],
                 }
 
         return {
             "passed": False,
             "iterations": max_iterations,
-            "output": result.get("content", "Tests did not pass after max iterations")
+            "output": result.get("content", "Tests did not pass after max iterations"),
         }
 
     async def _commit_changes(
-        self,
-        agent: BaseAgent,
-        workspace: Path,
-        task: Dict
+        self, agent: BaseAgent, workspace: Path, task: Dict
     ) -> Optional[str]:
         """Commit changes using agent's git tools."""
         story_id = task.get("id", "unknown")
@@ -405,8 +433,7 @@ class CodeGenPairingEngine:
         """
 
         result = await agent.execute_coding_task(
-            task_description=commit_prompt,
-            max_turns=5
+            task_description=commit_prompt, max_turns=5
         )
 
         # Extract commit SHA if mentioned in output (simplified)
@@ -416,18 +443,14 @@ class CodeGenPairingEngine:
         return None
 
     async def _push_and_create_pr(
-        self,
-        driver: BaseAgent,
-        workspace: Path,
-        task: Dict,
-        commit_sha: str
+        self, driver: BaseAgent, workspace: Path, task: Dict, commit_sha: str
     ) -> Optional[str]:
         """Push branch to remote and create PR/MR.
 
         Returns PR/MR URL if successful, None otherwise.
         """
         # Check if remote_git is enabled
-        if not self.remote_git_config.get('enabled'):
+        if not self.remote_git_config.get("enabled"):
             return None
 
         try:
@@ -436,7 +459,7 @@ class CodeGenPairingEngine:
                 "git rev-parse --abbrev-ref HEAD",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(workspace)
+                cwd=str(workspace),
             )
             stdout, _ = await proc.communicate()
             branch_name = stdout.decode("utf-8").strip()
@@ -446,19 +469,21 @@ class CodeGenPairingEngine:
             author_email = f"{driver.config.role_id}@{self.remote_git_config.get('author_email_domain', 'agent.local')}"
 
             # Create provider instance
-            provider_type = self.remote_git_config.get('provider', 'github')
+            provider_type = self.remote_git_config.get("provider", "github")
             provider_config_key = provider_type
             provider_config = self.remote_git_config.get(provider_config_key, {}).copy()
 
             # Add author metadata
-            provider_config['author_name'] = author_name
-            provider_config['author_email'] = author_email
+            provider_config["author_name"] = author_name
+            provider_config["author_email"] = author_email
 
             # Handle per-agent tokens for GitLab
             if provider_type == "gitlab":
-                token_pattern = provider_config.get("token_env_pattern", "GITLAB_TOKEN_{role_id}")
+                token_pattern = provider_config.get(
+                    "token_env_pattern", "GITLAB_TOKEN_{role_id}"
+                )
                 token_env = token_pattern.replace("{role_id}", driver.config.role_id)
-                provider_config['token_env'] = token_env
+                provider_config["token_env"] = token_env
 
             provider = create_provider(provider_type, workspace, provider_config)
             if not provider:
@@ -470,7 +495,7 @@ class CodeGenPairingEngine:
                 push_cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(workspace)
+                cwd=str(workspace),
             )
             await asyncio.wait_for(proc.communicate(), timeout=60)
 
@@ -478,8 +503,8 @@ class CodeGenPairingEngine:
                 return None
 
             # Create PR/MR
-            base_branch = provider_config.get('base_branch', 'main')
-            draft = provider_config.get('draft_prs', False)
+            base_branch = provider_config.get("base_branch", "main")
+            draft = provider_config.get("draft_prs", False)
 
             pr_title = f"feat: {task.get('title', 'Implementation')}"
             pr_body = (
@@ -500,7 +525,7 @@ class CodeGenPairingEngine:
                 body=pr_body,
                 base_branch=base_branch,
                 head_branch=branch_name,
-                draft=draft
+                draft=draft,
             )
 
             result = await provider.create_pull_request(pr_config)

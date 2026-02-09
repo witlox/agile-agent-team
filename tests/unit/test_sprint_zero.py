@@ -1,15 +1,13 @@
 """Unit tests for Sprint 0 infrastructure story generation."""
 
-import pytest
 from pathlib import Path
 import tempfile
-import shutil
 
 from src.orchestrator.backlog import ProductMetadata
 from src.orchestrator.sprint_zero import (
     SprintZeroGenerator,
     BrownfieldAnalyzer,
-    InfrastructureStory
+    InfrastructureStory,
 )
 
 
@@ -24,7 +22,7 @@ class TestSprintZeroGenerator:
             languages=["python"],
             tech_stack=["github-actions", "docker"],
             repository_type="greenfield",
-            repository_url=""
+            repository_url="",
         )
 
         generator = SprintZeroGenerator(product_meta, {})
@@ -47,7 +45,7 @@ class TestSprintZeroGenerator:
             languages=["python", "go", "typescript"],
             tech_stack=["github-actions", "kubernetes"],
             repository_type="greenfield",
-            repository_url=""
+            repository_url="",
         )
 
         generator = SprintZeroGenerator(product_meta, {})
@@ -69,7 +67,7 @@ class TestSprintZeroGenerator:
             languages=["python"],
             tech_stack=["gitlab-ci"],
             repository_type="greenfield",
-            repository_url=""
+            repository_url="",
         )
 
         generator = SprintZeroGenerator(product_meta, {})
@@ -91,12 +89,11 @@ class TestSprintZeroGenerator:
             assigned_specializations=["devops"],
             config_files=["test.yml"],
             validation_command="test command",
-            template_content={"test.yml": "content"}
+            template_content={"test.yml": "content"},
         )
 
         generator = SprintZeroGenerator(
-            ProductMetadata("Test", "", [], [], "greenfield", ""),
-            {}
+            ProductMetadata("Test", "", [], [], "greenfield", ""), {}
         )
         backlog_format = generator.convert_to_backlog_format(story)
 
@@ -151,13 +148,15 @@ class TestBrownfieldAnalyzer:
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             pyproject = workspace / "pyproject.toml"
-            pyproject.write_text("""
+            pyproject.write_text(
+                """
 [tool.black]
 line-length = 88
 
 [tool.ruff]
 select = ["E", "F"]
-""")
+"""
+            )
 
             analyzer = BrownfieldAnalyzer(workspace)
             analysis = analyzer.analyze()
@@ -185,7 +184,7 @@ select = ["E", "F"]
                     story_points=5,
                     priority=1,
                     assigned_specializations=["devops"],
-                    config_files=[]
+                    config_files=[],
                 ),
                 InfrastructureStory(
                     id="INFRA-DOCKER",
@@ -195,7 +194,7 @@ select = ["E", "F"]
                     story_points=5,
                     priority=2,
                     assigned_specializations=["devops"],
-                    config_files=[]
+                    config_files=[],
                 ),
                 InfrastructureStory(
                     id="INFRA-PY-LINT",
@@ -205,7 +204,7 @@ select = ["E", "F"]
                     story_points=3,
                     priority=3,
                     assigned_specializations=["backend"],
-                    config_files=[]
+                    config_files=[],
                 ),
             ]
 
@@ -224,10 +223,7 @@ class TestProductMetadata:
 
     def test_product_metadata_defaults(self):
         """Test ProductMetadata with default values."""
-        meta = ProductMetadata(
-            name="Test Project",
-            description="Test description"
-        )
+        meta = ProductMetadata(name="Test Project", description="Test description")
 
         assert meta.languages == []
         assert meta.tech_stack == []
@@ -242,7 +238,7 @@ class TestProductMetadata:
             languages=["python", "go"],
             tech_stack=["docker", "kubernetes"],
             repository_type="brownfield",
-            repository_url="https://github.com/org/repo.git"
+            repository_url="https://github.com/org/repo.git",
         )
 
         assert meta.name == "Full Project"

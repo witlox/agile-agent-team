@@ -1,7 +1,6 @@
 """Multi-language build tools."""
 
 import asyncio
-from pathlib import Path
 from typing import Dict, Any, List
 
 from .base import Tool, ToolResult
@@ -27,26 +26,23 @@ class MultiLanguageBuilder(Tool):
                 "language": {
                     "type": "string",
                     "description": "Force specific language (python|go|rust|typescript|cpp)",
-                    "default": ""
+                    "default": "",
                 },
                 "release": {
                     "type": "boolean",
                     "description": "Build in release/production mode",
-                    "default": False
+                    "default": False,
                 },
                 "clean": {
                     "type": "boolean",
                     "description": "Clean before building",
-                    "default": False
-                }
-            }
+                    "default": False,
+                },
+            },
         }
 
     async def execute(
-        self,
-        language: str = "",
-        release: bool = False,
-        clean: bool = False
+        self, language: str = "", release: bool = False, clean: bool = False
     ) -> ToolResult:
         """Build project with language-specific build tool."""
         try:
@@ -57,7 +53,7 @@ class MultiLanguageBuilder(Tool):
                     return ToolResult(
                         success=False,
                         output="",
-                        error="No recognized language found in workspace"
+                        error="No recognized language found in workspace",
                     )
                 language = detected[0]
 
@@ -74,16 +70,12 @@ class MultiLanguageBuilder(Tool):
                 return await self._build_cpp(release, clean)
             else:
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"Unsupported language: {language}"
+                    success=False, output="", error=f"Unsupported language: {language}"
                 )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error building project: {str(e)}"
+                success=False, output="", error=f"Error building project: {str(e)}"
             )
 
     async def _build_python(self) -> ToolResult:
@@ -99,7 +91,7 @@ class MultiLanguageBuilder(Tool):
             return ToolResult(
                 success=False,
                 output="",
-                error="No requirements.txt, pyproject.toml, or setup.py found"
+                error="No requirements.txt, pyproject.toml, or setup.py found",
             )
 
         return await self._run_build(cmd, "pip install")
@@ -152,6 +144,7 @@ class MultiLanguageBuilder(Tool):
         package_json = self.workspace / "package.json"
         if package_json.exists():
             import json
+
             try:
                 package_data = json.loads(package_json.read_text())
                 if "scripts" in package_data and "build" in package_data["scripts"]:
@@ -159,9 +152,7 @@ class MultiLanguageBuilder(Tool):
                     if release:
                         # Set NODE_ENV for production build
                         return await self._run_build(
-                            cmd,
-                            "npm run build",
-                            env={"NODE_ENV": "production"}
+                            cmd, "npm run build", env={"NODE_ENV": "production"}
                         )
                     return await self._run_build(cmd, "npm run build")
             except json.JSONDecodeError:
@@ -176,6 +167,7 @@ class MultiLanguageBuilder(Tool):
 
         if clean and build_dir.exists():
             import shutil
+
             shutil.rmtree(build_dir)
 
         # Configure with CMake
@@ -204,10 +196,7 @@ class MultiLanguageBuilder(Tool):
         return await self._run_build(build_cmd, "cmake build")
 
     async def _run_build(
-        self,
-        cmd: List[str],
-        tool_name: str,
-        env: Dict[str, str] = None
+        self, cmd: List[str], tool_name: str, env: Dict[str, str] = None
     ) -> ToolResult:
         """Execute build command."""
         try:
@@ -223,13 +212,12 @@ class MultiLanguageBuilder(Tool):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self.workspace),
-                env=exec_env
+                env=exec_env,
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=300  # Builds can be slow (5 minutes)
+                    proc.communicate(), timeout=300  # Builds can be slow (5 minutes)
                 )
             except asyncio.TimeoutError:
                 proc.kill()
@@ -237,7 +225,7 @@ class MultiLanguageBuilder(Tool):
                 return ToolResult(
                     success=False,
                     output="",
-                    error=f"{tool_name} timed out (exceeded 5 minutes)"
+                    error=f"{tool_name} timed out (exceeded 5 minutes)",
                 )
 
             output = stdout.decode("utf-8", errors="replace")
@@ -251,14 +239,11 @@ class MultiLanguageBuilder(Tool):
             if success and not output.strip():
                 output = f"Build completed successfully ({tool_name})"
 
-            return ToolResult(
-                success=success,
-                output=output.strip()
-            )
+            return ToolResult(success=success, output=output.strip())
 
         except FileNotFoundError:
             return ToolResult(
                 success=False,
                 output="",
-                error=f"{tool_name.split()[0]} not found - is it installed?"
+                error=f"{tool_name.split()[0]} not found - is it installed?",
             )

@@ -25,7 +25,6 @@ class GitStatusTool(Tool):
         """Run git status."""
         return await self._run_git_command("git status --short")
 
-
     async def _run_git_command(self, command: str) -> ToolResult:
         """Helper to run a git command."""
         try:
@@ -33,7 +32,7 @@ class GitStatusTool(Tool):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
@@ -47,7 +46,9 @@ class GitStatusTool(Tool):
             return ToolResult(
                 success=success,
                 output=output.strip() if output.strip() else "(no output)",
-                error=None if success else f"Git command failed with exit code {proc.returncode}"
+                error=None
+                if success
+                else f"Git command failed with exit code {proc.returncode}",
             )
 
         except asyncio.TimeoutError:
@@ -75,14 +76,14 @@ class GitDiffTool(Tool):
                 "path": {
                     "type": "string",
                     "description": "Optional path to show diff for (default: all files)",
-                    "default": "."
+                    "default": ".",
                 },
                 "staged": {
                     "type": "boolean",
                     "description": "Show staged changes instead of unstaged",
-                    "default": False
-                }
-            }
+                    "default": False,
+                },
+            },
         }
 
     async def execute(self, path: str = ".", staged: bool = False) -> ToolResult:
@@ -100,7 +101,7 @@ class GitDiffTool(Tool):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
@@ -114,7 +115,7 @@ class GitDiffTool(Tool):
             return ToolResult(
                 success=success,
                 output=output.strip() if output.strip() else "(no changes)",
-                error=None if success else f"Git command failed"
+                error=None if success else "Git command failed",
             )
 
         except Exception as e:
@@ -140,10 +141,10 @@ class GitAddTool(Tool):
                 "files": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "List of file paths to stage"
+                    "description": "List of file paths to stage",
                 }
             },
-            "required": ["files"]
+            "required": ["files"],
         }
 
     async def execute(self, files: list) -> ToolResult:
@@ -161,7 +162,7 @@ class GitAddTool(Tool):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
@@ -174,8 +175,10 @@ class GitAddTool(Tool):
 
             return ToolResult(
                 success=success,
-                output=output.strip() if output.strip() else "Files staged successfully",
-                error=None if success else f"Git add failed"
+                output=output.strip()
+                if output.strip()
+                else "Files staged successfully",
+                error=None if success else "Git add failed",
             )
 
         except Exception as e:
@@ -198,12 +201,9 @@ class GitCommitTool(Tool):
         return {
             "type": "object",
             "properties": {
-                "message": {
-                    "type": "string",
-                    "description": "Commit message"
-                }
+                "message": {"type": "string", "description": "Commit message"}
             },
-            "required": ["message"]
+            "required": ["message"],
         }
 
     async def execute(self, message: str) -> ToolResult:
@@ -219,7 +219,7 @@ class GitCommitTool(Tool):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
@@ -233,7 +233,7 @@ class GitCommitTool(Tool):
             return ToolResult(
                 success=success,
                 output=output.strip() if output.strip() else "Commit created",
-                error=None if success else f"Git commit failed"
+                error=None if success else "Git commit failed",
             )
 
         except Exception as e:
@@ -259,23 +259,22 @@ class GitRemoteTool(Tool):
                 "name": {
                     "type": "string",
                     "description": "Remote name (default: origin)",
-                    "default": "origin"
+                    "default": "origin",
                 },
-                "url": {
-                    "type": "string",
-                    "description": "Remote URL (https or git)"
-                },
+                "url": {"type": "string", "description": "Remote URL (https or git)"},
                 "action": {
                     "type": "string",
                     "description": "Action: add or set-url",
                     "enum": ["add", "set-url"],
-                    "default": "add"
-                }
+                    "default": "add",
+                },
             },
-            "required": ["url"]
+            "required": ["url"],
         }
 
-    async def execute(self, url: str, name: str = "origin", action: str = "add") -> ToolResult:
+    async def execute(
+        self, url: str, name: str = "origin", action: str = "add"
+    ) -> ToolResult:
         """Configure remote."""
         cmd = f"git remote {action} {name} {url}"
         return await self._run_git_command(cmd)
@@ -287,7 +286,7 @@ class GitRemoteTool(Tool):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
@@ -301,7 +300,7 @@ class GitRemoteTool(Tool):
             return ToolResult(
                 success=success,
                 output=output.strip() if output.strip() else "Remote configured",
-                error=None if success else f"Git remote command failed"
+                error=None if success else "Git remote command failed",
             )
 
         except Exception as e:
@@ -327,25 +326,22 @@ class GitPushTool(Tool):
                 "remote": {
                     "type": "string",
                     "description": "Remote name (default: origin)",
-                    "default": "origin"
+                    "default": "origin",
                 },
                 "branch": {
                     "type": "string",
-                    "description": "Branch name (default: current branch)"
+                    "description": "Branch name (default: current branch)",
                 },
                 "set_upstream": {
                     "type": "boolean",
                     "description": "Set upstream tracking (-u flag)",
-                    "default": True
-                }
-            }
+                    "default": True,
+                },
+            },
         }
 
     async def execute(
-        self,
-        remote: str = "origin",
-        branch: str = None,
-        set_upstream: bool = True
+        self, remote: str = "origin", branch: str = None, set_upstream: bool = True
     ) -> ToolResult:
         """Push to remote."""
         # Get current branch if not specified
@@ -355,7 +351,7 @@ class GitPushTool(Tool):
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
             stdout, _ = await proc.communicate()
             branch = stdout.decode("utf-8").strip()
@@ -374,10 +370,12 @@ class GitPushTool(Tool):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)  # 60s for push
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=60
+            )  # 60s for push
 
             output = stdout.decode("utf-8", errors="replace")
             if stderr:
@@ -388,7 +386,7 @@ class GitPushTool(Tool):
             return ToolResult(
                 success=success,
                 output=output.strip() if output.strip() else "Pushed successfully",
-                error=None if success else f"Git push failed"
+                error=None if success else "Git push failed",
             )
 
         except asyncio.TimeoutError:

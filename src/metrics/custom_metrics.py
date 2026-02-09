@@ -1,4 +1,3 @@
-
 """
 Custom metrics for tracking junior-senior dynamics.
 """
@@ -7,9 +6,9 @@ from prometheus_client import Counter, Gauge, Histogram
 
 # Junior question tracking
 junior_questions_total = Counter(
-    'junior_questions_total',
-    'Questions asked by junior developers',
-    ['junior_id', 'resulted_in_change', 'category']
+    "junior_questions_total",
+    "Questions asked by junior developers",
+    ["junior_id", "resulted_in_change", "category"],
 )
 
 # Categories of junior questions
@@ -22,16 +21,16 @@ junior_questions_total = Counter(
 
 # Senior response patterns
 senior_pause_before_answer = Histogram(
-    'senior_response_pause_seconds',
-    'Time senior pauses to think before answering junior',
-    ['senior_id', 'question_category'],
-    buckets=[0, 2, 5, 10, 30, 60]  # Ideally 2-5 seconds
+    "senior_response_pause_seconds",
+    "Time senior pauses to think before answering junior",
+    ["senior_id", "question_category"],
+    buckets=[0, 2, 5, 10, 30, 60],  # Ideally 2-5 seconds
 )
 
 senior_learned_from_junior = Counter(
-    'senior_learned_from_junior_total',
-    'Times senior updated knowledge based on junior input',
-    ['senior_id', 'junior_id', 'learning_type']
+    "senior_learned_from_junior_total",
+    "Times senior updated knowledge based on junior input",
+    ["senior_id", "junior_id", "learning_type"],
 )
 
 # Learning types:
@@ -42,15 +41,15 @@ senior_learned_from_junior = Counter(
 
 # Team health indicators
 junior_question_rate = Gauge(
-    'junior_question_rate_per_sprint',
-    'Number of questions juniors ask per sprint',
-    ['junior_id']
+    "junior_question_rate_per_sprint",
+    "Number of questions juniors ask per sprint",
+    ["junior_id"],
 )
 
 question_dismissal_rate = Gauge(
-    'question_dismissal_rate',
-    'Percentage of junior questions dismissed without consideration',
-    ['senior_id']
+    "question_dismissal_rate",
+    "Percentage of junior questions dismissed without consideration",
+    ["senior_id"],
 )
 
 # Healthy thresholds:
@@ -60,9 +59,9 @@ question_dismissal_rate = Gauge(
 
 # Reverse mentorship tracking
 reverse_mentorship_events = Counter(
-    'reverse_mentorship_total',
-    'Junior teaching senior',
-    ['junior_id', 'senior_id', 'topic']
+    "reverse_mentorship_total",
+    "Junior teaching senior",
+    ["junior_id", "senior_id", "topic"],
 )
 
 # Topics:

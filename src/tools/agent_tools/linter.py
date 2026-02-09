@@ -1,7 +1,6 @@
 """Multi-language code linting tools."""
 
 import asyncio
-from pathlib import Path
 from typing import Dict, Any, List
 
 from .base import Tool, ToolResult
@@ -27,26 +26,23 @@ class MultiLanguageLinter(Tool):
                 "path": {
                     "type": "string",
                     "description": "Path to lint (optional, defaults to entire workspace)",
-                    "default": ""
+                    "default": "",
                 },
                 "language": {
                     "type": "string",
                     "description": "Force specific language (python|go|rust|typescript|cpp)",
-                    "default": ""
+                    "default": "",
                 },
                 "fix": {
                     "type": "boolean",
                     "description": "Auto-fix issues where possible",
-                    "default": False
-                }
-            }
+                    "default": False,
+                },
+            },
         }
 
     async def execute(
-        self,
-        path: str = "",
-        language: str = "",
-        fix: bool = False
+        self, path: str = "", language: str = "", fix: bool = False
     ) -> ToolResult:
         """Lint code with language-specific linter."""
         try:
@@ -57,7 +53,7 @@ class MultiLanguageLinter(Tool):
                     return ToolResult(
                         success=False,
                         output="",
-                        error="No recognized language found in workspace"
+                        error="No recognized language found in workspace",
                     )
                 language = detected[0]
 
@@ -74,16 +70,12 @@ class MultiLanguageLinter(Tool):
                 return await self._lint_cpp(path)
             else:
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"Unsupported language: {language}"
+                    success=False, output="", error=f"Unsupported language: {language}"
                 )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error linting code: {str(e)}"
+                success=False, output="", error=f"Error linting code: {str(e)}"
             )
 
     async def _lint_python(self, path: str, fix: bool) -> ToolResult:
@@ -118,7 +110,7 @@ class MultiLanguageLinter(Tool):
             return ToolResult(
                 success=False,
                 output="",
-                error="Clippy doesn't support auto-fix. Run 'cargo fix' for fixable issues."
+                error="Clippy doesn't support auto-fix. Run 'cargo fix' for fixable issues.",
             )
 
         return await self._run_linter(cmd, "clippy")
@@ -148,17 +140,14 @@ class MultiLanguageLinter(Tool):
             files = [str(f) for f in self.workspace.glob("**/*.cpp")]
 
         if not files:
-            return ToolResult(
-                success=True,
-                output="No C++ files found to lint"
-            )
+            return ToolResult(success=True, output="No C++ files found to lint")
 
         # clang-tidy needs compilation database
         if not (self.workspace / "compile_commands.json").exists():
             return ToolResult(
                 success=False,
                 output="",
-                error="compile_commands.json not found. Run 'cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON' first."
+                error="compile_commands.json not found. Run 'cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON' first.",
             )
 
         cmd = ["clang-tidy"] + files + ["--"]
@@ -172,21 +161,18 @@ class MultiLanguageLinter(Tool):
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace)
+                cwd=str(self.workspace),
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=120  # Linters can be slow
+                    proc.communicate(), timeout=120  # Linters can be slow
                 )
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.wait()
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"{tool_name} timed out"
+                    success=False, output="", error=f"{tool_name} timed out"
                 )
 
             output = stdout.decode("utf-8", errors="replace")
@@ -204,28 +190,20 @@ class MultiLanguageLinter(Tool):
             # Parse linting stats
             metadata = self._parse_lint_output(output, tool_name)
 
-            return ToolResult(
-                success=success,
-                output=output.strip(),
-                metadata=metadata
-            )
+            return ToolResult(success=success, output=output.strip(), metadata=metadata)
 
         except FileNotFoundError:
             return ToolResult(
                 success=False,
                 output="",
-                error=f"{tool_name} not found - is it installed?"
+                error=f"{tool_name} not found - is it installed?",
             )
 
     def _parse_lint_output(self, output: str, tool: str) -> Dict:
         """Parse linter output for statistics."""
         import re
 
-        stats = {
-            "errors": 0,
-            "warnings": 0,
-            "files_checked": 0
-        }
+        stats = {"errors": 0, "warnings": 0, "files_checked": 0}
 
         if tool == "ruff":
             # Look for "Found X errors"
@@ -244,7 +222,9 @@ class MultiLanguageLinter(Tool):
 
         elif tool == "eslint":
             # Look for summary line
-            match = re.search(r"(\d+) problems? \((\d+) errors?, (\d+) warnings?\)", output)
+            match = re.search(
+                r"(\d+) problems? \((\d+) errors?, (\d+) warnings?\)", output
+            )
             if match:
                 stats["errors"] = int(match.group(2))
                 stats["warnings"] = int(match.group(3))

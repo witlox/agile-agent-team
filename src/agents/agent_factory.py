@@ -1,6 +1,5 @@
 """Factory for creating all team agents."""
 
-import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -48,7 +47,9 @@ class AgentFactory:
                 # Create runtime if agent has tools configured
                 runtime = None
                 if "tools" in agent_cfg and agent_cfg["tools"]:
-                    runtime = self._create_agent_runtime(agent_id, agent_cfg, workspace_root)
+                    runtime = self._create_agent_runtime(
+                        agent_id, agent_cfg, workspace_root
+                    )
 
                 agent = BaseAgent(config, self.vllm_endpoint, runtime=runtime)
                 agents.append(agent)
@@ -56,18 +57,13 @@ class AgentFactory:
         return agents
 
     def _create_agent_runtime(
-        self,
-        agent_id: str,
-        agent_cfg: Dict,
-        workspace_root: str
+        self, agent_id: str, agent_cfg: Dict, workspace_root: str
     ):
         """Create runtime for an agent if configured."""
         try:
             # Get runtime type and config
             runtime_type, runtime_config = get_runtime_config(
-                agent_cfg,
-                self.runtime_configs,
-                self.runtime_mode_override
+                agent_cfg, self.runtime_configs, self.runtime_mode_override
             )
 
             # Get tool names for this agent
@@ -84,7 +80,7 @@ class AgentFactory:
                 runtime_config=runtime_config,
                 tool_names=tool_names,
                 workspace_root=workspace_root,
-                tool_config=tools_config
+                tool_config=tools_config,
             )
 
             return runtime

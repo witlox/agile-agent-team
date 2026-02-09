@@ -63,7 +63,9 @@ async def run_experiment(
     end_sprint = num_sprints if config.sprint_zero_enabled else num_sprints
 
     for sprint_num in range(start_sprint, end_sprint + 1):
-        sprint_label = "SPRINT 0 (Infrastructure)" if sprint_num == 0 else f"SPRINT {sprint_num}"
+        sprint_label = (
+            "SPRINT 0 (Infrastructure)" if sprint_num == 0 else f"SPRINT {sprint_num}"
+        )
         print(f"\n{'='*60}")
         print(f"{sprint_label}  [{datetime.now().strftime('%H:%M:%S')}]")
         print(f"{'='*60}")
@@ -72,11 +74,11 @@ async def run_experiment(
 
         # Sprint 0 specific reporting
         if sprint_num == 0:
-            ci_validated = getattr(result, 'ci_validated', True)
+            ci_validated = getattr(result, "ci_validated", True)
             if ci_validated:
-                print(f"  ✓ Sprint 0 complete: Infrastructure validated")
+                print("  ✓ Sprint 0 complete: Infrastructure validated")
             else:
-                print(f"  ✗ Sprint 0 incomplete: CI validation failed")
+                print("  ✗ Sprint 0 incomplete: CI validation failed")
         else:
             print(
                 f"  velocity={result.velocity}pts  "
@@ -91,16 +93,22 @@ async def run_experiment(
     print(f"\nExperiment complete. Output: {output_dir}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run agile agent team experiment")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--sprints", type=int, default=10)
     parser.add_argument("--output", default="outputs/experiment")
     parser.add_argument("--backlog", default="backlog.yaml")
-    parser.add_argument("--db-url", default="", help="Override database URL (use mock:// for local dev)")
+    parser.add_argument(
+        "--db-url", default="", help="Override database URL (use mock:// for local dev)"
+    )
     args = parser.parse_args()
 
-    asyncio.run(run_experiment(args.config, args.sprints, args.output, args.backlog, args.db_url))
+    asyncio.run(
+        run_experiment(
+            args.config, args.sprints, args.output, args.backlog, args.db_url
+        )
+    )
 
 
 if __name__ == "__main__":

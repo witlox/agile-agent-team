@@ -10,7 +10,9 @@ class PairRotationManager:
     """Manages round-robin pair rotation to ensure everyone pairs with everyone."""
 
     # Track pairing history
-    pairing_history: Dict[Tuple[str, str], int] = field(default_factory=lambda: defaultdict(int))
+    pairing_history: Dict[Tuple[str, str], int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
 
     # Current sprint's rotations
     daily_pairs: Dict[int, List[Tuple[str, str]]] = field(default_factory=dict)
@@ -20,7 +22,7 @@ class PairRotationManager:
         day_num: int,
         task_owners: List[str],
         available_partners: List[str],
-        sprint_num: int
+        sprint_num: int,
     ) -> Dict[str, str]:
         """Generate pair assignments for a given day.
 
@@ -42,10 +44,7 @@ class PairRotationManager:
 
         # Use round-robin with history to ensure variety
         pairs = self._round_robin_with_history(
-            task_owners,
-            available_partners,
-            day_num,
-            sprint_num
+            task_owners, available_partners, day_num, sprint_num
         )
 
         # Record this day's pairs
@@ -60,11 +59,7 @@ class PairRotationManager:
         return {owner: navigator for owner, navigator in pairs}
 
     def _round_robin_with_history(
-        self,
-        owners: List[str],
-        partners: List[str],
-        day_num: int,
-        sprint_num: int
+        self, owners: List[str], partners: List[str], day_num: int, sprint_num: int
     ) -> List[Tuple[str, str]]:
         """Round-robin algorithm that prefers least-paired combinations.
 
@@ -85,11 +80,7 @@ class PairRotationManager:
 
         for owner in owners:
             # Find best navigator for this owner
-            navigator = self._find_best_navigator(
-                owner,
-                available,
-                assigned_navigators
-            )
+            navigator = self._find_best_navigator(owner, available, assigned_navigators)
 
             if navigator:
                 pairs.append((owner, navigator))
@@ -98,10 +89,7 @@ class PairRotationManager:
         return pairs
 
     def _find_best_navigator(
-        self,
-        owner: str,
-        candidates: List[str],
-        already_assigned: Set[str]
+        self, owner: str, candidates: List[str], already_assigned: Set[str]
     ) -> str:
         """Find best navigator for owner based on pairing history.
 
@@ -111,10 +99,7 @@ class PairRotationManager:
         3. Different from owner (if owner is also in candidates)
         """
         # Filter out already assigned and owner themselves
-        available = [
-            c for c in candidates
-            if c not in already_assigned and c != owner
-        ]
+        available = [c for c in candidates if c not in already_assigned and c != owner]
 
         if not available:
             # Fallback: allow reassignment if necessary
@@ -167,11 +152,11 @@ class PairRotationManager:
             "total_unique_pairs": total,
             "most_frequent_pair": {
                 "agents": pairs_list[0][0],
-                "count": pairs_list[0][1]
+                "count": pairs_list[0][1],
             },
             "least_frequent_pair": {
                 "agents": pairs_list[-1][0],
-                "count": pairs_list[-1][1]
+                "count": pairs_list[-1][1],
             },
             "average_pairings_per_pair": total_pairings / total if total > 0 else 0.0,
         }
@@ -202,9 +187,7 @@ class PairRotationManager:
 
 
 def create_initial_pairs(
-    tasks: List[Dict],
-    developers: List,
-    testers: List
+    tasks: List[Dict], developers: List, testers: List
 ) -> List[Tuple[str, str]]:
     """Create initial Day 1 pairs based on task requirements.
 
@@ -221,7 +204,7 @@ def create_initial_pairs(
     assigned = set()
 
     for task in tasks:
-        owner_id = task.get('owner')
+        owner_id = task.get("owner")
         if not owner_id:
             continue
 
@@ -241,7 +224,7 @@ def ensure_pairing_diversity(
     num_days: int,
     owners: List[str],
     partners: List[str],
-    sprint_num: int
+    sprint_num: int,
 ) -> Dict[int, Dict[str, str]]:
     """Generate rotation schedule for entire sprint ensuring diversity.
 
@@ -258,12 +241,7 @@ def ensure_pairing_diversity(
     schedule = {}
 
     for day in range(1, num_days + 1):
-        pairs = rotation_manager.get_rotation_for_day(
-            day,
-            owners,
-            partners,
-            sprint_num
-        )
+        pairs = rotation_manager.get_rotation_for_day(day, owners, partners, sprint_num)
         schedule[day] = pairs
 
     return schedule

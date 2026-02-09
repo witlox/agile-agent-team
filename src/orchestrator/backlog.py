@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import yaml
 
@@ -10,6 +10,7 @@ import yaml
 @dataclass
 class ProductMetadata:
     """Product-level metadata extracted from backlog."""
+
     name: str
     description: str
     languages: List[str] = field(default_factory=list)
@@ -74,5 +75,5 @@ class Backlog:
             languages=product.get("languages", []),
             tech_stack=product.get("tech_stack", []),
             repository_type=repository.get("type", "greenfield"),
-            repository_url=repository.get("url", "")
+            repository_url=repository.get("url", ""),
         )

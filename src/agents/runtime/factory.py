@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from .base import AgentRuntime
 from .vllm_runtime import VLLMRuntime
 from .anthropic_runtime import AnthropicRuntime
-from ...tools.agent_tools import Tool, create_tools
+from ...tools.agent_tools import create_tools
 
 
 def create_runtime(
@@ -14,7 +14,7 @@ def create_runtime(
     runtime_config: Dict,
     tool_names: List[str],
     workspace_root: str,
-    tool_config: Optional[Dict] = None
+    tool_config: Optional[Dict] = None,
 ) -> AgentRuntime:
     """Create an agent runtime instance.
 
@@ -49,7 +49,7 @@ def create_runtime(
 def get_runtime_config(
     agent_config: Dict,
     global_runtime_configs: Dict,
-    runtime_mode_override: Optional[str] = None
+    runtime_mode_override: Optional[str] = None,
 ) -> tuple[str, Dict]:
     """Get runtime type and config for an agent.
 

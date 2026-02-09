@@ -1,7 +1,6 @@
 """Filesystem tools for reading, writing, and editing files."""
 
 import re
-from pathlib import Path
 from typing import Dict, Any
 
 from .base import Tool, ToolResult
@@ -25,10 +24,10 @@ class ReadFileTool(Tool):
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "File path relative to workspace root"
+                    "description": "File path relative to workspace root",
                 }
             },
-            "required": ["path"]
+            "required": ["path"],
         }
 
     async def execute(self, path: str) -> ToolResult:
@@ -38,17 +37,11 @@ class ReadFileTool(Tool):
 
             if not full_path.exists():
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"File not found: {path}"
+                    success=False, output="", error=f"File not found: {path}"
                 )
 
             if not full_path.is_file():
-                return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"Not a file: {path}"
-                )
+                return ToolResult(success=False, output="", error=f"Not a file: {path}")
 
             content = full_path.read_text(encoding="utf-8")
             lines = len(content.splitlines())
@@ -56,20 +49,16 @@ class ReadFileTool(Tool):
             return ToolResult(
                 success=True,
                 output=content,
-                metadata={"lines": lines, "bytes": len(content)}
+                metadata={"lines": lines, "bytes": len(content)},
             )
 
         except UnicodeDecodeError:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"File is not UTF-8 text: {path}"
+                success=False, output="", error=f"File is not UTF-8 text: {path}"
             )
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error reading file: {str(e)}"
+                success=False, output="", error=f"Error reading file: {str(e)}"
             )
 
 
@@ -91,14 +80,14 @@ class WriteFileTool(Tool):
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "File path relative to workspace root"
+                    "description": "File path relative to workspace root",
                 },
                 "content": {
                     "type": "string",
-                    "description": "Content to write to the file"
-                }
+                    "description": "Content to write to the file",
+                },
             },
-            "required": ["path", "content"]
+            "required": ["path", "content"],
         }
 
     async def execute(self, path: str, content: str) -> ToolResult:
@@ -118,14 +107,12 @@ class WriteFileTool(Tool):
                 success=True,
                 output=f"Successfully wrote {lines} lines ({len(content)} bytes) to {path}",
                 files_changed=[path],
-                metadata={"lines": lines, "bytes": len(content)}
+                metadata={"lines": lines, "bytes": len(content)},
             )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error writing file: {str(e)}"
+                success=False, output="", error=f"Error writing file: {str(e)}"
             )
 
 
@@ -147,18 +134,15 @@ class EditFileTool(Tool):
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "File path relative to workspace root"
+                    "description": "File path relative to workspace root",
                 },
                 "old_text": {
                     "type": "string",
-                    "description": "Exact text to find and replace (must match exactly)"
+                    "description": "Exact text to find and replace (must match exactly)",
                 },
-                "new_text": {
-                    "type": "string",
-                    "description": "Text to replace with"
-                }
+                "new_text": {"type": "string", "description": "Text to replace with"},
             },
-            "required": ["path", "old_text", "new_text"]
+            "required": ["path", "old_text", "new_text"],
         }
 
     async def execute(self, path: str, old_text: str, new_text: str) -> ToolResult:
@@ -168,9 +152,7 @@ class EditFileTool(Tool):
 
             if not full_path.exists():
                 return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"File not found: {path}"
+                    success=False, output="", error=f"File not found: {path}"
                 )
 
             # Read current content
@@ -181,7 +163,7 @@ class EditFileTool(Tool):
                 return ToolResult(
                     success=False,
                     output="",
-                    error=f"Text to replace not found in {path}"
+                    error=f"Text to replace not found in {path}",
                 )
 
             # Check if replacement is unique
@@ -190,7 +172,7 @@ class EditFileTool(Tool):
                 return ToolResult(
                     success=False,
                     output="",
-                    error=f"Text to replace appears {occurrences} times in {path}. Please provide more context to make it unique."
+                    error=f"Text to replace appears {occurrences} times in {path}. Please provide more context to make it unique.",
                 )
 
             # Perform replacement
@@ -201,14 +183,12 @@ class EditFileTool(Tool):
                 success=True,
                 output=f"Successfully edited {path}",
                 files_changed=[path],
-                metadata={"occurrences": 1}
+                metadata={"occurrences": 1},
             )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error editing file: {str(e)}"
+                success=False, output="", error=f"Error editing file: {str(e)}"
             )
 
 
@@ -231,17 +211,19 @@ class ListFilesTool(Tool):
                 "pattern": {
                     "type": "string",
                     "description": "Glob pattern (e.g., '**/*.py', 'src/**/*.ts')",
-                    "default": "**/*"
+                    "default": "**/*",
                 },
                 "max_results": {
                     "type": "integer",
                     "description": "Maximum number of results to return",
-                    "default": 100
-                }
-            }
+                    "default": 100,
+                },
+            },
         }
 
-    async def execute(self, pattern: str = "**/*", max_results: int = 100) -> ToolResult:
+    async def execute(
+        self, pattern: str = "**/*", max_results: int = 100
+    ) -> ToolResult:
         """List files matching pattern."""
         try:
             matches = []
@@ -259,14 +241,15 @@ class ListFilesTool(Tool):
             return ToolResult(
                 success=True,
                 output=output,
-                metadata={"count": len(matches), "truncated": len(matches) >= max_results}
+                metadata={
+                    "count": len(matches),
+                    "truncated": len(matches) >= max_results,
+                },
             )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error listing files: {str(e)}"
+                success=False, output="", error=f"Error listing files: {str(e)}"
             )
 
 
@@ -288,27 +271,24 @@ class SearchCodeTool(Tool):
             "properties": {
                 "pattern": {
                     "type": "string",
-                    "description": "Text or regex pattern to search for"
+                    "description": "Text or regex pattern to search for",
                 },
                 "file_pattern": {
                     "type": "string",
                     "description": "Glob pattern for files to search (e.g., '**/*.py')",
-                    "default": "**/*"
+                    "default": "**/*",
                 },
                 "max_results": {
                     "type": "integer",
                     "description": "Maximum number of matches to return",
-                    "default": 50
-                }
+                    "default": 50,
+                },
             },
-            "required": ["pattern"]
+            "required": ["pattern"],
         }
 
     async def execute(
-        self,
-        pattern: str,
-        file_pattern: str = "**/*",
-        max_results: int = 50
+        self, pattern: str, file_pattern: str = "**/*", max_results: int = 50
     ) -> ToolResult:
         """Search for pattern in files."""
         try:
@@ -347,19 +327,15 @@ class SearchCodeTool(Tool):
                 output=output,
                 metadata={
                     "count": len(matches),
-                    "truncated": len(matches) >= max_results
-                }
+                    "truncated": len(matches) >= max_results,
+                },
             )
 
         except re.error as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Invalid regex pattern: {str(e)}"
+                success=False, output="", error=f"Invalid regex pattern: {str(e)}"
             )
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error searching: {str(e)}"
+                success=False, output="", error=f"Error searching: {str(e)}"
             )

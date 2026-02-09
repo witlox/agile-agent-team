@@ -1,7 +1,7 @@
 """Shared context database for team state."""
 
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 class SharedContextDB:
@@ -14,7 +14,9 @@ class SharedContextDB:
     def __init__(self, database_url: str):
         self.database_url = database_url
         self.pool = None
-        self._mock_mode = database_url == "mock://" or not database_url.startswith("postgresql")
+        self._mock_mode = database_url == "mock://" or not database_url.startswith(
+            "postgresql"
+        )
         # In-memory store for mock mode
         self._cards: List[Dict] = []
         self._pairing_sessions: List[Dict] = []
@@ -29,6 +31,7 @@ class SharedContextDB:
             return
         try:
             import asyncpg
+
             self.pool = await asyncpg.create_pool(self.database_url)
             await self._create_schema()
         except Exception as exc:
@@ -37,7 +40,8 @@ class SharedContextDB:
     async def _create_schema(self):
         """Create database tables."""
         async with self.pool.acquire() as conn:
-            await conn.execute('''
+            await conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS kanban_cards (
                     id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
@@ -86,7 +90,8 @@ class SharedContextDB:
                     details JSONB,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
-            ''')
+            """
+            )
 
     # --- Kanban card helpers ---
 
@@ -217,7 +222,13 @@ class SharedContextDB:
                 event.get("type"),
                 event.get("impact"),
                 json.dumps(event.get("affected_agents", [])),
-                json.dumps({k: v for k, v in event.items() if k not in ("type", "impact", "affected_agents")}),
+                json.dumps(
+                    {
+                        k: v
+                        for k, v in event.items()
+                        if k not in ("type", "impact", "affected_agents")
+                    }
+                ),
             )
 
     async def get_disturbance_events(self) -> List[Dict]:

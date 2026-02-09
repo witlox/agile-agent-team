@@ -19,8 +19,12 @@ class DisturbanceEngine:
         rng: Optional[random.Random] = None,
     ):
         self.frequencies = frequencies
-        self.max_velocity_impact = blast_radius_controls.get("max_velocity_impact", 0.30)
-        self.max_quality_regression = blast_radius_controls.get("max_quality_regression", 0.15)
+        self.max_velocity_impact = blast_radius_controls.get(
+            "max_velocity_impact", 0.30
+        )
+        self.max_quality_regression = blast_radius_controls.get(
+            "max_quality_regression", 0.15
+        )
         self._rng = rng or random.Random()
         self._previous_velocity: Optional[float] = None
         self._previous_coverage: Optional[float] = None
@@ -52,7 +56,11 @@ class DisturbanceEngine:
         }
         handler = handlers.get(disturbance_type)
         if handler is None:
-            return {"type": disturbance_type, "impact": "unknown", "affected_agents": []}
+            return {
+                "type": disturbance_type,
+                "impact": "unknown",
+                "affected_agents": [],
+            }
 
         result = await handler(agents, kanban, db)
         result["type"] = disturbance_type
@@ -96,12 +104,18 @@ class DisturbanceEngine:
         card_id = await db.add_card(hotfix_card)
         # Inject urgency context into all agents
         for agent in agents:
-            agent.conversation_history.append({
-                "role": "system",
-                "content": "[INCIDENT ALERT] Production system is down. All hands on deck for hotfix.",
-            })
+            agent.conversation_history.append(
+                {
+                    "role": "system",
+                    "content": "[INCIDENT ALERT] Production system is down. All hands on deck for hotfix.",
+                }
+            )
         affected = [a.config.role_id for a in agents]
-        return {"impact": "hotfix_injected", "affected_agents": affected, "hotfix_card_id": card_id}
+        return {
+            "impact": "hotfix_injected",
+            "affected_agents": affected,
+            "hotfix_card_id": card_id,
+        }
 
     async def _apply_flaky_test(
         self,
@@ -120,7 +134,9 @@ class DisturbanceEngine:
             card_id = card.get("id")
             if card_id is not None:
                 desc = card.get("description", "")
-                card["description"] = f"[FLAKY TESTS: intermittent failures detected] {desc}"
+                card[
+                    "description"
+                ] = f"[FLAKY TESTS: intermittent failures detected] {desc}"
                 await db.update_card_field(card_id, "description", card["description"])
                 affected = [str(card_id)]
         return {"impact": "flaky_tests_flagged", "affected_agents": affected}
@@ -143,12 +159,18 @@ class DisturbanceEngine:
         # Notify PO agent
         po_agents = [a for a in agents if a.config.role_id == "po"]
         for agent in po_agents:
-            agent.conversation_history.append({
-                "role": "system",
-                "content": "[SCOPE CHANGE] Stakeholder added a new requirement mid-sprint.",
-            })
+            agent.conversation_history.append(
+                {
+                    "role": "system",
+                    "content": "[SCOPE CHANGE] Stakeholder added a new requirement mid-sprint.",
+                }
+            )
         affected = [a.config.role_id for a in po_agents] or ["po"]
-        return {"impact": "scope_creep_card_added", "affected_agents": affected, "card_id": card_id}
+        return {
+            "impact": "scope_creep_card_added",
+            "affected_agents": affected,
+            "card_id": card_id,
+        }
 
     async def _apply_junior_misunderstanding(
         self,
@@ -161,13 +183,15 @@ class DisturbanceEngine:
         affected: List[str] = []
         if juniors:
             junior = self._rng.choice(juniors)
-            junior.conversation_history.append({
-                "role": "system",
-                "content": (
-                    "[CONFUSION] You misunderstood the requirements. "
-                    "Please re-read the task description carefully and ask clarifying questions."
-                ),
-            })
+            junior.conversation_history.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "[CONFUSION] You misunderstood the requirements. "
+                        "Please re-read the task description carefully and ask clarifying questions."
+                    ),
+                }
+            )
             affected = [junior.config.role_id]
         return {"impact": "junior_confused", "affected_agents": affected}
 
@@ -186,7 +210,9 @@ class DisturbanceEngine:
             card_id = card.get("id")
             if card_id is not None:
                 desc = card.get("description", "")
-                card["description"] = f"[TECH DEBT: refactoring required before merge] {desc}"
+                card[
+                    "description"
+                ] = f"[TECH DEBT: refactoring required before merge] {desc}"
                 await db.update_card_field(card_id, "description", card["description"])
                 affected = [str(card_id)]
         return {"impact": "architectural_debt_surfaced", "affected_agents": affected}
@@ -221,15 +247,22 @@ class DisturbanceEngine:
                 affected = [str(card_id)]
 
                 # Notify the dev lead to be available for conflict resolution
-                lead_devs = [a for a in agents if "dev_lead" in a.config.role_id or "lead" in a.config.role_archetype]
+                lead_devs = [
+                    a
+                    for a in agents
+                    if "dev_lead" in a.config.role_id
+                    or "lead" in a.config.role_archetype
+                ]
                 for lead in lead_devs:
-                    lead.conversation_history.append({
-                        "role": "system",
-                        "content": (
-                            f"[MERGE CONFLICT DETECTED] Card {card.get('title', 'Unknown')} has merge conflicts "
-                            "with recent main branch changes. Be available to help the pair resolve conflicts."
-                        ),
-                    })
+                    lead.conversation_history.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                f"[MERGE CONFLICT DETECTED] Card {card.get('title', 'Unknown')} has merge conflicts "
+                                "with recent main branch changes. Be available to help the pair resolve conflicts."
+                            ),
+                        }
+                    )
                     affected.append(lead.config.role_id)
 
         return {"impact": "merge_conflict_injected", "affected_agents": affected}

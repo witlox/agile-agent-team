@@ -11,7 +11,7 @@ This module handles the FAST loop (PO feedback). Real stakeholder feedback is ha
 by the experiment runner pausing every 5 sprints for human input.
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -19,6 +19,7 @@ from datetime import datetime
 @dataclass
 class DemoResult:
     """Result of demonstrating a completed story."""
+
     story_id: str
     story_title: str
     presenter: str  # Agent ID who demoed
@@ -32,6 +33,7 @@ class DemoResult:
 @dataclass
 class SprintReviewOutcome:
     """Outcome of sprint review ceremony."""
+
     sprint_num: int
     demo_results: List[DemoResult]
     total_stories: int
@@ -54,9 +56,7 @@ class SprintReviewSession:
         self.db = db
 
     async def run_review(
-        self,
-        sprint_num: int,
-        completed_stories: List[Dict]
+        self, sprint_num: int, completed_stories: List[Dict]
     ) -> SprintReviewOutcome:
         """Run sprint review with demos and PO acceptance.
 
@@ -68,8 +68,8 @@ class SprintReviewSession:
             SprintReviewOutcome with acceptance decisions
         """
         print(f"\n  === Sprint Review/Demo - Sprint {sprint_num} ===")
-        print(f"  Time: Last day of sprint (simulated)")
-        print(f"  Participants: Team + PO + Stakeholders")
+        print("  Time: Last day of sprint (simulated)")
+        print("  Participants: Team + PO + Stakeholders")
         print(f"  Stories to demo: {len(completed_stories)}\n")
 
         demo_results = []
@@ -84,9 +84,9 @@ class SprintReviewSession:
 
             # PO reviews against acceptance criteria
             decision = await self._po_reviews_story(story, demo)
-            demo.po_decision = decision['decision']
-            demo.po_feedback = decision['feedback']
-            demo.acceptance_criteria_met = decision['criteria_met']
+            demo.po_decision = decision["decision"]
+            demo.po_feedback = decision["feedback"]
+            demo.acceptance_criteria_met = decision["criteria_met"]
 
             print(f"    PO Decision: {demo.po_decision.upper()}")
             print(f"    Feedback: {demo.po_feedback[:80]}...")
@@ -102,8 +102,8 @@ class SprintReviewSession:
             print()
 
         # Calculate metrics
-        accepted = sum(1 for d in demo_results if d.po_decision == 'accepted')
-        rejected = sum(1 for d in demo_results if d.po_decision == 'rejected')
+        accepted = sum(1 for d in demo_results if d.po_decision == "accepted")
+        rejected = sum(1 for d in demo_results if d.po_decision == "rejected")
         acceptance_rate = accepted / len(demo_results) if demo_results else 0.0
 
         # Determine stakeholder satisfaction
@@ -120,11 +120,13 @@ class SprintReviewSession:
             rejected_stories=rejected,
             acceptance_rate=acceptance_rate,
             stakeholder_satisfaction=satisfaction,
-            backlog_additions=backlog_additions
+            backlog_additions=backlog_additions,
         )
 
-        print(f"  Review Summary:")
-        print(f"    Accepted: {accepted}/{len(demo_results)} ({acceptance_rate*100:.0f}%)")
+        print("  Review Summary:")
+        print(
+            f"    Accepted: {accepted}/{len(demo_results)} ({acceptance_rate*100:.0f}%)"
+        )
         print(f"    Rejected: {rejected}/{len(demo_results)}")
         print(f"    Stakeholder Satisfaction: {satisfaction.upper()}")
         print(f"    New backlog items: {len(backlog_additions)}\n")
@@ -132,9 +134,7 @@ class SprintReviewSession:
         return outcome
 
     async def _team_demonstrates_story(
-        self,
-        story: Dict,
-        sprint_num: int
+        self, story: Dict, sprint_num: int
     ) -> DemoResult:
         """Team member demonstrates completed story."""
 
@@ -145,20 +145,16 @@ class SprintReviewSession:
         demo_summary = await self._generate_demo_narrative(story, sprint_num)
 
         return DemoResult(
-            story_id=story['id'],
-            story_title=story.get('title', 'Untitled'),
+            story_id=story["id"],
+            story_title=story.get("title", "Untitled"),
             presenter=presenter,
             demo_summary=demo_summary,
             acceptance_criteria_met={},  # Filled by PO review
-            po_decision='',  # Filled by PO review
-            po_feedback=''  # Filled by PO review
+            po_decision="",  # Filled by PO review
+            po_feedback="",  # Filled by PO review
         )
 
-    async def _generate_demo_narrative(
-        self,
-        story: Dict,
-        sprint_num: int
-    ) -> str:
+    async def _generate_demo_narrative(self, story: Dict, sprint_num: int) -> str:
         """Generate demo narrative for story."""
 
         if not self.dev_lead:
@@ -182,58 +178,56 @@ Demo narrative:"""
         narrative = await self.dev_lead.generate(prompt)
         return narrative.strip()
 
-    async def _po_reviews_story(
-        self,
-        story: Dict,
-        demo: DemoResult
-    ) -> Dict:
+    async def _po_reviews_story(self, story: Dict, demo: DemoResult) -> Dict:
         """PO reviews story against acceptance criteria and decides to accept/reject."""
 
         if not self.po:
             # Fallback: Auto-accept
             return {
-                'decision': 'accepted',
-                'feedback': 'Story meets requirements.',
-                'criteria_met': {}
+                "decision": "accepted",
+                "feedback": "Story meets requirements.",
+                "criteria_met": {},
             }
 
         # Get acceptance criteria
-        criteria = story.get('acceptance_criteria', [])
+        criteria = story.get("acceptance_criteria", [])
 
         if not criteria:
-            criteria = ['Feature works as described']
+            criteria = ["Feature works as described"]
 
         # PO evaluates each criterion
         criteria_met = {}
         for criterion in criteria:
             # Simulate PO checking criterion (80% pass rate)
             import random
+
             met = random.random() < 0.80  # 80% of criteria typically met
             criteria_met[criterion] = met
 
         # Overall decision based on criteria
         all_met = all(criteria_met.values())
-        most_met = sum(criteria_met.values()) / len(criteria_met) >= 0.70 if criteria_met else True
+        most_met = (
+            sum(criteria_met.values()) / len(criteria_met) >= 0.70
+            if criteria_met
+            else True
+        )
 
         if all_met:
-            decision = 'accepted'
+            decision = "accepted"
         elif most_met:
-            decision = 'accepted_with_notes'
+            decision = "accepted_with_notes"
         else:
-            decision = 'rejected'
+            decision = "rejected"
 
         # Generate PO feedback
         feedback = await self._po_generates_feedback(
-            story,
-            demo,
-            decision,
-            criteria_met
+            story, demo, decision, criteria_met
         )
 
         return {
-            'decision': decision,
-            'feedback': feedback,
-            'criteria_met': criteria_met
+            "decision": decision,
+            "feedback": feedback,
+            "criteria_met": criteria_met,
         }
 
     async def _po_generates_feedback(
@@ -241,7 +235,7 @@ Demo narrative:"""
         story: Dict,
         demo: DemoResult,
         decision: str,
-        criteria_met: Dict[str, bool]
+        criteria_met: Dict[str, bool],
     ) -> str:
         """PO generates acceptance/rejection feedback."""
 
@@ -269,9 +263,7 @@ Feedback:"""
         return feedback.strip()
 
     async def _gather_stakeholder_feedback(
-        self,
-        story: Dict,
-        demo: DemoResult
+        self, story: Dict, demo: DemoResult
     ) -> List[str]:
         """Simulate stakeholder-like feedback from PO perspective.
 
@@ -297,9 +289,7 @@ Feedback:"""
         return random.sample(feedback_templates, num_comments)
 
     def _calculate_satisfaction(
-        self,
-        acceptance_rate: float,
-        demo_results: List[DemoResult]
+        self, acceptance_rate: float, demo_results: List[DemoResult]
     ) -> str:
         """Calculate stakeholder satisfaction based on demos."""
 
@@ -308,15 +298,14 @@ Feedback:"""
         # Low satisfaction: <50% accepted
 
         if acceptance_rate >= 0.80:
-            return 'high'
+            return "high"
         elif acceptance_rate >= 0.50:
-            return 'medium'
+            return "medium"
         else:
-            return 'low'
+            return "low"
 
     async def _collect_backlog_items(
-        self,
-        demo_results: List[DemoResult]
+        self, demo_results: List[DemoResult]
     ) -> List[Dict]:
         """Extract new backlog items from feedback."""
 
@@ -324,22 +313,29 @@ Feedback:"""
 
         for demo in demo_results:
             # Extract follow-up items from PO feedback
-            if 'next sprint' in demo.po_feedback.lower() or 'backlog' in demo.po_feedback.lower():
-                backlog_items.append({
-                    'title': f"Follow-up for {demo.story_id}",
-                    'description': f"Based on review feedback: {demo.po_feedback[:100]}",
-                    'source': 'sprint_review',
-                    'sprint': None  # Not assigned yet
-                })
+            if (
+                "next sprint" in demo.po_feedback.lower()
+                or "backlog" in demo.po_feedback.lower()
+            ):
+                backlog_items.append(
+                    {
+                        "title": f"Follow-up for {demo.story_id}",
+                        "description": f"Based on review feedback: {demo.po_feedback[:100]}",
+                        "source": "sprint_review",
+                        "sprint": None,  # Not assigned yet
+                    }
+                )
 
             # Extract from stakeholder feedback
             for feedback in demo.stakeholder_feedback:
-                if '?' in feedback or 'can we' in feedback.lower():
-                    backlog_items.append({
-                        'title': f"Stakeholder request: {feedback[:50]}",
-                        'description': feedback,
-                        'source': 'stakeholder',
-                        'sprint': None
-                    })
+                if "?" in feedback or "can we" in feedback.lower():
+                    backlog_items.append(
+                        {
+                            "title": f"Stakeholder request: {feedback[:50]}",
+                            "description": feedback,
+                            "source": "stakeholder",
+                            "sprint": None,
+                        }
+                    )
 
         return backlog_items

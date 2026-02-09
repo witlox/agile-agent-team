@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .base_agent import BaseAgent
 
@@ -19,7 +19,9 @@ class PairingEngine:
 
     def get_available_pairs(self) -> List[Tuple[BaseAgent, BaseAgent]]:
         """Find agents available for pairing (not currently in a session)."""
-        available = [a for a in self.agents if a.config.role_id not in self._busy_agents]
+        available = [
+            a for a in self.agents if a.config.role_id not in self._busy_agents
+        ]
         pairs: List[Tuple[BaseAgent, BaseAgent]] = []
         for i in range(0, len(available) - 1, 2):
             pairs.append((available[i], available[i + 1]))
@@ -54,7 +56,10 @@ class PairingEngine:
 
             # Phase 2: TDD cycles with checkpoints (extra round if any agent is swapped)
             extra_checkpoint = driver.is_swapped or navigator.is_swapped
-            implementation, checkpoints_completed = await self.collaborative_implementation(
+            (
+                implementation,
+                checkpoints_completed,
+            ) = await self.collaborative_implementation(
                 driver, navigator, task, approach, extra_checkpoint=extra_checkpoint
             )
             session_result["decisions"]["implementation"] = implementation
@@ -75,7 +80,9 @@ class PairingEngine:
             consensus_bonus = 5.0 if approved else 0.0
             max_coverage = 95.0
             coverage = min(
-                base_coverage + checkpoints_completed * per_checkpoint + consensus_bonus,
+                base_coverage
+                + checkpoints_completed * per_checkpoint
+                + consensus_bonus,
                 max_coverage,
             )
             session_result["coverage_estimate"] = coverage

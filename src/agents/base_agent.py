@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, TYPE_CHECKING
@@ -20,11 +19,15 @@ class AgentConfig:
     model: str
     temperature: float
     max_tokens: int
-    individual: str = ""                      # Personality file (e.g., "jamie_rodriguez")
-    seniority: str = ""                       # junior | mid | senior
-    specializations: List[str] = field(default_factory=list)  # List of specialization files
-    role_archetype: str = ""                  # developer | tester | leader
-    demographics: Dict[str, str] = field(default_factory=dict)  # pronouns, cultural_background, etc.
+    individual: str = ""  # Personality file (e.g., "jamie_rodriguez")
+    seniority: str = ""  # junior | mid | senior
+    specializations: List[str] = field(
+        default_factory=list
+    )  # List of specialization files
+    role_archetype: str = ""  # developer | tester | leader
+    demographics: Dict[str, str] = field(
+        default_factory=dict
+    )  # pronouns, cultural_background, etc.
 
 
 # Canned responses used in mock mode, keyed by role_id
@@ -55,7 +58,7 @@ class BaseAgent:
         self,
         config: AgentConfig,
         vllm_endpoint: str,
-        runtime: Optional["AgentRuntime"] = None
+        runtime: Optional["AgentRuntime"] = None,
     ):
         self.config = config
         self.vllm_endpoint = vllm_endpoint
@@ -66,7 +69,9 @@ class BaseAgent:
         self._original_config: Optional[AgentConfig] = None
         self._swap_state: Optional[Dict] = None
 
-    def swap_to(self, target_role_id: str, domain: str, proficiency: float, sprint: int):
+    def swap_to(
+        self, target_role_id: str, domain: str, proficiency: float, sprint: int
+    ):
         """Temporarily reassign this agent to cover a different domain."""
         if self._original_config is None:
             self._original_config = self.config
@@ -142,15 +147,21 @@ class BaseAgent:
 
         # 2. Role archetype(s)
         if self.config.role_archetype:
-            archetypes = self.config.role_archetype.split("+")  # Support "developer+leader"
+            archetypes = self.config.role_archetype.split(
+                "+"
+            )  # Support "developer+leader"
             for archetype in archetypes:
-                arch_path = team_config_dir / "01_role_archetypes" / f"{archetype.strip()}.md"
+                arch_path = (
+                    team_config_dir / "01_role_archetypes" / f"{archetype.strip()}.md"
+                )
                 if arch_path.exists():
                     parts.append(arch_path.read_text())
 
         # 3. Seniority level
         if self.config.seniority:
-            seniority_path = team_config_dir / "02_seniority" / f"{self.config.seniority}.md"
+            seniority_path = (
+                team_config_dir / "02_seniority" / f"{self.config.seniority}.md"
+            )
             if seniority_path.exists():
                 parts.append(seniority_path.read_text())
 
@@ -193,7 +204,9 @@ class BaseAgent:
 
         # 6. Individual personality
         if self.config.individual:
-            individual_path = team_config_dir / "05_individuals" / f"{self.config.individual}.md"
+            individual_path = (
+                team_config_dir / "05_individuals" / f"{self.config.individual}.md"
+            )
             if individual_path.exists():
                 parts.append(individual_path.read_text())
 
@@ -233,7 +246,9 @@ class BaseAgent:
                         content = entry.get("content", {})
                         text = content.get("text", "")
                         if text:
-                            learnings.append(f"- **Sprint {sprint_num} ({learning_type})**: {text}")
+                            learnings.append(
+                                f"- **Sprint {sprint_num} ({learning_type})**: {text}"
+                            )
         except (json.JSONDecodeError, IOError):
             return ""
 
@@ -241,25 +256,30 @@ class BaseAgent:
             return ""
 
         header = "\n\n[META-LEARNINGS]\n"
-        header += "Insights from past retrospectives that should inform your behavior:\n\n"
+        header += (
+            "Insights from past retrospectives that should inform your behavior:\n\n"
+        )
         return header + "\n".join(learnings)
 
     def _is_mock_mode(self) -> bool:
         """Return True if mock mode is active."""
-        return (
-            os.environ.get("MOCK_LLM", "").lower() == "true"
-            or self.vllm_endpoint.startswith("mock://")
-        )
+        return os.environ.get(
+            "MOCK_LLM", ""
+        ).lower() == "true" or self.vllm_endpoint.startswith("mock://")
 
     def _mock_response(self, message: str) -> str:
         """Return a canned response based on role_id and message context."""
         msg_lower = message.lower()
         # Approval/review prompts → always approve in mock mode
-        if any(kw in msg_lower for kw in ("approve", "review", "accept", "definition of done")):
+        if any(
+            kw in msg_lower
+            for kw in ("approve", "review", "accept", "definition of done")
+        ):
             return f"approve — looks good from {self.config.role_id}"
         # Story/planning selection → echo back first story IDs found
         if "us-" in msg_lower:
             import re
+
             ids = re.findall(r"us-\d+", msg_lower)
             if ids:
                 return "\n".join(ids[:3])
@@ -299,9 +319,7 @@ class BaseAgent:
         return "\n".join(parts)
 
     async def execute_coding_task(
-        self,
-        task_description: str,
-        max_turns: int = 20
+        self, task_description: str, max_turns: int = 20
     ) -> Dict:
         """Execute a coding task using the agent's runtime (with tools).
 
@@ -327,26 +345,26 @@ class BaseAgent:
         result = await self.runtime.execute_task(
             system_prompt=self.prompt,
             user_message=task_description,
-            max_turns=max_turns
+            max_turns=max_turns,
         )
 
         # Log to conversation history
-        self.conversation_history.append({
-            "role": "user",
-            "content": task_description,
-            "type": "coding_task"
-        })
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": result.content,
-            "type": "coding_task_result",
-            "metadata": {
-                "turns": result.turns,
-                "tool_calls": len(result.tool_calls),
-                "files_changed": result.files_changed,
-                "success": result.success
+        self.conversation_history.append(
+            {"role": "user", "content": task_description, "type": "coding_task"}
+        )
+        self.conversation_history.append(
+            {
+                "role": "assistant",
+                "content": result.content,
+                "type": "coding_task_result",
+                "metadata": {
+                    "turns": result.turns,
+                    "tool_calls": len(result.tool_calls),
+                    "files_changed": result.files_changed,
+                    "success": result.success,
+                },
             }
-        })
+        )
 
         return {
             "success": result.success,
@@ -354,5 +372,5 @@ class BaseAgent:
             "files_changed": result.files_changed,
             "tool_calls": result.tool_calls,
             "turns": result.turns,
-            "error": result.error
+            "error": result.error,
         }

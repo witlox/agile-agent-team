@@ -1,12 +1,13 @@
 """Story refinement phase - PO + Team collaborative planning."""
 
-from typing import List, Dict, Optional
+from typing import List, Dict
 from dataclasses import dataclass
 
 
 @dataclass
 class RefinedStory:
     """Story after refinement with team estimates and clarifications."""
+
     id: str
     title: str
     description: str
@@ -26,10 +27,7 @@ class StoryRefinementSession:
         self.dev_lead = dev_lead
 
     async def refine_stories(
-        self,
-        candidate_stories: List[Dict],
-        sprint_num: int,
-        team_capacity: int
+        self, candidate_stories: List[Dict], sprint_num: int, team_capacity: int
     ) -> List[RefinedStory]:
         """Run story refinement session with PO and team.
 
@@ -44,7 +42,7 @@ class StoryRefinementSession:
         refined_stories = []
         total_points = 0
 
-        print(f"\n  === Phase 1: Story Refinement (PO + Team) ===")
+        print("\n  === Phase 1: Story Refinement (PO + Team) ===")
         print(f"  Candidate stories: {len(candidate_stories)}")
         print(f"  Team capacity: {team_capacity} story points\n")
 
@@ -53,7 +51,7 @@ class StoryRefinementSession:
 
             # PO presents story
             presentation = await self._po_present_story(story, sprint_num)
-            print(f"    PO presents business context...")
+            print("    PO presents business context...")
 
             # Team asks clarifying questions
             clarifications = await self._team_asks_questions(story, presentation)
@@ -66,25 +64,29 @@ class StoryRefinementSession:
             # Check if we have capacity
             if total_points + estimated_points <= team_capacity:
                 refined = RefinedStory(
-                    id=story['id'],
-                    title=story['title'],
-                    description=story['description'],
-                    acceptance_criteria=story.get('acceptance_criteria', []),
+                    id=story["id"],
+                    title=story["title"],
+                    description=story["description"],
+                    acceptance_criteria=story.get("acceptance_criteria", []),
                     story_points=estimated_points,
-                    priority=story.get('priority', 5),
+                    priority=story.get("priority", 5),
                     clarifications=clarifications,
-                    team_consensus=await self._build_team_consensus(story, clarifications)
+                    team_consensus=await self._build_team_consensus(
+                        story, clarifications
+                    ),
                 )
                 refined_stories.append(refined)
                 total_points += estimated_points
                 print(f"    ✓ Added to sprint ({total_points}/{team_capacity} points)")
             else:
-                print(f"    ✗ Skipped (would exceed capacity)")
+                print("    ✗ Skipped (would exceed capacity)")
                 break  # Stop once we hit capacity
 
             print()
 
-        print(f"  Selected {len(refined_stories)} stories totaling {total_points} points\n")
+        print(
+            f"  Selected {len(refined_stories)} stories totaling {total_points} points\n"
+        )
         return refined_stories
 
     async def _po_present_story(self, story: Dict, sprint_num: int) -> str:
@@ -113,15 +115,14 @@ Keep it concise (3-4 paragraphs). Focus on the WHAT and WHY, not the HOW.
         return presentation
 
     async def _team_asks_questions(
-        self,
-        story: Dict,
-        presentation: str
+        self, story: Dict, presentation: str
     ) -> List[Dict[str, str]]:
         """Team members ask clarifying questions, PO answers."""
         clarifications = []
 
         # Sample 3-4 team members to ask questions (rotate who asks)
         import random
+
         asking_team = random.sample(self.team, min(4, len(self.team)))
 
         for agent in asking_team:
@@ -140,7 +141,7 @@ Ask ONE clarifying question about:
 Your question (one sentence):"""
 
             question = await agent.generate(question_prompt)
-            question = question.strip().split('\n')[0]  # Take first line only
+            question = question.strip().split("\n")[0]  # Take first line only
 
             # PO answers
             if self.po:
@@ -155,19 +156,19 @@ Focus on requirements, not implementation. (2-3 sentences max)"""
             else:
                 answer = "Standard business requirements apply."
 
-            clarifications.append({
-                "agent": agent.config.name,
-                "agent_id": agent.agent_id,
-                "question": question,
-                "answer": answer.strip()
-            })
+            clarifications.append(
+                {
+                    "agent": agent.config.name,
+                    "agent_id": agent.agent_id,
+                    "question": question,
+                    "answer": answer.strip(),
+                }
+            )
 
         return clarifications
 
     async def _team_estimates_story(
-        self,
-        story: Dict,
-        clarifications: List[Dict]
+        self, story: Dict, clarifications: List[Dict]
     ) -> int:
         """Team estimates story points collaboratively.
 
@@ -175,12 +176,11 @@ Focus on requirements, not implementation. (2-3 sentences max)"""
         """
         if not self.dev_lead:
             # Fallback to story's existing estimate or default
-            return story.get('story_points', 3)
+            return story.get("story_points", 3)
 
         # Build context from clarifications
         clarification_summary = "\n".join(
-            f"Q: {c['question']}\nA: {c['answer']}"
-            for c in clarifications
+            f"Q: {c['question']}\nA: {c['answer']}" for c in clarifications
         )
 
         estimate_prompt = f"""You're facilitating story point estimation for:
@@ -205,17 +205,16 @@ Reply with ONLY the number (1, 2, 3, 5, 8, or 13):"""
 
         # Parse response
         import re
-        match = re.search(r'\b(1|2|3|5|8|13)\b', response)
+
+        match = re.search(r"\b(1|2|3|5|8|13)\b", response)
         if match:
             return int(match.group(1))
 
         # Fallback
-        return story.get('story_points', 3)
+        return story.get("story_points", 3)
 
     async def _build_team_consensus(
-        self,
-        story: Dict,
-        clarifications: List[Dict]
+        self, story: Dict, clarifications: List[Dict]
     ) -> str:
         """Build a consensus statement about team's understanding."""
         if not self.dev_lead:
@@ -239,7 +238,7 @@ Example: "Team will implement JWT-based authentication with refresh tokens, supp
 Your consensus (one sentence):"""
 
         consensus = await self.dev_lead.generate(consensus_prompt)
-        return consensus.strip().split('\n')[0]  # First line only
+        return consensus.strip().split("\n")[0]  # First line only
 
     def _format_criteria(self, criteria: List[str]) -> str:
         """Format acceptance criteria as bulleted list."""

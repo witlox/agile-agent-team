@@ -4,7 +4,6 @@ import os
 
 import yaml
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Dict, List, Optional
 
 
@@ -16,8 +15,12 @@ class ExperimentConfig:
     team_config_dir: str
     vllm_endpoint: str
     agent_configs: Dict[str, Dict] = field(default_factory=dict)
-    runtime_configs: Dict[str, Dict] = field(default_factory=dict)  # NEW: Runtime configurations
-    wip_limits: Dict[str, int] = field(default_factory=lambda: {"in_progress": 4, "review": 2})
+    runtime_configs: Dict[str, Dict] = field(
+        default_factory=dict
+    )  # NEW: Runtime configurations
+    wip_limits: Dict[str, int] = field(
+        default_factory=lambda: {"in_progress": 4, "review": 2}
+    )
     sprints_per_stakeholder_review: int = 5
     disturbances_enabled: bool = False
     disturbance_frequencies: Dict[str, float] = field(default_factory=dict)
@@ -25,7 +28,9 @@ class ExperimentConfig:
     profile_swap_mode: str = "none"
     profile_swap_scenarios: List[str] = field(default_factory=list)
     profile_swap_penalties: Dict[str, float] = field(default_factory=dict)
-    tools_workspace_root: str = "/tmp/agent-workspace"  # NEW: Workspace for code generation
+    tools_workspace_root: str = (
+        "/tmp/agent-workspace"  # NEW: Workspace for code generation
+    )
     repo_config: Optional[Dict] = None  # NEW: Optional git repo to clone
     workspace_mode: str = "per_story"  # per_story | per_sprint
     persist_across_sprints: bool = False  # Continue from previous sprint
@@ -47,7 +52,9 @@ class ExperimentConfig:
     sprint_zero_enabled: bool = True  # Run Sprint 0 for infrastructure setup
 
 
-def load_config(config_path: str, database_url: Optional[str] = None) -> ExperimentConfig:
+def load_config(
+    config_path: str, database_url: Optional[str] = None
+) -> ExperimentConfig:
     """Load configuration from YAML file."""
     with open(config_path) as f:
         data = yaml.safe_load(f)
@@ -67,7 +74,9 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
 
     sprints_per_stakeholder_review = 5
     if "experiment" in data and "sprints_per_stakeholder_review" in data["experiment"]:
-        sprints_per_stakeholder_review = data["experiment"]["sprints_per_stakeholder_review"]
+        sprints_per_stakeholder_review = data["experiment"][
+            "sprints_per_stakeholder_review"
+        ]
 
     # Disturbance config
     disturbances_enabled = False
@@ -97,7 +106,9 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
     merge_completed_stories = False
 
     if "runtimes" in data and "tools" in data["runtimes"]:
-        tools_workspace_root = data["runtimes"]["tools"].get("workspace_root", tools_workspace_root)
+        tools_workspace_root = data["runtimes"]["tools"].get(
+            "workspace_root", tools_workspace_root
+        )
 
     if "code_generation" in data:
         cg = data["code_generation"]
@@ -144,7 +155,7 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         remote_git_config = {
             "github": rg.get("github", {}),
             "gitlab": rg.get("gitlab", {}),
-            "author_email_domain": rg.get("author_email_domain", "agent.local")
+            "author_email_domain": rg.get("author_email_domain", "agent.local"),
         }
 
     # Sprint 0 configuration
@@ -154,9 +165,7 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
 
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
     resolved_db_url = (
-        database_url
-        or os.environ.get("DATABASE_URL")
-        or data["database"]["url"]
+        database_url or os.environ.get("DATABASE_URL") or data["database"]["url"]
     )
 
     return ExperimentConfig(

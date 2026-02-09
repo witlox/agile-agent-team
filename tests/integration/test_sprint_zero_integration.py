@@ -10,7 +10,6 @@ from src.orchestrator.backlog import Backlog
 from src.orchestrator.sprint_manager import SprintManager
 from src.orchestrator.config import ExperimentConfig
 from src.tools.shared_context import SharedContextDB
-from src.agents.base_agent import BaseAgent, AgentConfig
 
 
 @pytest.mark.asyncio
@@ -29,12 +28,9 @@ async def test_sprint_zero_greenfield():
                 "description": "Integration test project",
                 "languages": ["python"],
                 "tech_stack": ["github-actions", "docker"],
-                "repository": {
-                    "type": "greenfield",
-                    "url": ""
-                }
+                "repository": {"type": "greenfield", "url": ""},
             },
-            "stories": []
+            "stories": [],
         }
         backlog_path.write_text(yaml.dump(backlog_data))
 
@@ -61,7 +57,7 @@ async def test_sprint_zero_planning():
         team_config_dir="team_config",
         vllm_endpoint="http://localhost:8000",
         sprint_zero_enabled=True,
-        tools_workspace_root="/tmp/test-workspace"
+        tools_workspace_root="/tmp/test-workspace",
     )
 
     # Create mock database
@@ -82,9 +78,9 @@ async def test_sprint_zero_planning():
                 "description": "Test",
                 "languages": ["python", "go"],
                 "tech_stack": ["github-actions"],
-                "repository": {"type": "greenfield", "url": ""}
+                "repository": {"type": "greenfield", "url": ""},
             },
-            "stories": []
+            "stories": [],
         }
         backlog_path.write_text(yaml.dump(backlog_data))
         backlog = Backlog(str(backlog_path))
@@ -96,7 +92,7 @@ async def test_sprint_zero_planning():
             shared_db=db,
             config=config,
             output_dir=output_dir,
-            backlog=backlog
+            backlog=backlog,
         )
 
         # Run Sprint 0 planning
@@ -130,7 +126,7 @@ async def test_sprint_zero_explicit_stories():
         team_config_dir="team_config",
         vllm_endpoint="http://localhost:8000",
         sprint_zero_enabled=True,
-        tools_workspace_root="/tmp/test-workspace"
+        tools_workspace_root="/tmp/test-workspace",
     )
 
     db = SharedContextDB("mock://")
@@ -147,7 +143,7 @@ async def test_sprint_zero_explicit_stories():
                 "description": "Test",
                 "languages": ["python"],
                 "tech_stack": ["github-actions"],
-                "repository": {"type": "greenfield", "url": ""}
+                "repository": {"type": "greenfield", "url": ""},
             },
             "stories": [
                 {
@@ -157,9 +153,9 @@ async def test_sprint_zero_explicit_stories():
                     "acceptance_criteria": ["Criteria 1"],
                     "story_points": 5,
                     "priority": 1,
-                    "sprint": 0  # Explicitly Sprint 0
+                    "sprint": 0,  # Explicitly Sprint 0
                 }
-            ]
+            ],
         }
         backlog_path.write_text(yaml.dump(backlog_data))
         backlog = Backlog(str(backlog_path))
@@ -170,7 +166,7 @@ async def test_sprint_zero_explicit_stories():
             shared_db=db,
             config=config,
             output_dir=output_dir,
-            backlog=backlog
+            backlog=backlog,
         )
 
         # Run Sprint 0 planning

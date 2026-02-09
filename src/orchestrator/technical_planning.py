@@ -8,6 +8,7 @@ import random
 @dataclass
 class Task:
     """Technical task for implementation."""
+
     id: str
     story_id: str
     title: str
@@ -28,9 +29,7 @@ class TechnicalPlanningSession:
         self.qa_lead = qa_lead
 
     async def plan_implementation(
-        self,
-        refined_stories: List,
-        sprint_num: int
+        self, refined_stories: List, sprint_num: int
     ) -> Tuple[List[Task], Dict[str, str]]:
         """Break down stories into tasks and assign owners.
 
@@ -41,7 +40,7 @@ class TechnicalPlanningSession:
         Returns:
             Tuple of (tasks, dependency_graph)
         """
-        print(f"\n  === Phase 2: Technical Planning (Team Only) ===")
+        print("\n  === Phase 2: Technical Planning (Team Only) ===")
         print(f"  Stories to break down: {len(refined_stories)}\n")
 
         all_tasks = []
@@ -59,22 +58,28 @@ class TechnicalPlanningSession:
                 task = Task(
                     id=f"T-{sprint_num:02d}-{task_counter:03d}",
                     story_id=story.id,
-                    title=task_dict['title'],
-                    description=task_dict['description'],
-                    owner=task_dict['owner'],
-                    initial_navigator=task_dict['initial_navigator'],
-                    estimated_hours=task_dict.get('estimated_hours', 8),
-                    depends_on=task_dict.get('depends_on', []),
-                    specialization_needed=task_dict.get('specialization')
+                    title=task_dict["title"],
+                    description=task_dict["description"],
+                    owner=task_dict["owner"],
+                    initial_navigator=task_dict["initial_navigator"],
+                    estimated_hours=task_dict.get("estimated_hours", 8),
+                    depends_on=task_dict.get("depends_on", []),
+                    specialization_needed=task_dict.get("specialization"),
                 )
                 all_tasks.append(task)
                 task_counter += 1
 
             # Show task assignments
             for task in [t for t in all_tasks if t.story_id == story.id]:
-                deps = f" (depends on {', '.join(task.depends_on)})" if task.depends_on else ""
+                deps = (
+                    f" (depends on {', '.join(task.depends_on)})"
+                    if task.depends_on
+                    else ""
+                )
                 print(f"    - {task.id}: {task.title}")
-                print(f"      Owner: {task.owner}, Navigator: {task.initial_navigator}{deps}")
+                print(
+                    f"      Owner: {task.owner}, Navigator: {task.initial_navigator}{deps}"
+                )
 
             print()
 
@@ -82,15 +87,13 @@ class TechnicalPlanningSession:
         dependency_graph = self._build_dependency_graph(all_tasks)
 
         print(f"  Total tasks created: {len(all_tasks)}")
-        print(f"  Dependencies: {sum(len(deps) for deps in dependency_graph.values())} edges\n")
+        print(
+            f"  Dependencies: {sum(len(deps) for deps in dependency_graph.values())} edges\n"
+        )
 
         return all_tasks, dependency_graph
 
-    async def _team_breaks_down_story(
-        self,
-        story,
-        sprint_num: int
-    ) -> List[Dict]:
+    async def _team_breaks_down_story(self, story, sprint_num: int) -> List[Dict]:
         """Team collaboratively breaks down story into tasks.
 
         Returns:
@@ -135,8 +138,8 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
         for task in tasks:
             owner = await self._assign_task_owner(task, story)
             navigator = await self._assign_initial_navigator(owner, task)
-            task['owner'] = owner
-            task['initial_navigator'] = navigator
+            task["owner"] = owner
+            task["initial_navigator"] = navigator
 
         return tasks
 
@@ -145,36 +148,38 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
         import re
 
         tasks = []
-        lines = response.split('\n')
+        lines = response.split("\n")
 
         current_task = None
         for line in lines:
             line = line.strip()
 
             # Task title line
-            if re.match(r'^Task \d+:', line, re.IGNORECASE):
+            if re.match(r"^Task \d+:", line, re.IGNORECASE):
                 if current_task:
                     tasks.append(current_task)
-                title = re.sub(r'^Task \d+:\s*', '', line, flags=re.IGNORECASE).strip()
-                current_task = {'title': title, 'description': '', 'estimated_hours': 8}
+                title = re.sub(r"^Task \d+:\s*", "", line, flags=re.IGNORECASE).strip()
+                current_task = {"title": title, "description": "", "estimated_hours": 8}
 
             # Description line
-            elif line.lower().startswith('description:') and current_task:
-                desc = re.sub(r'^description:\s*', '', line, flags=re.IGNORECASE).strip()
-                current_task['description'] = desc
+            elif line.lower().startswith("description:") and current_task:
+                desc = re.sub(
+                    r"^description:\s*", "", line, flags=re.IGNORECASE
+                ).strip()
+                current_task["description"] = desc
 
             # Hours line
-            elif line.lower().startswith('hours:') and current_task:
-                hours_match = re.search(r'\b(4|8|16)\b', line)
+            elif line.lower().startswith("hours:") and current_task:
+                hours_match = re.search(r"\b(4|8|16)\b", line)
                 if hours_match:
-                    current_task['estimated_hours'] = int(hours_match.group(1))
+                    current_task["estimated_hours"] = int(hours_match.group(1))
 
             # Dependencies line
-            elif line.lower().startswith('depends on:') and current_task:
-                if 'none' not in line.lower():
+            elif line.lower().startswith("depends on:") and current_task:
+                if "none" not in line.lower():
                     # Extract task numbers
-                    deps = re.findall(r'\d+', line)
-                    current_task['depends_on_numbers'] = [int(d) for d in deps]
+                    deps = re.findall(r"\d+", line)
+                    current_task["depends_on_numbers"] = [int(d) for d in deps]
 
         # Add last task
         if current_task:
@@ -185,11 +190,13 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
             # Create simple tasks based on story points
             num_tasks = min(story_points // 2, 4)  # 2-4 tasks
             for i in range(max(1, num_tasks)):
-                tasks.append({
-                    'title': f'Implement component {i+1}',
-                    'description': 'Implementation task',
-                    'estimated_hours': 8
-                })
+                tasks.append(
+                    {
+                        "title": f"Implement component {i+1}",
+                        "description": "Implementation task",
+                        "estimated_hours": 8,
+                    }
+                )
 
         return tasks
 
@@ -204,15 +211,15 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
 
         # Map keywords to specializations
         specialization_keywords = {
-            'python_specialist': ['python', 'django', 'flask', 'pytest'],
-            'golang_specialist': ['go', 'golang', 'goroutine', 'channel'],
-            'rust_specialist': ['rust', 'cargo', 'ownership', 'lifetime'],
-            'typescript_specialist': ['typescript', 'react', 'node', 'frontend', 'ui'],
-            'cpp_specialist': ['c++', 'cpp', 'cmake', 'memory'],
-            'backend': ['api', 'endpoint', 'server', 'database', 'service'],
-            'frontend': ['frontend', 'ui', 'component', 'view', 'page'],
-            'devops': ['deploy', 'docker', 'kubernetes', 'ci', 'pipeline'],
-            'test_automation': ['test', 'testing', 'qa', 'integration test'],
+            "python_specialist": ["python", "django", "flask", "pytest"],
+            "golang_specialist": ["go", "golang", "goroutine", "channel"],
+            "rust_specialist": ["rust", "cargo", "ownership", "lifetime"],
+            "typescript_specialist": ["typescript", "react", "node", "frontend", "ui"],
+            "cpp_specialist": ["c++", "cpp", "cmake", "memory"],
+            "backend": ["api", "endpoint", "server", "database", "service"],
+            "frontend": ["frontend", "ui", "component", "view", "page"],
+            "devops": ["deploy", "docker", "kubernetes", "ci", "pipeline"],
+            "test_automation": ["test", "testing", "qa", "integration test"],
         }
 
         # Find best specialization match
@@ -224,12 +231,13 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
                 best_score = score
                 best_spec = spec
 
-        task['specialization'] = best_spec
+        task["specialization"] = best_spec
 
         # Find developers with matching specialization
         matching_devs = [
-            agent for agent in self.team
-            if hasattr(agent.config, 'specializations')
+            agent
+            for agent in self.team
+            if hasattr(agent.config, "specializations")
             and any(
                 best_spec in str(s).lower() or s.lower() in str(best_spec).lower()
                 for s in agent.config.specializations
@@ -238,8 +246,8 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
 
         if matching_devs:
             # Pick senior if available, otherwise mid, otherwise any
-            senior = [a for a in matching_devs if a.config.seniority == 'senior']
-            mid = [a for a in matching_devs if a.config.seniority == 'mid']
+            senior = [a for a in matching_devs if a.config.seniority == "senior"]
+            mid = [a for a in matching_devs if a.config.seniority == "mid"]
 
             if senior:
                 return senior[0].agent_id
@@ -249,7 +257,7 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
                 return matching_devs[0].agent_id
 
         # Fallback: Pick any senior developer
-        seniors = [a for a in self.team if a.config.seniority == 'senior']
+        seniors = [a for a in self.team if a.config.seniority == "senior"]
         if seniors:
             return seniors[0].agent_id
 
@@ -275,15 +283,15 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
             return owner  # Fallback (solo work)
 
         # Prefer complementary seniority
-        if owner_agent.config.seniority == 'senior':
+        if owner_agent.config.seniority == "senior":
             # Senior pairs with junior/mid for mentoring
-            juniors = [a for a in candidates if a.config.seniority in ['junior', 'mid']]
+            juniors = [a for a in candidates if a.config.seniority in ["junior", "mid"]]
             if juniors:
                 return random.choice(juniors).agent_id
 
-        elif owner_agent.config.seniority == 'junior':
+        elif owner_agent.config.seniority == "junior":
             # Junior pairs with senior for learning
-            seniors = [a for a in candidates if a.config.seniority == 'senior']
+            seniors = [a for a in candidates if a.config.seniority == "senior"]
             if seniors:
                 return random.choice(seniors).agent_id
 
@@ -296,13 +304,19 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
         tasks = []
 
         for i in range(max(1, num_tasks)):
-            tasks.append({
-                'title': f"{story.title} - Part {i+1}",
-                'description': f"Implementation task {i+1}",
-                'estimated_hours': 8,
-                'owner': self.team[i % len(self.team)].agent_id if self.team else "unknown",
-                'initial_navigator': self.team[(i+1) % len(self.team)].agent_id if len(self.team) > 1 else self.team[0].agent_id
-            })
+            tasks.append(
+                {
+                    "title": f"{story.title} - Part {i+1}",
+                    "description": f"Implementation task {i+1}",
+                    "estimated_hours": 8,
+                    "owner": self.team[i % len(self.team)].agent_id
+                    if self.team
+                    else "unknown",
+                    "initial_navigator": self.team[(i + 1) % len(self.team)].agent_id
+                    if len(self.team) > 1
+                    else self.team[0].agent_id,
+                }
+            )
 
         return tasks
 
@@ -316,7 +330,7 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
 
         # Resolve depends_on_numbers to actual task IDs
         for task in tasks:
-            if hasattr(task, 'depends_on_numbers'):
+            if hasattr(task, "depends_on_numbers"):
                 # Map numbers to task IDs in same story
                 story_tasks = [t for t in tasks if t.story_id == task.story_id]
                 for dep_num in task.depends_on_numbers:

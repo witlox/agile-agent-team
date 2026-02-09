@@ -15,7 +15,9 @@ class WipLimitExceeded(Exception):
 class KanbanBoard:
     """Kanban board backed by SharedContextDB."""
 
-    def __init__(self, db: SharedContextDB, wip_limits: Optional[Dict[str, int]] = None):
+    def __init__(
+        self, db: SharedContextDB, wip_limits: Optional[Dict[str, int]] = None
+    ):
         self.db = db
         self.wip_limits: Dict[str, int] = wip_limits or {"in_progress": 4, "review": 2}
 
@@ -55,7 +57,9 @@ class KanbanBoard:
         Raises WipLimitExceeded if the target column is at capacity.
         """
         if new_status not in STATUSES:
-            raise ValueError(f"Unknown status '{new_status}'. Must be one of {STATUSES}")
+            raise ValueError(
+                f"Unknown status '{new_status}'. Must be one of {STATUSES}"
+            )
 
         if new_status in self.wip_limits:
             current_wip = await self.db.get_wip_count(new_status)

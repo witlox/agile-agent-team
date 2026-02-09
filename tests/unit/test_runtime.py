@@ -2,7 +2,6 @@
 
 import pytest
 import tempfile
-from pathlib import Path
 
 from src.tools.agent_tools import create_tools
 from src.agents.runtime import VLLMRuntime
@@ -23,7 +22,7 @@ def vllm_runtime(temp_workspace):
         "model": "test-model",
         "tool_use_protocol": "xml",
         "max_tokens": 1000,
-        "temperature": 0.7
+        "temperature": 0.7,
     }
 
     tools = create_tools(["read_file", "write_file"], temp_workspace)
@@ -75,7 +74,7 @@ async def test_vllm_runtime_mock_mode(vllm_runtime):
     result = await vllm_runtime.execute_task(
         system_prompt="You are a helpful coding assistant.",
         user_message="Write a hello world function",
-        max_turns=5
+        max_turns=5,
     )
 
     assert result.success

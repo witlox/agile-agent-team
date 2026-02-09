@@ -21,7 +21,7 @@ async def test_agent_with_runtime_executes_task():
             "model": "test-model",
             "tool_use_protocol": "xml",
             "max_tokens": 1000,
-            "temperature": 0.7
+            "temperature": 0.7,
         }
 
         tools = create_tools(["write_file", "read_file"], str(workspace))
@@ -37,19 +37,14 @@ async def test_agent_with_runtime_executes_task():
             role_archetype="developer",
             model="test-model",
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=1000,
         )
 
-        agent = BaseAgent(
-            config=agent_config,
-            vllm_endpoint="mock://",
-            runtime=runtime
-        )
+        agent = BaseAgent(config=agent_config, vllm_endpoint="mock://", runtime=runtime)
 
         # Execute coding task
         result = await agent.execute_coding_task(
-            task_description="Create a hello world function in Python",
-            max_turns=5
+            task_description="Create a hello world function in Python", max_turns=5
         )
 
         # Verify result
@@ -66,13 +61,11 @@ async def test_agent_without_runtime_raises_error():
         name="Test Agent",
         model="test-model",
         temperature=0.7,
-        max_tokens=1000
+        max_tokens=1000,
     )
 
     agent = BaseAgent(
-        config=agent_config,
-        vllm_endpoint="mock://",
-        runtime=None  # No runtime
+        config=agent_config, vllm_endpoint="mock://", runtime=None  # No runtime
     )
 
     # Should raise RuntimeError

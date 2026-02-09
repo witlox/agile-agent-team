@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from .base import Tool, ToolResult
 
@@ -25,15 +25,15 @@ class BashTool(Tool):
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "Shell command to execute"
+                    "description": "Shell command to execute",
                 },
                 "timeout": {
                     "type": "integer",
                     "description": "Timeout in seconds (default: 60)",
-                    "default": 60
-                }
+                    "default": 60,
+                },
             },
-            "required": ["command"]
+            "required": ["command"],
         }
 
     async def execute(self, command: str, timeout: int = 60) -> ToolResult:
@@ -43,7 +43,7 @@ class BashTool(Tool):
             return ToolResult(
                 success=False,
                 output="",
-                error=f"Command not allowed for security reasons: {command}"
+                error=f"Command not allowed for security reasons: {command}",
             )
 
         try:
@@ -53,14 +53,13 @@ class BashTool(Tool):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self.workspace),
-                env=self._get_safe_env()
+                env=self._get_safe_env(),
             )
 
             # Wait with timeout
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=timeout
+                    proc.communicate(), timeout=timeout
                 )
             except asyncio.TimeoutError:
                 proc.kill()
@@ -68,7 +67,7 @@ class BashTool(Tool):
                 return ToolResult(
                     success=False,
                     output="",
-                    error=f"Command timed out after {timeout}s"
+                    error=f"Command timed out after {timeout}s",
                 )
 
             # Combine output
@@ -81,36 +80,56 @@ class BashTool(Tool):
             return ToolResult(
                 success=success,
                 output=output.strip(),
-                error=None if success else f"Command failed with exit code {proc.returncode}",
-                metadata={"exit_code": proc.returncode}
+                error=None
+                if success
+                else f"Command failed with exit code {proc.returncode}",
+                metadata={"exit_code": proc.returncode},
             )
 
         except Exception as e:
             return ToolResult(
-                success=False,
-                output="",
-                error=f"Error executing command: {str(e)}"
+                success=False, output="", error=f"Error executing command: {str(e)}"
             )
 
     def _is_safe_command(self, command: str) -> bool:
         """Check if command is safe to execute."""
         # Get security config
-        allowed_commands = self.config.get("allowed_commands", [
-            "git", "pytest", "python", "pip", "npm", "node",
-            "mypy", "black", "ruff", "flake8", "ls", "cat",
-            "grep", "find", "mkdir", "touch", "echo"
-        ])
+        allowed_commands = self.config.get(
+            "allowed_commands",
+            [
+                "git",
+                "pytest",
+                "python",
+                "pip",
+                "npm",
+                "node",
+                "mypy",
+                "black",
+                "ruff",
+                "flake8",
+                "ls",
+                "cat",
+                "grep",
+                "find",
+                "mkdir",
+                "touch",
+                "echo",
+            ],
+        )
 
-        blocked_patterns = self.config.get("blocked_patterns", [
-            r"rm\s+-rf\s+/",
-            r"dd\s+if=",
-            r"mkfs",
-            r":\(\)\{.*:\|:.*\};:",  # Fork bomb
-            r"chmod.*777",
-            r"sudo",
-            r"curl.*\|.*bash",
-            r"wget.*\|.*sh"
-        ])
+        blocked_patterns = self.config.get(
+            "blocked_patterns",
+            [
+                r"rm\s+-rf\s+/",
+                r"dd\s+if=",
+                r"mkfs",
+                r":\(\)\{.*:\|:.*\};:",  # Fork bomb
+                r"chmod.*777",
+                r"sudo",
+                r"curl.*\|.*bash",
+                r"wget.*\|.*sh",
+            ],
+        )
 
         # Check if first word is in allowed list
         first_word = command.split()[0] if command.strip() else ""
@@ -121,6 +140,7 @@ class BashTool(Tool):
 
         # Check blocked patterns
         import re
+
         for pattern in blocked_patterns:
             if re.search(pattern, command, re.IGNORECASE):
                 return False
