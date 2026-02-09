@@ -1,0 +1,314 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [Unreleased]
+
+### Added
+- Nothing yet
+
+---
+
+## [1.3.0] - 2026-02-09
+
+### Added - Agile Ceremonies: Complete Process Implementation
+
+**2-Phase Sprint Planning**:
+- Phase 1: Story Refinement (PO + Team) - Business context, clarification, estimation
+- Phase 2: Technical Planning (Team only) - Task breakdown, architecture, dependencies, owner assignment
+- `src/orchestrator/story_refinement.py` - StoryRefinementSession class
+- `src/orchestrator/technical_planning.py` - TechnicalPlanningSession class
+- `team_config/06_process_rules/sprint_planning.md` - Complete planning guide (~450 lines)
+
+**Daily Standups**:
+- Day-based simulation: 20 minutes wall-clock = 10 simulated days (2-week sprint)
+- Daily standup every day except Day 1
+- Focus: architectural alignment, cross-pair dependencies, Dev Lead facilitation
+- `src/orchestrator/daily_standup.py` - DailyStandupSession class
+- `team_config/06_process_rules/daily_standup.md` - Standup format guide (~380 lines)
+
+**Pair Rotation Algorithm**:
+- Round-robin with history tracking
+- Task owner stays (provides continuity)
+- Navigator rotates daily (everyone pairs with everyone)
+- Includes testers + QA Lead (20% frequency)
+- Max tasks = half team size
+- `src/orchestrator/pair_rotation.py` - PairRotationManager class
+
+**Sprint Review/Demo**:
+- Team demonstrates completed stories to PO
+- PO accepts/rejects against acceptance criteria
+- Two-tier stakeholder feedback:
+  - Fast loop (every sprint): PO represents stakeholders
+  - Slow loop (every 5 sprints): Real stakeholders review asynchronously
+- `src/orchestrator/sprint_review.py` - SprintReviewSession class
+- `team_config/06_process_rules/sprint_review.md` - Review guide (~310 lines)
+- `team_config/06_process_rules/retrospective.md` - Updated retrospective guide (~285 lines)
+
+**Product Owner Role**:
+- New role archetype: `team_config/01_role_archetypes/product_owner.md`
+- Responsibilities: backlog management, story refinement, sprint review acceptance
+- Individual personality: `team_config/05_individuals/sophia_rodriguez.md`
+
+**Task Ownership and Dependencies**:
+- Task owners provide continuity (stay on task until completion)
+- Navigator rotates daily for knowledge transfer
+- Simple dependency graph (task A blocks task B)
+- Dev Lead coordinates handoffs in standups
+- Sprint manager updated with task pull logic respecting dependencies
+
+### Changed
+- **Sprint Manager**: Major refactor for day-based simulation
+  - `run_planning()` now calls Phase 1 + Phase 2
+  - `run_development()` simulates 10 days with daily standups and pair rotation
+  - `_run_day_pairing_sessions()` method for daily workflow
+  - `_pull_task_for_owner()` respects dependencies
+- **Time Simulation**: Explicit 20 min = 10 days mapping
+- **Sprint Lifecycle**: Now includes Sprint 0 → Planning (2 phases) → Development (10 days) → QA → Review → Retro
+
+### Documentation
+- Updated `README.md` with Sprint 0 reference, PO mention, ceremony overview
+- Updated `docs/USAGE.md` with ceremony sections (already comprehensive)
+- Updated `docs/IMPLEMENTATION_STATUS.md` with full ceremony and Sprint 0 sections
+- Created `CHANGELOG.md` for chronological feature tracking
+
+---
+
+## [1.2.0] - 2026-02-08
+
+### Added - Sprint 0: Multi-Language Infrastructure Setup
+
+**Sprint 0 Infrastructure Generation**:
+- Automatic infrastructure story generation for Python, Go, Rust, TypeScript, C/C++
+- Detects languages from `backlog.yaml` (`languages` field) and team specializations
+- Generates stories for CI/CD, linters, formatters, testing, Docker, Kubernetes
+- Greenfield: Complete infrastructure from scratch
+- Brownfield: Analyze existing repo, generate stories only for gaps
+- CI validation gate: Sprint 0 not complete until CI pipeline runs successfully
+- `src/orchestrator/sprint_zero.py` - SprintZeroGenerator, BrownfieldAnalyzer
+
+**Tool-Enforced Coding Standards**:
+- Standards based on industry-standard tools (Black, Ruff, mypy, gofmt, rustfmt, clippy, prettier, eslint, clang-format)
+- No verbose style guides - tools enforce conventions
+- All agents know standards via `team_config/00_base/base_agent.md` "Coding Standards" section
+- Per-language standard files:
+  - `team_config/00_base/coding_standards/python.md` - Black (88 char), Ruff, mypy, pytest
+  - `team_config/00_base/coding_standards/go.md` - gofmt, golangci-lint, go test
+  - `team_config/00_base/coding_standards/rust.md` - rustfmt, clippy, cargo test
+  - `team_config/00_base/coding_standards/typescript.md` - Prettier, ESLint, tsc strict, Jest
+  - `team_config/00_base/coding_standards/cpp.md` - clang-format, clang-tidy, CTest
+
+**Multi-Language Tools**:
+- `src/tools/agent_tools/test_runner_multi.py` - MultiLanguageTestRunner (auto-detects language, runs appropriate test framework)
+- `src/tools/agent_tools/formatter.py` - MultiLanguageFormatter (black/gofmt/rustfmt/prettier/clang-format)
+- `src/tools/agent_tools/linter.py` - MultiLanguageLinter (ruff/golangci-lint/clippy/eslint/clang-tidy)
+- `src/tools/agent_tools/builder.py` - MultiLanguageBuilder (pip/go mod/cargo/npm/cmake)
+- All tools registered in `src/tools/agent_tools/factory.py`
+
+**Convention Analyzer (Brownfield)**:
+- `src/orchestrator/convention_analyzer.py` - ConventionAnalyzer class
+- Detects existing coding conventions in brownfield repos
+- Analyzes Python, Go, Rust, TypeScript, C++ configurations
+- Generates augmented configs for missing tools
+- Methods: `analyze_python()`, `analyze_go()`, `analyze_rust()`, `analyze_typescript()`, `analyze_cpp()`
+
+**Language Specialist Agents**:
+- 5 new senior language specialists added to team:
+  - `liam_senior_python` - Enthusiastic, pragmatic (Python + backend)
+  - `maya_senior_golang` - Direct, systems-thinker (Go + backend)
+  - `kai_senior_rust` - Meticulous, safety-conscious (Rust + systems)
+  - `aria_senior_typescript` - User-focused, passionate (TypeScript + frontend)
+  - `dmitri_senior_cpp` - Performance-obsessed (C++ + systems)
+- Specialization profiles:
+  - `team_config/03_specializations/python_specialist.md` - Type hints, async, testing patterns
+  - `team_config/03_specializations/golang_specialist.md` - Concurrency, interfaces, error handling
+  - `team_config/03_specializations/rust_specialist.md` - Ownership, lifetimes, type system
+  - `team_config/03_specializations/typescript_specialist.md` - Types, React/Node patterns
+  - `team_config/03_specializations/cpp_specialist.md` - Modern C++17/20/23, templates
+- Individual personalities:
+  - `team_config/05_individuals/liam_obrien.md`
+  - `team_config/05_individuals/maya_patel.md`
+  - `team_config/05_individuals/kai_anderson.md`
+  - `team_config/05_individuals/aria_cohen.md`
+  - `team_config/05_individuals/dmitri_volkov.md`
+
+### Changed
+- **Main Loop**: Sprint loop now starts at 0 instead of 1 (`src/orchestrator/main.py`)
+- **Backlog Schema**: Extended with `ProductMetadata` dataclass (`src/orchestrator/backlog.py`)
+  - Fields: `languages`, `tech_stack`, `repository_type`, `repository_url`
+- **Sprint Manager**: Added `_run_sprint_zero()`, `_run_planning_sprint_zero()`, `_validate_ci_pipeline()` methods
+- **Base Agent**: Updated with comprehensive "Coding Standards" section referencing all language tools
+
+### Documentation
+- Updated `README.md` with Sprint 0 overview
+- Updated `docs/USAGE.md` (already comprehensive)
+- Added Sprint 0 section to `docs/IMPLEMENTATION_STATUS.md`
+
+---
+
+## [1.1.0] - 2026-02-07
+
+### Added - Remote Git Integration & Brownfield Support
+
+**Remote Git Integration**:
+- Push code to GitHub/GitLab, create pull requests, QA approval, auto-merge
+- `src/tools/agent_tools/remote_git.py` - RemoteGitProvider abstract base, GitHubProvider, GitLabProvider
+- `src/tools/agent_tools/git.py` - Added GitRemoteTool, GitPushTool
+- GitHub: Single service account + per-agent git attribution
+- GitLab: Per-agent tokens for self-hosted instances
+- PR/MR URLs stored in kanban card metadata
+- QA approval via `gh pr review --approve` or `glab mr approve`
+- Auto-merge when card moves to done
+
+**Brownfield Development**:
+- Clone existing repositories and build incrementally
+- Workspace modes: `per_story` (greenfield) vs `per_sprint` (brownfield)
+- Clone modes: `fresh` (delete/recreate) vs `incremental` (reuse/pull)
+- Cross-sprint persistence: `copy_workspace_to_next_sprint()`
+- Merge to main: `merge_to_main()` for completed features
+- `src/codegen/workspace.py` - Enhanced WorkspaceManager
+
+### Changed
+- **Workspace Manager**: Refactored to support greenfield/brownfield modes
+- **Sprint Manager**: Added `_approve_pr_if_exists()`, `_merge_pr_if_exists()` methods
+- **Pairing Engine**: Added `_push_and_create_pr()` method
+- **Database Schema**: Added `metadata JSONB` column to `kanban_cards` table
+
+### Configuration
+- Added `remote_git` section to `config.yaml`:
+  - `enabled`, `provider`, `github`, `gitlab`, `author_email_domain`
+- Extended `code_generation` section:
+  - `workspace_mode`, `persist_across_sprints`, `merge_completed_stories`
+  - `repo_config` with `url`, `branch`, `clone_mode`
+
+### Documentation
+- Added Remote Git Integration & Brownfield Support sections to `docs/IMPLEMENTATION_STATUS.md`
+- Updated `docs/USAGE.md` with complete remote git and brownfield guides
+
+---
+
+## [1.0.0] - 2026-02-06
+
+### Added - Initial Release: Tool-Using Agents & Code Generation
+
+**Core System**:
+- 11-agent software development team (1 Dev Lead, 1 QA Lead, 6 Developers, 2 Testers)
+- 8-layer compositional agent profiles:
+  1. Base (`00_base/base_agent.md`)
+  2. Role Archetype (`01_role_archetypes/`)
+  3. Seniority (`02_seniority/`)
+  4. Specializations (`03_specializations/`)
+  5. Domain Knowledge (`04_domain/`)
+  6. Individual Personality (`05_individuals/`)
+  7. Demographics (from config.yaml)
+  8. Meta-Learnings (`04_meta/meta_learnings.jsonl`)
+
+**Runtime System**:
+- Abstract runtime interface (`src/agents/runtime/base.py`)
+- VLLMRuntime: Offline vLLM with XML-based tool calling
+- AnthropicRuntime: Online Claude API with native tool use
+- Three deployment modes: offline, online, hybrid
+- Mock mode for testing (no LLM calls)
+
+**Tool System**:
+- Base tool interface (`src/tools/agent_tools/base.py`)
+- Filesystem tools (5): read, write, edit, list, search
+- Git tools (6): status, diff, add, commit, branch, log
+- Bash tool: Sandboxed shell execution
+- Test runner tools: RunTestsTool, RunBDDTestsTool (pytest integration)
+- Tool registry and factory (`src/tools/agent_tools/factory.py`)
+
+**Code Generation Workflow**:
+- Workspace management: Per-sprint/story git workspaces
+- BDD/Gherkin generation from user stories
+- CodeGenPairingEngine: BDD → implement → test → commit workflow
+- Test execution with iteration loop (max 3 attempts)
+- Git commits with feature branches
+- Kanban integration (move to review after commit)
+
+**Sprint Lifecycle**:
+- Planning: PO selects stories from backlog
+- Disturbance injection (7 types): dependency breaks, production incidents, flaky tests, scope creep, junior misunderstandings, architectural debt, merge conflicts
+- Development: Pairing sessions with real code generation
+- QA review: QA lead approves/rejects
+- Retrospective: Keep/Drop/Puzzle format
+- Meta-learning: Learnings extracted and stored in JSONL
+
+**Team Culture**:
+- Lead Dev profile: Guru-level, navigator preference, team growth focus
+- Git workflow: Stable main + gitflow, merge conflict resolution
+- Hiring protocol: 3-round process with pairing under pressure
+- Role-based pairing: Lead dev navigates, testers navigate, seniors mentor
+- Turnover simulation (optional, >5 months)
+- Tester pairing (20% frequency)
+
+**Kanban Board**:
+- WIP limits (4 in-progress, 2 review)
+- Card states: ready, in_progress, review, done
+- Snapshots and transition tracking
+- Process coverage simulation
+
+**Quality & Metrics**:
+- Test coverage simulation (process-based, 70-95%)
+- Prometheus metrics (velocity, coverage, pairing sessions)
+- Profile swapping (swap/revert/decay mechanics)
+- Blast radius controls for disturbances
+
+**Testing**:
+- 24 tests: 10 unit + 8 integration + 6 qualification
+- All tests passing
+- Mock mode works for all components
+
+### Configuration
+- `config.yaml`: Experiment settings, team constraints, disturbances, runtimes, agents
+- `backlog.yaml`: Product backlog with user stories, acceptance criteria
+- `team_config/`: 8-layer compositional profiles, process rules
+
+### Documentation
+- `README.md` - Project overview, quick start
+- `CONTRIBUTING.md` - Contribution guide
+- `CLAUDE.md` - Development guide for AI assistants
+- `docs/ARCHITECTURE.md` - System architecture
+- `docs/USAGE.md` - Configuration and usage guide
+- `docs/IMPLEMENTATION_STATUS.md` - Implementation status
+- `docs/AGENT_RUNTIMES.md` - Runtime system design
+- `docs/META_LEARNING.md` - Meta-learning system
+- `docs/RESEARCH_QUESTIONS.md` - Research hypotheses
+
+---
+
+## Research Impact
+
+This project enables research into:
+1. **AI Team Collaboration**: Can LLMs form effective collaborative teams?
+2. **Seniority Dynamics**: Do agent seniority levels create realistic dynamics?
+3. **Team Maturity**: How does team maturity affect productivity?
+4. **Disturbance Handling**: Are disturbances handled realistically?
+5. **Profile Swapping**: Does profile-swapping break team dynamics?
+6. **Multi-Language Development**: Do AI teams choose appropriate tooling?
+7. **Agile Process Effectiveness**: How well do ceremonies work with AI agents?
+8. **Stakeholder Feedback Dynamics**: Fast vs slow feedback loops
+
+---
+
+## Version History Summary
+
+- **v1.3.0** (2026-02-09): Agile ceremonies (2-phase planning, standups, sprint review, pair rotation)
+- **v1.2.0** (2026-02-08): Sprint 0 multi-language infrastructure, language specialists
+- **v1.1.0** (2026-02-07): Remote git integration, brownfield support
+- **v1.0.0** (2026-02-06): Initial release with tool-using agents and code generation
+
+---
+
+## Links
+
+- [GitHub Repository](https://github.com/witlox/agile-agent-team)
+- [Documentation](docs/)
+- [Research Questions](docs/RESEARCH_QUESTIONS.md)
+- [Implementation Status](docs/IMPLEMENTATION_STATUS.md)
+- [Usage Guide](docs/USAGE.md)

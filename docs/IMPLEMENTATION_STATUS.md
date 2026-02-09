@@ -159,6 +159,141 @@
 
 ---
 
+### Sprint 0: Multi-Language Infrastructure Setup ✅
+
+**Overview**: Before feature development begins, the team runs **Sprint 0** to set up project infrastructure: CI/CD pipelines, linters, formatters, testing frameworks, containerization, and orchestration.
+
+**Supported Languages**: Python, Go, Rust, TypeScript, C/C++
+
+**Key Features**:
+- Automatic infrastructure story generation based on `languages` and `tech_stack` in backlog.yaml
+- Greenfield: Complete infrastructure from scratch
+- Brownfield: Analyze existing repo, generate stories only for gaps
+- CI validation gate: Sprint 0 not complete until CI pipeline runs successfully
+- Tool-enforced coding standards (Black, Ruff, mypy, gofmt, rustfmt, clippy, prettier, eslint, clang-format)
+- 5 new language specialist agents (Liam-Python, Maya-Go, Kai-Rust, Aria-TypeScript, Dmitri-C++)
+
+**Tool-Enforced Standards**:
+All agents know industry-standard tools via `team_config/00_base/coding_standards/*.md`:
+- **Python**: Black (88 char), Ruff, mypy, pytest
+- **Go**: gofmt, golangci-lint, go test
+- **Rust**: rustfmt, clippy, cargo test
+- **TypeScript**: Prettier, ESLint, tsc strict, Jest
+- **C++**: clang-format, clang-tidy, CTest
+
+**Multi-Language Tools** (`src/tools/agent_tools/`):
+- `test_runner_multi.py` - MultiLanguageTestRunner (auto-detects language, runs pytest/go test/cargo test/jest/ctest)
+- `formatter.py` - MultiLanguageFormatter (black/gofmt/rustfmt/prettier/clang-format)
+- `linter.py` - MultiLanguageLinter (ruff/golangci-lint/clippy/eslint/clang-tidy)
+- `builder.py` - MultiLanguageBuilder (pip/go mod/cargo/npm/cmake)
+
+**Convention Analyzer** (`src/orchestrator/convention_analyzer.py`):
+- Detects existing coding conventions in brownfield repos
+- Analyzes Python, Go, Rust, TypeScript, C++ configurations
+- Generates augmented configs for missing tools
+
+**Language Specialists**:
+- `liam_senior_python` - Enthusiastic, pragmatic (Python + backend)
+- `maya_senior_golang` - Direct, systems-thinker (Go + backend)
+- `kai_senior_rust` - Meticulous, safety-conscious (Rust + systems)
+- `aria_senior_typescript` - User-focused, passionate (TypeScript + frontend)
+- `dmitri_senior_cpp` - Performance-obsessed (C++ + systems)
+
+**Implementation Files**:
+- `src/orchestrator/sprint_zero.py` - SprintZeroGenerator, BrownfieldAnalyzer
+- `team_config/00_base/coding_standards/` - Tool-enforced standards (5 files)
+- `team_config/03_specializations/` - Language specialist profiles (5 new files)
+- `team_config/05_individuals/` - Individual personalities (5 new files)
+- `src/tools/agent_tools/test_runner_multi.py` - Multi-language test runner
+- `src/tools/agent_tools/formatter.py` - Multi-language formatter
+- `src/tools/agent_tools/linter.py` - Multi-language linter
+- `src/tools/agent_tools/builder.py` - Multi-language builder
+
+**Configuration** (`backlog.yaml`):
+```yaml
+product:
+  languages: [python, go, rust, typescript, cpp]
+  tech_stack: [docker, kubernetes, github-actions, prometheus]
+  repository:
+    type: greenfield  # or brownfield
+    url: ""  # Brownfield: URL to existing repo
+```
+
+---
+
+### Agile Ceremonies: 2-Phase Planning, Standups, Sprint Review ✅
+
+**Overview**: Complete agile ceremony implementation with Product Owner participation.
+
+**Time Simulation**: 20 minutes wall-clock = 10 simulated days (2-week sprint)
+
+**Product Owner Role** (`team_config/01_role_archetypes/product_owner.md`):
+- Backlog management and prioritization
+- Story refinement facilitation (Phase 1 planning)
+- Sprint review acceptance (accept/reject stories)
+- Stakeholder representation (fast PO loop + slow stakeholder loop every 5 sprints)
+
+**2-Phase Sprint Planning**:
+
+**Phase 1: Story Refinement** (PO + Team, ~2 hours):
+- PO presents stories (business context, value, acceptance criteria)
+- Team asks clarifying questions (technical depth, edge cases, scope)
+- Collaborative estimation (story points: 1, 2, 3, 5, 8)
+- Sprint commitment (team capacity ~3 pts/developer/sprint)
+- Implementation: `src/orchestrator/story_refinement.py`
+- Documentation: `team_config/06_process_rules/sprint_planning.md` (lines 11-73)
+
+**Phase 2: Technical Planning** (Team only, NO PO, ~2 hours):
+- Break stories into tasks (2-4 tasks per story, 4-16 hours each)
+- Discuss architecture (Redis vs Postgres, REST vs GraphQL, etc.)
+- Identify dependencies (simple graph, blocks downstream)
+- Assign task owners (based on specialization, max tasks = half team size)
+- Plan initial pairing (owner + navigator)
+- Implementation: `src/orchestrator/technical_planning.py`
+- Documentation: `team_config/06_process_rules/sprint_planning.md` (lines 76-228)
+
+**Daily Standup** (15 minutes, every day except Day 1):
+- Each pair reports: progress, today's plan, blockers, architectural discoveries, dependencies
+- Dev Lead facilitates: resolves blockers, coordinates dependencies, addresses architectural issues
+- Focus: coordination and alignment, not status reporting
+- Implementation: `src/orchestrator/daily_standup.py`
+- Documentation: `team_config/06_process_rules/daily_standup.md` (380 lines)
+
+**Pair Rotation** (Round-Robin with History):
+- Task owner stays (provides continuity)
+- Navigator rotates daily (everyone pairs with everyone)
+- Includes testers + QA Lead (20% frequency)
+- Max tasks = half team size
+- Implementation: `src/orchestrator/pair_rotation.py`
+
+**Sprint Review/Demo** (End of Day 10):
+- Team demonstrates completed stories (working software, user perspective)
+- PO reviews acceptance criteria
+- PO decides: Accepted ✅ / Rejected ❌ / Accepted with notes 🤔
+- Feedback captured: follow-up stories, improvements
+- **Two-tier stakeholder feedback**:
+  - Fast loop (every sprint): PO represents stakeholders
+  - Slow loop (every 5 sprints): Real stakeholders review asynchronously
+- Implementation: `src/orchestrator/sprint_review.py`
+- Documentation: `team_config/06_process_rules/sprint_review.md` (350 lines)
+
+**Sprint Manager Integration** (`src/orchestrator/sprint_manager.py`):
+- Day-based simulation (10 days per sprint)
+- Daily standup + pair rotation + pairing sessions
+- Task pull logic respecting dependencies
+- Methods: `run_planning()`, `run_development()`, `_run_day_pairing_sessions()`, `_pull_task_for_owner()`
+
+**Benefits**:
+- ✅ Complete agile workflow with PO participation
+- ✅ Realistic time simulation (20 min = 10 days)
+- ✅ Pair rotation ensures knowledge transfer
+- ✅ Task ownership provides continuity
+- ✅ Daily standups surface dependencies and architectural issues early
+- ✅ Dev Lead facilitation for conflict resolution
+- ✅ Two-tier stakeholder feedback (fast PO loop + slow real stakeholder loop)
+
+---
+
 ## 🎯 Current Capabilities
 
 ### What Works Now ✅
@@ -195,13 +330,17 @@
 - ✅ Tester participation in pairing
 
 **Sprint Lifecycle**:
-- ✅ Planning (PO selects stories from backlog)
-- ✅ Disturbance injection (7 types)
-- ✅ Development (pairing with real code generation)
-- ✅ QA review (QA lead approves/rejects)
-- ✅ Retrospective (Keep/Drop/Puzzle)
-- ✅ Meta-learning (JSONL storage, dynamic loading)
-- ✅ Artifacts (kanban snapshots, pairing logs, retros, code workspaces)
+- ✅ **Sprint 0**: Multi-language infrastructure setup (CI/CD, linters, Docker, K8s)
+- ✅ **2-Phase Planning**: PO + Team refinement, then Team-only technical planning
+- ✅ **Disturbance injection**: 7 types (including merge conflicts)
+- ✅ **Development**: Day-based simulation (20 min = 10 days) with daily standups
+- ✅ **Pair rotation**: Navigator rotates daily, owner stays (round-robin algorithm)
+- ✅ **Daily standups**: Coordination, architectural alignment, Dev Lead facilitation
+- ✅ **QA review**: QA lead approves/rejects
+- ✅ **Sprint review/demo**: PO acceptance, two-tier stakeholder feedback
+- ✅ **Retrospective**: Keep/Drop/Puzzle
+- ✅ **Meta-learning**: JSONL storage, dynamic loading
+- ✅ **Artifacts**: kanban snapshots, pairing logs, retros, code workspaces
 
 **Quality & Process**:
 - ✅ Kanban with WIP limits (4 in-progress, 2 review)
@@ -414,22 +553,44 @@ models:
 1. **Can LLMs form effective collaborative teams?** ✅
    - Dialogue-driven pairing produces real code
    - Role-based assignments enforce team culture
+   - **NEW**: Complete agile ceremonies with PO participation
 
 2. **Do agent seniority levels create realistic dynamics?** ✅
    - Juniors learn from seniors through navigation
    - Meta-learning captures growth over time
+   - **NEW**: Pair rotation ensures everyone pairs with everyone
 
 3. **How does team maturity affect productivity?** ✅
    - Velocity tracked across sprints
    - Meta-learnings improve process
+   - **NEW**: Sprint 0 infrastructure quality affects long-term velocity
 
 4. **Are disturbances handled realistically?** ✅
    - 7 disturbance types with blast radius controls
    - Merge conflicts expected and resolved
+   - **NEW**: Daily standups surface dependencies and architectural issues early
 
 5. **Does profile-swapping break team dynamics?** ✅
    - Swap/revert/decay mechanics implemented
    - Proficiency penalties and knowledge decay
+
+**New Research Areas Enabled**:
+
+6. **Multi-Language Development** (Sprint 0):
+   - Do AI teams choose appropriate tooling for their tech stack?
+   - How do language specialists contribute to infrastructure quality?
+   - Can agents understand and augment existing conventions in brownfield projects?
+
+7. **Agile Process Effectiveness** (Ceremonies):
+   - How well does PO represent stakeholder interests?
+   - Do 2-phase planning sessions produce better task breakdowns?
+   - Does daily pair rotation improve knowledge transfer?
+   - How does task ownership affect context switching and quality?
+   - What is the impact of Dev Lead facilitation on team velocity?
+
+8. **Stakeholder Feedback Dynamics** (Sprint Review):
+   - Do PO-represented stakeholder interests differ from real stakeholder feedback?
+   - How does the fast/slow feedback loop affect product direction?
 
 ---
 
@@ -473,7 +634,7 @@ models:
 - `PHASES_5-8_SUMMARY.md` - Code generation workflow
 - `TEAM_CULTURE_IMPLEMENTATION.md` - Team dynamics (all phases)
 
-### Process Rules (`team_config/03_process_rules/`)
+### Process Rules (`team_config/06_process_rules/`)
 - `git_workflow.md` - Stable main, gitflow, conflict resolution
 - `hiring_protocol.md` - 3-round hiring process
 - `xp_practices.md` - TDD, pairing, refactoring
@@ -481,6 +642,10 @@ models:
 - `pairing_protocol.md` - Collaboration mechanics
 - `consensus_protocol.md` - Decision escalation
 - `artifact_standards.md` - Sprint deliverables
+- **`sprint_planning.md`** - 2-phase planning guide (~450 lines) - NEW
+- **`daily_standup.md`** - Daily standup format and Dev Lead facilitation (~380 lines) - NEW
+- **`sprint_review.md`** - Sprint review/demo and PO acceptance (~310 lines) - NEW
+- **`retrospective.md`** - Keep/Drop/Puzzle retrospective (~285 lines) - NEW
 
 ---
 

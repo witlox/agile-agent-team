@@ -529,6 +529,10 @@ curl http://<vllm-endpoint>/health
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and feature tracking.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)
