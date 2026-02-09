@@ -3,7 +3,7 @@
 from pathlib import Path
 import tempfile
 
-from src.orchestrator.backlog import ProductMetadata
+from src.orchestrator.backlog import Backlog, ProductMetadata
 from src.orchestrator.sprint_zero import (
     SprintZeroGenerator,
     BrownfieldAnalyzer,
@@ -246,3 +246,132 @@ class TestProductMetadata:
         assert "python" in meta.languages
         assert "docker" in meta.tech_stack
         assert meta.repository_type == "brownfield"
+
+    def test_product_metadata_stakeholder_defaults(self):
+        """Test that stakeholder context fields default to empty."""
+        meta = ProductMetadata(name="Test", description="Desc")
+
+        assert meta.mission == ""
+        assert meta.vision == ""
+        assert meta.goals == []
+        assert meta.target_audience == ""
+        assert meta.success_metrics == []
+
+    def test_product_metadata_with_stakeholder_context(self):
+        """Test ProductMetadata with stakeholder context fields."""
+        meta = ProductMetadata(
+            name="TaskFlow",
+            description="Task manager",
+            mission="Help teams focus",
+            vision="Default task manager for small teams",
+            goals=["Launch MVP in 3 months", "100 active teams in 6 months"],
+            target_audience="Engineering teams of 5-50",
+            success_metrics=["WAT", "Task completion rate"],
+        )
+
+        assert meta.mission == "Help teams focus"
+        assert meta.vision == "Default task manager for small teams"
+        assert len(meta.goals) == 2
+        assert "Launch MVP in 3 months" in meta.goals
+        assert meta.target_audience == "Engineering teams of 5-50"
+        assert len(meta.success_metrics) == 2
+
+
+class TestBacklogProjectContext:
+    """Test Backlog.get_project_context() method."""
+
+    def _write_backlog(self, tmp_path: Path, product_data: dict) -> str:
+        """Helper to write a minimal backlog YAML."""
+        import yaml
+
+        data = {"product": product_data, "stories": []}
+        path = tmp_path / "backlog.yaml"
+        path.write_text(yaml.dump(data))
+        return str(path)
+
+    def test_get_project_context_with_full_context(self, tmp_path):
+        """Test get_project_context returns formatted context brief."""
+        path = self._write_backlog(
+            tmp_path,
+            {
+                "name": "TaskFlow",
+                "description": "A task manager",
+                "mission": "Help teams focus",
+                "vision": "Default task manager",
+                "goals": ["Launch MVP", "100 active teams"],
+                "target_audience": "Small engineering teams",
+                "success_metrics": ["WAT", "NPS"],
+            },
+        )
+
+        backlog = Backlog(path)
+        context = backlog.get_project_context()
+
+        assert "# TaskFlow" in context
+        assert "## Mission" in context
+        assert "Help teams focus" in context
+        assert "## Vision" in context
+        assert "Default task manager" in context
+        assert "## Goals" in context
+        assert "- Launch MVP" in context
+        assert "- 100 active teams" in context
+        assert "## Target Audience" in context
+        assert "Small engineering teams" in context
+        assert "## Success Metrics" in context
+        assert "- WAT" in context
+
+    def test_get_project_context_empty_when_no_context(self, tmp_path):
+        """Test get_project_context returns empty string without context."""
+        path = self._write_backlog(
+            tmp_path,
+            {"name": "Bare Project", "description": "Just a description"},
+        )
+
+        backlog = Backlog(path)
+        context = backlog.get_project_context()
+
+        assert context == ""
+
+    def test_get_project_context_partial_fields(self, tmp_path):
+        """Test get_project_context works with only some context fields."""
+        path = self._write_backlog(
+            tmp_path,
+            {
+                "name": "Partial",
+                "description": "Desc",
+                "mission": "Our mission",
+                # No vision, goals, etc.
+            },
+        )
+
+        backlog = Backlog(path)
+        context = backlog.get_project_context()
+
+        assert "## Mission" in context
+        assert "Our mission" in context
+        assert "## Vision" not in context
+        assert "## Goals" not in context
+
+    def test_get_product_metadata_includes_stakeholder_fields(self, tmp_path):
+        """Test get_product_metadata loads stakeholder context from YAML."""
+        path = self._write_backlog(
+            tmp_path,
+            {
+                "name": "Meta Test",
+                "description": "Desc",
+                "mission": "The mission",
+                "vision": "The vision",
+                "goals": ["Goal 1"],
+                "target_audience": "Devs",
+                "success_metrics": ["Metric 1"],
+            },
+        )
+
+        backlog = Backlog(path)
+        meta = backlog.get_product_metadata()
+
+        assert meta.mission == "The mission"
+        assert meta.vision == "The vision"
+        assert meta.goals == ["Goal 1"]
+        assert meta.target_audience == "Devs"
+        assert meta.success_metrics == ["Metric 1"]

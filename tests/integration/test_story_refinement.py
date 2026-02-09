@@ -169,3 +169,43 @@ async def test_story_refinement_produces_refined_stories(
         assert hasattr(story, "id"), "Should have ID"
         assert hasattr(story, "title"), "Should have title"
         assert hasattr(story, "story_points"), "Should have story points"
+
+
+@pytest.mark.asyncio
+async def test_story_refinement_with_project_context(
+    mock_po, mock_team, mock_dev_lead, sample_stories
+):
+    """Test refinement session accepts and uses project context."""
+    project_context = (
+        "# TaskFlow\n\n## Mission\nHelp teams focus.\n\n"
+        "## Goals\n- Launch MVP in 3 months\n"
+    )
+    session = StoryRefinementSession(
+        mock_po, mock_team, mock_dev_lead, project_context=project_context
+    )
+
+    assert session.project_context == project_context
+
+    refined = await session.refine_stories(
+        sample_stories, sprint_num=1, team_capacity=20
+    )
+
+    # Should still produce refined stories as before
+    assert len(refined) > 0
+    assert all(hasattr(s, "id") for s in refined)
+
+
+@pytest.mark.asyncio
+async def test_story_refinement_without_project_context(
+    mock_po, mock_team, mock_dev_lead, sample_stories
+):
+    """Test refinement works normally when no project context is provided."""
+    session = StoryRefinementSession(mock_po, mock_team, mock_dev_lead)
+
+    assert session.project_context == ""
+
+    refined = await session.refine_stories(
+        sample_stories, sprint_num=1, team_capacity=20
+    )
+
+    assert len(refined) > 0
