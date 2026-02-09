@@ -229,14 +229,14 @@ Fixes #123
 2. **Code generation improvements** - Better BDD scenarios, test iteration strategies
 3. **Additional metrics** - Track code quality, test effectiveness
 4. **Performance optimization** - Reduce sprint wall-clock time
-5. **Real repository integration** - Work with existing GitHub/GitLab projects
+5. **Build breakage simulation** - CI/CD failures and immediate fixes
 
 ### Medium Priority
 
 1. **More agent personalities** - Expand team diversity
-2. **Integration with GitHub** - Use real repositories
-3. **Additional disturbances** - More realistic failure modes
-4. **Grafana dashboards** - Better visualizations
+2. **Additional disturbances** - More realistic failure modes
+3. **Grafana dashboards** - Better visualizations
+4. **Advanced turnover** - Actual agent replacement with knowledge transfer
 
 ### Low Priority (Nice to Have)
 

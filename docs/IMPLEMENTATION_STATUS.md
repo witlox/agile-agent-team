@@ -19,9 +19,10 @@
 **Tool System**:
 - `src/tools/agent_tools/base.py` - Tool interface, ToolResult
 - `src/tools/agent_tools/filesystem.py` - 5 tools (read, write, edit, list, search)
-- `src/tools/agent_tools/git.py` - 4 tools (status, diff, add, commit)
+- `src/tools/agent_tools/git.py` - 6 tools (status, diff, add, commit, remote, push)
 - `src/tools/agent_tools/bash.py` - Shell execution with security
 - `src/tools/agent_tools/test_runner.py` - pytest execution (RunTestsTool, RunBDDTestsTool)
+- `src/tools/agent_tools/remote_git.py` - Remote git provider abstraction (GitHub/GitLab)
 - `src/tools/agent_tools/factory.py` - Tool registry and sets
 
 **Agent Integration**:
@@ -67,6 +68,49 @@
 - Uses CodeGenPairingEngine when runtimes present
 - Falls back to PairingEngine (dialogue-only) otherwise
 - Passes workspace manager and config to pairing engine
+
+---
+
+### Remote Git Integration & Brownfield Support ✅
+
+**Remote Git Provider Abstraction** (`src/tools/agent_tools/remote_git.py`):
+- RemoteGitProvider abstract base class
+- GitHubProvider: Uses `gh` CLI with single service account + per-agent git attribution
+- GitLabProvider: Uses `glab` CLI with per-agent tokens for self-hosted instances
+- PullRequestConfig and PullRequestResult dataclasses
+- Factory function: `create_provider(provider_type, workspace, config)`
+
+**Enhanced Git Tools** (`src/tools/agent_tools/git.py`):
+- GitRemoteTool: Configure git remote URL (add or set-url)
+- GitPushTool: Push current branch to remote with upstream tracking
+
+**Workspace Modes** (`src/codegen/workspace.py`):
+- Greenfield mode: `per_story` workspace mode with fresh git repos
+- Brownfield mode: `per_sprint` workspace mode with cloned existing repos
+- Clone modes: `fresh` (delete/recreate) vs `incremental` (reuse/pull)
+- Cross-sprint persistence: `copy_workspace_to_next_sprint()` method
+- Merge to main: `merge_to_main()` for completed features
+- Pull latest: `_pull_latest()` for incremental mode
+
+**Sprint Manager Integration** (`src/orchestrator/sprint_manager.py`):
+- PR approval: `_approve_pr_if_exists()` during QA review
+- PR merge: `_merge_pr_if_exists()` when card moves to done
+- Silent failure handling (don't block sprint if PR operations fail)
+
+**Pairing Engine Integration** (`src/agents/pairing_codegen.py`):
+- Push and PR creation: `_push_and_create_pr()` after successful commit
+- PR URL storage: Updates kanban card metadata with PR URL
+- Author metadata: Configures git author name and email per agent
+
+**Configuration** (`config.yaml`):
+- `remote_git` section: Enable/disable, provider selection, GitHub/GitLab config
+- `code_generation` section: Workspace mode, clone mode, persistence options
+- Database schema: Added `metadata JSONB` column to `kanban_cards` table
+
+**Authentication**:
+- GitHub: Single `GITHUB_TOKEN` environment variable
+- GitLab: Per-agent tokens via pattern `GITLAB_TOKEN_{role_id}`
+- Git commit authorship: Per-agent via `author.name` and `author.email`
 
 ---
 
@@ -122,13 +166,19 @@
 **Code Generation**:
 - ✅ Agents write actual code files (not simulated)
 - ✅ Use filesystem tools (read, write, edit, search)
-- ✅ Use git tools (status, diff, add, commit)
+- ✅ Use git tools (status, diff, add, commit, remote, push)
 - ✅ Execute shell commands (sandboxed)
 - ✅ Run tests and iterate on failures
 - ✅ Generate BDD feature files from stories
-- ✅ Work in isolated git workspaces per story
+- ✅ Work in isolated git workspaces per story (greenfield)
+- ✅ Work in shared git workspaces per sprint (brownfield)
+- ✅ Clone from existing repositories (incremental mode)
 - ✅ Create feature branches automatically
 - ✅ Commit working code after tests pass
+- ✅ Push to remote repositories (GitHub/GitLab)
+- ✅ Create pull requests/merge requests automatically
+- ✅ QA approval via PR review
+- ✅ Auto-merge to main after approval
 
 **Deployment Modes**:
 - ✅ Fully offline (vLLM with XML tool calling)
@@ -174,8 +224,8 @@
 ### Per Sprint
 
 **In `outputs/<experiment-id>/sprint-<N>/`**:
-- `kanban.json` - Card states and transitions
-- `pairing_log.json` - Dialogue, decisions, checkpoints
+- `kanban.json` - Card states and transitions (includes PR URLs in metadata)
+- `pairing_log.json` - Dialogue, decisions, checkpoints, PR URLs
 - `retro.md` - Keep/Drop/Puzzle retrospective
 - Final report after all sprints: `final_report.json`
 
@@ -341,6 +391,8 @@ models:
 - Runtimes (Anthropic, local vLLM)
 - Tools (workspace root, allowed commands)
 - Agent definitions (runtime, tools, model, temperature)
+- **Remote git** (enabled, provider, GitHub/GitLab config, auth patterns)
+- **Code generation** (workspace mode, clone mode, persistence, repo config)
 
 **`backlog.yaml`**:
 - Product description
@@ -383,29 +435,19 @@ models:
 
 ## 🔮 Future Enhancements (Optional)
 
-**Not yet implemented, but designed for**:
+**Potential extensions not yet implemented**:
 
-1. **Actual PR Creation**
-   - Use `gh` CLI to create pull requests
-   - Automated code review
-   - Merge to main after approval
-
-2. **Real Repository Integration**
-   - Clone from existing GitHub/GitLab projects
-   - Work on real codebases
-   - Push code to remote
-
-3. **Build Breakage Simulation**
+1. **Build Breakage Simulation**
    - CI/CD fails on main
    - Pair must fix immediately
    - Blameless post-mortem
 
-4. **Advanced Turnover**
+2. **Advanced Turnover**
    - Actual agent replacement (not just simulation)
    - Knowledge transfer sprints
    - Hiring rounds with backlog
 
-5. **Pressure Variation**
+3. **Pressure Variation**
    - Keyboard switching intervals in pairing
    - Higher pressure = more checkpoints
    - Used in incidents or hiring

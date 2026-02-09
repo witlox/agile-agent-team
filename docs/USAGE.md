@@ -7,13 +7,14 @@ This guide covers everything you need to run experiments with agents that **gene
 1. [Quick start (local / mock mode)](#1-quick-start-local--mock-mode)
 2. [Deployment modes](#2-deployment-modes)
 3. [Configuration reference](#3-configuration-reference)
-4. [Code generation workflow](#4-code-generation-workflow)
-5. [Disturbance injection](#5-disturbance-injection)
-6. [Profile swapping](#6-profile-swapping)
-7. [Team culture features](#7-team-culture-features)
-8. [Simulated test coverage](#8-simulated-test-coverage)
-9. [Sprint artifacts](#9-sprint-artifacts)
-10. [Prometheus metrics](#10-prometheus-metrics)
+4. [Remote git integration](#4-remote-git-integration)
+5. [Code generation workflow](#5-code-generation-workflow)
+6. [Disturbance injection](#6-disturbance-injection)
+7. [Profile swapping](#7-profile-swapping)
+8. [Team culture features](#8-team-culture-features)
+9. [Simulated test coverage](#9-simulated-test-coverage)
+10. [Sprint artifacts](#10-sprint-artifacts)
+11. [Prometheus metrics](#11-prometheus-metrics)
 
 ---
 
@@ -297,7 +298,117 @@ models:
 
 ---
 
-## 4. Code generation workflow
+## 4. Remote git integration
+
+Agents can push code to GitHub or GitLab, create pull requests, and have QA leads approve and merge them automatically. This makes the simulation behave like a real development team working with remote repositories.
+
+### Enable remote git
+
+```yaml
+# config.yaml
+remote_git:
+  enabled: true  # Set to true to enable push/PR workflow
+  provider: "github"  # Options: github | gitlab
+```
+
+**Requirements:**
+- GitHub: `gh` CLI installed, `GITHUB_TOKEN` environment variable set
+- GitLab: `glab` CLI installed, per-agent tokens or single service token set
+
+### GitHub configuration (single service account)
+
+**Recommended approach:** One service account pushes for all agents, but git commits show individual agent attribution.
+
+```yaml
+remote_git:
+  enabled: true
+  provider: "github"
+
+  github:
+    token_env: "GITHUB_TOKEN"  # Environment variable containing token
+    base_branch: "main"
+    merge_method: "squash"  # Options: merge | squash | rebase
+    draft_prs: false  # Create PRs as drafts initially
+
+  author_email_domain: "agent.local"  # Generates alex_senior_networking@agent.local
+```
+
+**Setup:**
+```bash
+# Create GitHub personal access token with repo permissions
+export GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx"
+
+# Verify gh CLI authentication
+gh auth status
+```
+
+**Git commits show:**
+```
+Author: Alex Chen <alex_senior_networking@agent.local>
+Committer: Service Account <service@github.com>
+```
+
+### GitLab configuration (per-agent accounts)
+
+**For self-hosted GitLab instances:** Each agent can have their own account with individual project access tokens.
+
+```yaml
+remote_git:
+  enabled: true
+  provider: "gitlab"
+
+  gitlab:
+    token_env_pattern: "GITLAB_TOKEN_{role_id}"  # Pattern for per-agent tokens
+    base_branch: "main"
+    merge_method: "squash"  # Options: merge | squash
+    draft_prs: false
+
+  author_email_domain: "agent.local"
+```
+
+**Setup:**
+```bash
+# Create project access tokens for each agent (or use personal access tokens)
+export GITLAB_TOKEN_alex_senior_networking="glpat-xxxxxxxxxxxxxxxxxxxx"
+export GITLAB_TOKEN_priya_senior_devops="glpat-xxxxxxxxxxxxxxxxxxxx"
+export GITLAB_TOKEN_marcus_mid_backend="glpat-xxxxxxxxxxxxxxxxxxxx"
+# ... one token per agent
+
+# Verify glab CLI authentication
+glab auth status
+```
+
+### Workflow with remote git
+
+When `remote_git.enabled: true`:
+
+1. **Feature branch creation:** Agents create `feature/<story-id>` branches as usual
+2. **Implementation:** Agents write code, run tests, commit locally
+3. **Push to remote:** After successful commit, agent pushes branch: `git push -u origin feature/us-001`
+4. **PR/MR creation:** Agent uses `gh pr create` or `glab mr create` with:
+   - Title: Story title
+   - Body: Agent name, commit SHA, acceptance criteria
+   - Base: `main`, Head: `feature/<story-id>`
+5. **QA approval:** During QA review phase, if approved, QA lead uses `gh pr review --approve` or `glab mr approve`
+6. **Merge:** When card moves to "done", agent merges PR/MR with configured merge method
+7. **Branch cleanup:** Feature branch deleted after merge
+
+**PR URLs are stored in kanban card metadata** for traceability.
+
+### Disabling remote git
+
+To work with local git only (no push/PR):
+
+```yaml
+remote_git:
+  enabled: false
+```
+
+Agents still create git repos and commits locally, but nothing pushes to remote.
+
+---
+
+## 5. Code generation workflow
 
 When agents have runtimes configured, the system uses **CodeGenPairingEngine** for real code generation:
 
@@ -343,6 +454,75 @@ Git Commit (if tests pass)
 Kanban Update
   - Move card from in_progress → review
 ```
+
+### Workspace modes: Greenfield vs Brownfield
+
+The system supports two workspace modes for different development scenarios:
+
+#### Greenfield (fresh projects)
+
+Each story gets an isolated workspace with a fresh git repository.
+
+```yaml
+# config.yaml
+code_generation:
+  workspace_mode: "per_story"  # Isolated workspace per story
+  persist_across_sprints: false
+  merge_completed_stories: false
+  repo_config:
+    url: ""  # Empty = create fresh repos
+    branch: "main"
+    clone_mode: "fresh"
+```
+
+**Result:** `/tmp/agent-workspace/sprint-01/us-001/` contains a fresh git repo for US-001
+
+**Best for:**
+- New projects starting from scratch
+- Isolated feature prototypes
+- Testing individual stories independently
+
+#### Brownfield (existing codebases)
+
+Clone an existing repository and build on it incrementally.
+
+```yaml
+# config.yaml
+code_generation:
+  workspace_mode: "per_sprint"  # Shared workspace for all stories in sprint
+  persist_across_sprints: true  # Continue from previous sprint's main
+  merge_completed_stories: true  # Auto-merge to main after QA approval
+  repo_config:
+    url: "https://github.com/your-org/existing-project.git"
+    branch: "main"
+    clone_mode: "incremental"  # Reuse workspace, pull latest
+```
+
+**Result:** All stories in sprint work on the same cloned repo, building on previous work
+
+**Workflow:**
+1. Sprint 1: Clone repo → work on stories → merge to local main
+2. Sprint 2: Reuse workspace → pull latest → work on new stories → merge
+3. Sprint N: Accumulated work from all previous sprints
+
+**Best for:**
+- Adding features to existing projects
+- Multi-sprint product development
+- Simulating long-term team dynamics
+
+#### Workspace mode comparison
+
+| Mode | Isolation | Git repos | Cross-sprint | Use case |
+|------|-----------|-----------|--------------|----------|
+| `per_story` | High | One per story | No | Greenfield, prototypes |
+| `per_sprint` | Low | One per sprint | Optional | Brownfield, products |
+
+#### Clone mode options
+
+| Mode | Behavior | When to use |
+|------|----------|-------------|
+| `fresh` | Delete and re-clone each time | Testing, clean slate |
+| `incremental` | Reuse workspace, `git pull` latest | Brownfield, continuity |
 
 ### Backlog Format with BDD
 
@@ -555,14 +735,14 @@ This appears in `final_report.json` as `test_coverage` and is exported to the `t
 
 ---
 
-## 9. Sprint artifacts
+## 10. Sprint artifacts
 
 ### Sprint Metadata (`<output>/sprint-NN/`)
 
 | File | Contents |
 |------|----------|
-| `kanban.json` | Full board snapshot: `ready`, `in_progress`, `review`, `done` |
-| `pairing_log.json` | All pairing session records (driver, navigator, outcomes, coverage) |
+| `kanban.json` | Full board snapshot: `ready`, `in_progress`, `review`, `done` (includes PR URLs in card metadata) |
+| `pairing_log.json` | All pairing session records (driver, navigator, outcomes, coverage, PR URLs) |
 | `retro.md` | Keep / Drop / Puzzle retrospective notes |
 
 ### Generated Code Workspaces (`/tmp/agent-workspace/sprint-NN/<story-id>/`)
@@ -624,13 +804,16 @@ sprint-01/
     "iterations": 1,
     "output": "2 passed in 0.05s"
   },
-  "commit_sha": "committed"
+  "commit_sha": "committed",
+  "pr_url": "https://github.com/your-org/project/pull/42"
 }
 ```
 
+**Note:** `pr_url` is only present when `remote_git.enabled: true` and push/PR creation succeeded.
+
 ---
 
-## 10. Prometheus metrics
+## 11. Prometheus metrics
 
 The metrics server starts automatically on port 8080.
 

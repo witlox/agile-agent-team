@@ -23,6 +23,8 @@ This project implements an 11-agent team that operates like a real software deve
 - **Definition of Done**: All features must be fully tested and production-ready
 - **BDD/DDD**: Behavior-Driven Development with Gherkin scenarios
 - **Real code generation**: Agents use tools to write, test, and commit actual code
+- **Greenfield & Brownfield**: Start fresh or build on existing codebases
+- **GitHub/GitLab integration**: Push code, create PRs, review, and merge
 
 ## Quick Start
 
@@ -65,6 +67,8 @@ python src/orchestrator/main.py --sprints 10
 - **Orchestration**: Python asyncio-based
 - **State Management**: PostgreSQL + Redis
 - **Code Generation**: BDD/Gherkin → Implementation → Testing → Git commits
+- **Remote Git Integration**: GitHub (gh CLI) / GitLab (glab CLI) for PRs and merges
+- **Workspace Management**: Greenfield (fresh) and brownfield (incremental) modes
 - **Monitoring**: Prometheus + Grafana
 - **Container Platform**: Kubernetes
 
@@ -267,6 +271,84 @@ python -m src.orchestrator.main --sprints 20 --output outputs/experiment-002
 
 See **[docs/USAGE.md](docs/USAGE.md)** for the complete usage guide: configuration reference, disturbance types, profile swapping modes, coverage formula, and artifact format.
 
+## Defining Work: From Backlog to Working Software
+
+### Input: User Stories in `backlog.yaml`
+
+Stakeholders define work using standard user stories:
+
+```yaml
+product:
+  name: "TaskFlow Pro"
+  description: "SaaS project management platform"
+
+stories:
+  - id: "US-001"
+    title: "User can create project"
+    description: "As a user, I want to create a new project so that I can organize tasks"
+    acceptance_criteria:
+      - "User can click 'New Project' button"
+      - "Form validates required fields"
+      - "Project appears in project list"
+    story_points: 3
+    priority: 1
+
+    # Optional: Explicit BDD scenarios
+    scenarios:
+      - name: "Create project with valid data"
+        given: "I am logged in"
+        when: "I create a project named 'Marketing Campaign'"
+        then: "I should see 'Marketing Campaign' in my project list"
+```
+
+### Workflow: Sprint Planning → Implementation → QA
+
+1. **PO Selects Stories**: PO agent reads backlog, selects stories for sprint based on priority and capacity
+2. **BDD Generation**: Stories are converted to Gherkin feature files
+3. **Pairing Sessions**: Dev pairs implement features using real tools (filesystem, git, pytest)
+4. **Test-Driven**: Tests run iteratively, code refined until passing
+5. **Git Commits**: Working code committed to feature branches
+6. **QA Review**: QA lead reviews, approves/rejects
+7. **Optional Push**: If remote git enabled, creates PR and merges
+
+### Output: Working, Tested Code
+
+**Greenfield (New Project):**
+```yaml
+# Default: Fresh git workspace per story
+code_generation:
+  workspace_mode: "per_story"
+  repo_config:
+    url: ""  # Empty = create fresh repos
+```
+
+Result: `/tmp/agent-workspace/sprint-01/us-001/` with fresh git repo
+
+**Brownfield (Existing Project):**
+```yaml
+# Clone and build on existing codebase
+code_generation:
+  workspace_mode: "per_sprint"  # Shared workspace for all stories
+  persist_across_sprints: true  # Continue from previous sprint
+  repo_config:
+    url: "https://github.com/your-org/existing-project.git"
+    branch: "main"
+    clone_mode: "incremental"  # Reuse workspace, pull latest
+```
+
+Result: Agents work on actual codebase, create feature branches, build incrementally
+
+**With Remote Git (GitHub/GitLab):**
+```yaml
+remote_git:
+  enabled: true
+  provider: "github"  # or "gitlab"
+  github:
+    token_env: "GITHUB_TOKEN"
+```
+
+Result: Agents push code, create PRs, QA approves via PR reviews, auto-merge to main
+
 ## Monitoring
 
 Access Grafana dashboard:
@@ -296,13 +378,19 @@ Each sprint produces:
    ├── features/us-001.feature      # BDD Gherkin scenarios
    ├── src/implementation.py        # Agent-generated code
    ├── tests/test_implementation.py # Agent-generated tests
-   └── .git/                        # Git repo with commits
+   └── .git/                        # Git repo with commits on feature branch
    ```
-7. **Architectural Decision Records** (ADRs) - Design choices
+7. **Pull Requests** (if remote git enabled):
+   - Created automatically after successful implementation
+   - Approved by QA lead during review phase
+   - Merged to main when card moves to "done"
+   - PR URLs stored in kanban card metadata
+8. **Architectural Decision Records** (ADRs) - Design choices
 
 Artifacts are stored in:
 - Sprint metadata: `outputs/<experiment-id>/sprint-<N>/`
 - Code workspaces: `/tmp/agent-workspace/sprint-<N>/<story-id>/`
+- Remote repositories: GitHub/GitLab (if configured)
 
 ## Qualification System
 

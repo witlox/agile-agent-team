@@ -10,6 +10,8 @@ This is a research project implementing an 11-agent software development team us
 - ✅ **Tool-using agents** - File operations, git, bash, pytest
 - ✅ **BDD/DDD workflow** - Gherkin scenarios drive implementation
 - ✅ **Three deployment modes** - Offline (vLLM), online (Anthropic), hybrid
+- ✅ **Remote git integration** - Push to GitHub/GitLab, create PRs, auto-merge
+- ✅ **Brownfield support** - Clone existing repos, incremental builds
 - ✅ **Meta-learning** - Dynamic prompt evolution from retrospectives
 - ✅ **Disturbance injection** - Realistic failure scenarios
 - ✅ **Profile swapping** - Agents cover roles outside specialization
@@ -77,9 +79,10 @@ src/
 │   └── agent_tools/           # Tool system for agents ⭐
 │       ├── base.py            # Tool interface
 │       ├── filesystem.py      # Read/write/edit/list/search
-│       ├── git.py             # Git status/diff/add/commit
+│       ├── git.py             # Git status/diff/add/commit/remote/push
 │       ├── bash.py            # Shell command execution
 │       ├── test_runner.py     # Pytest execution ⭐
+│       ├── remote_git.py      # GitHub/GitLab provider abstraction ⭐
 │       └── factory.py         # Tool registry and creation
 └── metrics/
     ├── prometheus_exporter.py # HTTP metrics server (port 8080)
@@ -110,11 +113,12 @@ outputs/                       # Experiment artifacts (gitignored)
 | Component | Status | Details |
 |---|---|---|
 | **Agent system** | ✅ Complete | 8-layer compositional prompts, runtime support |
-| **Tool system** | ✅ Complete | Filesystem, git, bash, test execution |
+| **Tool system** | ✅ Complete | Filesystem, git (6 tools), bash, test execution |
 | **Runtime system** | ✅ Complete | VLLMRuntime (XML), AnthropicRuntime (native) |
-| **Code generation** | ✅ Complete | BDD → implement → test → commit workflow |
+| **Code generation** | ✅ Complete | BDD → implement → test → commit → push workflow |
 | **Pairing engines** | ✅ Complete | Dialogue (legacy) + CodeGen (BDD-driven) |
-| **Workspace management** | ✅ Complete | Per-sprint git repos, cloning support |
+| **Workspace management** | ✅ Complete | Greenfield/brownfield, per-story/per-sprint modes |
+| **Remote git integration** | ✅ Complete | GitHub/GitLab push, PR creation, QA approval, merge |
 | **BDD/Gherkin** | ✅ Complete | Story → feature generation, step definitions |
 | **Sprint lifecycle** | ✅ Complete | Planning → Dev → QA → Retro → Meta |
 | **Kanban** | ✅ Complete | WIP limits, card transitions, snapshots |
@@ -160,6 +164,69 @@ When agents have runtimes configured, the system uses **CodeGenPairingEngine**:
    - `git_commit()` - Commit with message
 
 6. **Kanban Update**: Move card to review
+
+## Remote Git Integration & Brownfield Support
+
+### Remote Git (GitHub/GitLab)
+
+When `remote_git.enabled: true`, agents push code and create pull requests:
+
+**Configuration:**
+```yaml
+# config.yaml
+remote_git:
+  enabled: true
+  provider: "github"  # or "gitlab"
+
+  github:
+    token_env: "GITHUB_TOKEN"  # Single service account
+    base_branch: "main"
+    merge_method: "squash"
+
+  gitlab:
+    token_env_pattern: "GITLAB_TOKEN_{role_id}"  # Per-agent tokens
+    base_branch: "main"
+    merge_method: "squash"
+```
+
+**Workflow:**
+1. After commit, agent pushes: `git push -u origin feature/us-001`
+2. Agent creates PR/MR via `gh pr create` or `glab mr create`
+3. PR URL stored in kanban card metadata
+4. During QA review, if approved: `gh pr review --approve` or `glab mr approve`
+5. When card moves to done: `gh pr merge --squash` or `glab mr merge --squash`
+
+**Authentication:**
+- GitHub: Single `GITHUB_TOKEN` env var (service account)
+- GitLab: Per-agent tokens `GITLAB_TOKEN_{role_id}` (self-hosted)
+- Git commits: Per-agent author attribution (name/email)
+
+### Brownfield Development
+
+**Greenfield mode** (default): Fresh git repos per story
+```yaml
+code_generation:
+  workspace_mode: "per_story"  # Isolated workspaces
+  repo_config:
+    url: ""  # Empty = create fresh repos
+```
+
+**Brownfield mode**: Clone existing repos, build incrementally
+```yaml
+code_generation:
+  workspace_mode: "per_sprint"  # Shared workspace
+  persist_across_sprints: true  # Continue from previous sprint
+  merge_completed_stories: true  # Auto-merge to main after QA
+  repo_config:
+    url: "https://github.com/your-org/existing-project.git"
+    branch: "main"
+    clone_mode: "incremental"  # Reuse workspace, pull latest
+```
+
+**Cross-sprint workflow:**
+1. Sprint 1: Clone repo → work on stories → merge to main
+2. Sprint 2: Reuse workspace → `git pull` latest → work on new stories
+3. Sprint N: Accumulated work from all previous sprints
 
 ## Agent Prompt Composition (8 Layers)
 
