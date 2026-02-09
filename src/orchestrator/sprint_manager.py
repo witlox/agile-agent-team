@@ -317,53 +317,50 @@ class SprintManager:
     # -------------------------------------------------------------------------
 
     async def apply_meta_learning(self, sprint_num: int, retro: Dict):
-        """Append retro learnings to relevant agent profile files and reload prompts."""
+        """Store retro learnings in JSONL and reload agent prompts.
+
+        Meta-learnings are stored in 04_meta/meta_learnings.jsonl and dynamically
+        loaded at prompt composition time, so they don't pollute the base profile files.
+        """
         team_config = Path(self.config.team_config_dir)
-        individuals_dir = team_config / "02_individuals"
         jsonl_path = team_config / "04_meta" / "meta_learnings.jsonl"
 
-        all_drops = retro.get("drop", [])
-        if not all_drops:
-            return
+        # Ensure directory exists
+        jsonl_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Map role keywords to profile filenames
-        profiles = {p.stem: p for p in individuals_dir.glob("*.md")}
+        # Process all retrospective items (keep, drop, puzzle)
+        learning_types = {
+            "keep": retro.get("keep", []),
+            "drop": retro.get("drop", []),
+            "puzzle": retro.get("puzzle", []),
+        }
 
-        for item in all_drops:
-            agent_id = item.get("agent", "")
-            learning_text = item.get("text", "").strip()
-            if not learning_text:
-                continue
+        learnings_added = False
+        for learning_type, items in learning_types.items():
+            for item in items:
+                agent_id = item.get("agent", "")
+                learning_text = item.get("text", "").strip()
 
-            # Find the profile file for this agent
-            profile_path = profiles.get(agent_id)
-            if profile_path and profile_path.exists():
-                existing = profile_path.read_text()
-                section_header = f"\n\n## Recent Learnings (Sprint {sprint_num})\n"
-                if section_header not in existing:
-                    profile_path.write_text(
-                        existing.rstrip() + section_header + f"- {learning_text}\n"
-                    )
-                else:
-                    # Append to existing section
-                    profile_path.write_text(
-                        existing.rstrip() + f"\n- {learning_text}\n"
-                    )
+                if not agent_id or not learning_text:
+                    continue
 
-            # Log to JSONL
-            entry = {
-                "sprint": sprint_num,
-                "agent_id": agent_id,
-                "learning_type": "drop",
-                "content": {"text": learning_text},
-                "applied": True,
-            }
-            with open(jsonl_path, "a") as f:
-                f.write(json.dumps(entry) + "\n")
+                # Store learning in JSONL
+                entry = {
+                    "sprint": sprint_num,
+                    "agent_id": agent_id,
+                    "learning_type": learning_type,
+                    "content": {"text": learning_text},
+                    "applied": True,
+                }
+                with open(jsonl_path, "a") as f:
+                    f.write(json.dumps(entry) + "\n")
 
-        # Reload prompts for all agents so next sprint sees the updates
-        for agent in self.agents:
-            agent.prompt = agent._load_prompt()
+                learnings_added = True
+
+        # Reload prompts for all agents so next sprint sees the new learnings
+        if learnings_added:
+            for agent in self.agents:
+                agent.prompt = agent._load_prompt()
 
     # -------------------------------------------------------------------------
     # Phase 6: Artifacts

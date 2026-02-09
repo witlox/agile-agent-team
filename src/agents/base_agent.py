@@ -1,5 +1,6 @@
 """Base agent class that all agents inherit from."""
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -191,7 +192,43 @@ class BaseAgent:
                 demo_text += f"Cultural Background: {self.config.demographics['cultural_background']}\n"
             parts.append(demo_text)
 
+        # 8. Meta-learnings (dynamic, loaded from JSONL)
+        meta_learnings = self._load_meta_learnings(team_config_dir)
+        if meta_learnings:
+            parts.append(meta_learnings)
+
         return "\n\n---\n\n".join(parts)
+
+    def _load_meta_learnings(self, team_config_dir: Path) -> str:
+        """Load meta-learnings from 04_meta/meta_learnings.jsonl for this agent."""
+        jsonl_path = team_config_dir / "04_meta" / "meta_learnings.jsonl"
+        if not jsonl_path.exists():
+            return ""
+
+        learnings: List[str] = []
+        try:
+            with open(jsonl_path, "r") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    entry = json.loads(line)
+                    # Match learnings for this agent's role_id
+                    if entry.get("agent_id") == self.config.role_id:
+                        sprint_num = entry.get("sprint", "?")
+                        learning_type = entry.get("learning_type", "learning")
+                        content = entry.get("content", {})
+                        text = content.get("text", "")
+                        if text:
+                            learnings.append(f"- **Sprint {sprint_num} ({learning_type})**: {text}")
+        except (json.JSONDecodeError, IOError):
+            return ""
+
+        if not learnings:
+            return ""
+
+        header = "\n\n[META-LEARNINGS]\n"
+        header += "Insights from past retrospectives that should inform your behavior:\n\n"
+        return header + "\n".join(learnings)
 
     def _is_mock_mode(self) -> bool:
         """Return True if mock mode is active."""
