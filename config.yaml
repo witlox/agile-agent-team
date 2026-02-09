@@ -8,6 +8,23 @@ experiment:
 team:
   config_dir: "team_config"
 
+  # Team size constraints
+  max_engineers: 10  # Excluding testers - quality over quantity
+  max_total_team_size: 13  # Including testers, PO, leads
+
+  # Turnover simulation (for experiments > 5 months / 10 sprints)
+  turnover:
+    enabled: false  # Set true to simulate team member departures
+    starts_after_sprint: 10  # ~5 months
+    probability_per_sprint: 0.05  # 5% chance per sprint after threshold
+    backfill_enabled: true  # Automatically hire replacement (simulated)
+
+  # Tester participation in pairing
+  tester_pairing:
+    enabled: true  # Testers can join pairing sessions as navigators
+    frequency: 0.20  # 20% of pairing sessions include a tester
+    role: "navigator"  # Testers always navigate, never drive
+
   wip_limits:
     in_progress: 4
     review: 2

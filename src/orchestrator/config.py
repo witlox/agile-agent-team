@@ -27,6 +27,15 @@ class ExperimentConfig:
     profile_swap_penalties: Dict[str, float] = field(default_factory=dict)
     tools_workspace_root: str = "/tmp/agent-workspace"  # NEW: Workspace for code generation
     repo_config: Optional[Dict] = None  # NEW: Optional git repo to clone
+    # Team constraints and dynamics
+    max_engineers: int = 10  # Max engineers (excluding testers)
+    max_total_team_size: int = 13  # Total team size including testers/PO/leads
+    turnover_enabled: bool = False  # Simulate team member departures
+    turnover_starts_after_sprint: int = 10  # When turnover begins (~5 months)
+    turnover_probability: float = 0.05  # Per-sprint probability after threshold
+    turnover_backfill: bool = True  # Auto-hire replacements
+    tester_pairing_enabled: bool = True  # Testers can pair as navigators
+    tester_pairing_frequency: float = 0.20  # 20% of sessions include tester
 
 
 def load_config(config_path: str, database_url: Optional[str] = None) -> ExperimentConfig:
@@ -79,6 +88,32 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
     if "code_generation" in data:
         repo_config = data["code_generation"].get("repo_config")
 
+    # Team constraints and dynamics
+    max_engineers = 10
+    max_total_team_size = 13
+    turnover_enabled = False
+    turnover_starts_after_sprint = 10
+    turnover_probability = 0.05
+    turnover_backfill = True
+    tester_pairing_enabled = True
+    tester_pairing_frequency = 0.20
+
+    if "team" in data:
+        max_engineers = data["team"].get("max_engineers", 10)
+        max_total_team_size = data["team"].get("max_total_team_size", 13)
+
+        if "turnover" in data["team"]:
+            turnover = data["team"]["turnover"]
+            turnover_enabled = turnover.get("enabled", False)
+            turnover_starts_after_sprint = turnover.get("starts_after_sprint", 10)
+            turnover_probability = turnover.get("probability_per_sprint", 0.05)
+            turnover_backfill = turnover.get("backfill_enabled", True)
+
+        if "tester_pairing" in data["team"]:
+            tester_pairing = data["team"]["tester_pairing"]
+            tester_pairing_enabled = tester_pairing.get("enabled", True)
+            tester_pairing_frequency = tester_pairing.get("frequency", 0.20)
+
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
     resolved_db_url = (
         database_url
@@ -93,7 +128,7 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         team_config_dir=data["team"]["config_dir"],
         vllm_endpoint=data["models"]["vllm_endpoint"],
         agent_configs=agent_configs,
-        runtime_configs=runtime_configs,  # NEW: Pass runtime configs
+        runtime_configs=runtime_configs,
         wip_limits=wip_limits,
         sprints_per_stakeholder_review=sprints_per_stakeholder_review,
         disturbances_enabled=disturbances_enabled,
@@ -102,6 +137,14 @@ def load_config(config_path: str, database_url: Optional[str] = None) -> Experim
         profile_swap_mode=profile_swap_mode,
         profile_swap_scenarios=profile_swap_scenarios,
         profile_swap_penalties=profile_swap_penalties,
-        tools_workspace_root=tools_workspace_root,  # NEW: Workspace root
-        repo_config=repo_config,  # NEW: Optional repo config
+        tools_workspace_root=tools_workspace_root,
+        repo_config=repo_config,
+        max_engineers=max_engineers,
+        max_total_team_size=max_total_team_size,
+        turnover_enabled=turnover_enabled,
+        turnover_starts_after_sprint=turnover_starts_after_sprint,
+        turnover_probability=turnover_probability,
+        turnover_backfill=turnover_backfill,
+        tester_pairing_enabled=tester_pairing_enabled,
+        tester_pairing_frequency=tester_pairing_frequency,
     )
