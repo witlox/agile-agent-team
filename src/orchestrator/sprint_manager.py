@@ -99,7 +99,10 @@ class SprintManager:
         dev_lead = self._agent("dev_lead") or self._agent("lead")
         qa_lead = self._agent("qa_lead")
 
-        self.story_refinement = StoryRefinementSession(po, agents, dev_lead)
+        project_context = backlog.get_project_context() if backlog else ""
+        self.story_refinement = StoryRefinementSession(
+            po, agents, dev_lead, project_context=project_context
+        )
         self.technical_planning = TechnicalPlanningSession(
             [
                 a
@@ -252,19 +255,28 @@ class SprintManager:
     # -------------------------------------------------------------------------
 
     async def _run_sprint_zero(self):
-        """Run Sprint 0 - infrastructure setup.
+        """Run Sprint 0 - infrastructure setup and PO domain refinement.
+
+        Sprint 0 runs at half the regular sprint duration.
 
         Flow:
-        1. Planning: Generate/select infrastructure stories
-        2. Development: Agents create config files (normal pairing)
-        3. QA: Validate configs are syntactically correct
-        4. CI Validation: Actually run CI pipeline validation
-        5. Retrospective: Discuss infrastructure decisions
+        1. PO domain refinement: PO studies stakeholder context and refines
+           business knowledge so it can represent the product effectively.
+        2. Planning: Generate/select infrastructure stories
+        3. Development: Agents create config files (normal pairing)
+        4. QA: Validate configs are syntactically correct
+        5. CI Validation: Actually run CI pipeline validation
+        6. Retrospective: Discuss infrastructure decisions
         """
         sprint_num = 0
+        full_duration = getattr(self.config, "sprint_duration_minutes", 60)
+        sprint_zero_duration = full_duration // 2
 
         sprint_output = self.output_dir / f"sprint-{sprint_num:02d}"
         sprint_output.mkdir(parents=True, exist_ok=True)
+
+        print("  PO domain refinement...")
+        await self._run_po_domain_refinement()
 
         print("  Planning (Sprint 0)...")
         await self._run_planning_sprint_zero()
@@ -272,7 +284,7 @@ class SprintManager:
         # Skip disturbances for Sprint 0 (not relevant for infrastructure)
 
         print("  Development...")
-        await self.run_development(sprint_num)
+        await self.run_development(sprint_num, duration_override=sprint_zero_duration)
 
         print("  QA review...")
         await self.run_qa_review(sprint_num)
@@ -391,6 +403,60 @@ class SprintManager:
             _card_id = await self.kanban.add_card(card_data)
 
         print(f"    Added {len(stories_to_use)} stories to Sprint 0 backlog")
+
+    async def _run_po_domain_refinement(self):
+        """PO studies stakeholder context and refines domain knowledge.
+
+        During Sprint 0 the Product Owner reviews the project context
+        (mission, vision, goals, target audience, success metrics) provided
+        by the stakeholder and produces a refined business brief.  This
+        brief is stored in the PO's conversation history so it informs all
+        subsequent story presentations and stakeholder interactions.
+        """
+        po = self._agent("po")
+        if not po:
+            print("    No PO agent found, skipping domain refinement")
+            return
+
+        # Build project context from backlog
+        project_context = ""
+        if self.backlog:
+            project_context = self.backlog.get_project_context()
+
+        if not project_context:
+            print("    No stakeholder context in backlog, skipping refinement")
+            return
+
+        prompt = f"""You are starting a new project. Before Sprint 1 begins, study the
+stakeholder context below and prepare yourself to represent this product.
+
+{project_context}
+
+Based on this context, write a concise **Business Knowledge Brief** that you
+will use throughout the project. Cover:
+
+1. **Product elevator pitch** (2-3 sentences)
+2. **Key differentiators** — what sets this product apart from competitors
+3. **Primary user personas** and their pain points
+4. **Definition of success** — how we measure whether we're winning
+5. **Scope boundaries** — what this product is NOT
+
+This brief will guide your story presentations, prioritization decisions,
+and stakeholder communications for the entire project."""
+
+        response = await po.generate(prompt)
+
+        # Store in PO conversation history so it persists across sprints
+        po.conversation_history.append(
+            {
+                "role": "assistant",
+                "content": response,
+                "type": "domain_refinement",
+                "metadata": {"phase": "sprint_zero", "purpose": "business_knowledge"},
+            }
+        )
+
+        print(f"    PO refined business knowledge ({len(response)} chars)")
 
     async def _validate_ci_pipeline(self) -> bool:
         """Validate that CI pipeline actually works.
@@ -542,15 +608,24 @@ class SprintManager:
     # Phase 2: Development
     # -------------------------------------------------------------------------
 
-    async def run_development(self, sprint_num: int):
+    async def run_development(
+        self, sprint_num: int, duration_override: Optional[int] = None
+    ):
         """Development phase with daily standups and pair rotation.
 
-        20 minutes wall-clock = 10 simulated days (2 weeks)
-        Each day: standup (except Day 1) + pairing sessions + rotation prep
+        Wall-clock duration (default from config) = 10 simulated days (2 weeks).
+        Each day: standup (except Day 1) + pairing sessions + rotation prep.
+
+        Args:
+            sprint_num: Current sprint number.
+            duration_override: Optional wall-clock minutes override (e.g.
+                Sprint 0 uses half the regular duration).
         """
-        duration = getattr(self.config, "sprint_duration_minutes", 20)
+        duration = duration_override or getattr(
+            self.config, "sprint_duration_minutes", 20
+        )
         num_days = 10  # 2-week sprint = 10 working days
-        time_per_day = duration / num_days  # ~2 minutes per day
+        time_per_day = duration / num_days
 
         # Get initial task assignments and pairs
         snapshot = await self.kanban.get_snapshot()

@@ -22,10 +22,11 @@ class RefinedStory:
 class StoryRefinementSession:
     """Manages Phase 1 planning: PO presents stories, team asks questions."""
 
-    def __init__(self, po_agent, team_agents, dev_lead):
+    def __init__(self, po_agent, team_agents, dev_lead, project_context: str = ""):
         self.po = po_agent
         self.team = team_agents
         self.dev_lead = dev_lead
+        self.project_context = project_context
 
     async def refine_stories(
         self, candidate_stories: List[Dict], sprint_num: int, team_capacity: int
@@ -96,8 +97,16 @@ class StoryRefinementSession:
             # Fallback if no PO agent
             return f"Story {story['id']}: {story['description']}"
 
-        prompt = f"""You are presenting story {story['id']} to the team in Sprint {sprint_num} planning.
+        # Include project context if available
+        context_section = ""
+        if self.project_context:
+            context_section = f"""
+Product context (use this to ground your presentation):
+{self.project_context}
+"""
 
+        prompt = f"""You are presenting story {story['id']} to the team in Sprint {sprint_num} planning.
+{context_section}
 Story: {story['title']}
 Description: {story['description']}
 Acceptance Criteria:

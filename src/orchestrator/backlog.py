@@ -17,6 +17,12 @@ class ProductMetadata:
     tech_stack: List[str] = field(default_factory=list)
     repository_type: str = "greenfield"
     repository_url: str = ""
+    # Stakeholder context
+    mission: str = ""
+    vision: str = ""
+    goals: List[str] = field(default_factory=list)
+    target_audience: str = ""
+    success_metrics: List[str] = field(default_factory=list)
 
 
 class Backlog:
@@ -76,4 +82,44 @@ class Backlog:
             tech_stack=product.get("tech_stack", []),
             repository_type=repository.get("type", "greenfield"),
             repository_url=repository.get("url", ""),
+            mission=product.get("mission", ""),
+            vision=product.get("vision", ""),
+            goals=product.get("goals", []),
+            target_audience=product.get("target_audience", ""),
+            success_metrics=product.get("success_metrics", []),
         )
+
+    def get_project_context(self) -> str:
+        """Build a stakeholder context brief from product metadata.
+
+        Returns a formatted string with mission, vision, goals, target
+        audience, and success metrics for use in PO prompts and agent
+        context.  Returns empty string if no context fields are set.
+        """
+        meta = self.get_product_metadata()
+        parts: List[str] = []
+
+        parts.append(f"# {meta.name}\n")
+        if meta.description:
+            parts.append(f"{meta.description.strip()}\n")
+        if meta.mission:
+            parts.append(f"## Mission\n{meta.mission.strip()}\n")
+        if meta.vision:
+            parts.append(f"## Vision\n{meta.vision.strip()}\n")
+        if meta.goals:
+            parts.append("## Goals")
+            for g in meta.goals:
+                parts.append(f"- {g}")
+            parts.append("")
+        if meta.target_audience:
+            parts.append(f"## Target Audience\n{meta.target_audience.strip()}\n")
+        if meta.success_metrics:
+            parts.append("## Success Metrics")
+            for m in meta.success_metrics:
+                parts.append(f"- {m}")
+            parts.append("")
+
+        # Only return if there is meaningful context beyond name/description
+        if not (meta.mission or meta.vision or meta.goals):
+            return ""
+        return "\n".join(parts)
