@@ -5,6 +5,30 @@ product:
     Teams can create projects, assign tasks, track progress, and
     collaborate in real time.
 
+  # Stakeholder context — the "why" behind this product.
+  # Loaded at experiment start and fed into PO domain knowledge refinement.
+  mission: >
+    Help small engineering teams stay focused on what matters by providing
+    a frictionless, opinionated task management workflow that grows with them.
+  vision: >
+    Become the default task manager for teams of 5-50 engineers who value
+    simplicity over feature bloat, shipping a focused product that
+    integrates tightly with GitHub/GitLab and CI/CD pipelines.
+  goals:
+    - "Launch MVP with core task management within 3 months"
+    - "Achieve 100 active teams within 6 months of launch"
+    - "Maintain <500ms p95 API latency at scale"
+    - "Reach feature parity with basic Trello workflows by v1.0"
+  target_audience: >
+    Small to mid-size software engineering teams (5-50 people) who
+    currently use spreadsheets, sticky notes, or overly complex tools
+    like Jira and want something lightweight and developer-friendly.
+  success_metrics:
+    - "Weekly active teams (WAT)"
+    - "Task completion rate (tasks done / tasks created)"
+    - "Time to first task (onboarding friction)"
+    - "NPS score from team leads"
+
   # Multi-language support for Sprint 0
   languages: [python, typescript]
 
