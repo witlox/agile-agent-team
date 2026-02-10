@@ -7,12 +7,11 @@ Any code that is in this repo is AI generated as well, the experiment is thus 2-
 
 ## Overview
 
-This project implements an 11-agent team (+ 5 language specialists) that operates like a real software development team and **generates real, tested code**:
+This project implements an 11-agent that operates like a real software development team and **generates real, tested code**:
 
 - **1 Dev Lead** + **1 QA Lead** + **1 Product Owner**
 - **6 Developers** (2 senior, 2 mid-level, 2 junior)
 - **2 Testers** (integration + E2E)
-- **5 Language Specialists** (Python, Go, Rust, TypeScript, C++)
 
 Agents follow XP practices (pair programming, TDD, CI), use a Kanban board with WIP limits, and generate BDD-driven code through tool use (filesystem, git, bash, pytest). They can target existing codebases (brownfield) or start fresh (greenfield), and optionally push to GitHub/GitLab with automated PR workflows.
 
