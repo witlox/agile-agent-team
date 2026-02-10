@@ -27,6 +27,7 @@ from .daily_standup import DailyStandupSession
 from .sprint_review import SprintReviewSession
 from .pair_rotation import PairRotationManager
 from .specialist_consultant import SpecialistConsultantSystem
+from .stakeholder_notify import StakeholderNotifier
 
 
 class SprintManager:
@@ -144,6 +145,21 @@ class SprintManager:
             velocity_penalty_per_consultation=getattr(
                 config, "specialist_velocity_penalty", 2.0
             ),
+        )
+
+        # Stakeholder notifier for external feedback loop
+        mock_mode = (
+            config.database_url == "mock://"
+            or not config.database_url.startswith("postgresql")
+        )
+        self.stakeholder_notifier = StakeholderNotifier(
+            webhook_url=getattr(config, "stakeholder_webhook_url", ""),
+            webhook_enabled=getattr(config, "stakeholder_webhook_enabled", False),
+            feedback_mode=getattr(config, "stakeholder_feedback_mode", "file"),
+            callback_port=getattr(config, "stakeholder_feedback_callback_port", 8081),
+            poll_interval=getattr(config, "stakeholder_feedback_poll_interval", 30),
+            output_dir=output_dir,
+            mock_mode=mock_mode,
         )
 
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
@@ -1175,7 +1191,17 @@ and stakeholder communications for the entire project."""
     # -------------------------------------------------------------------------
 
     async def stakeholder_review(self, sprint_num: int):
-        """PO + dev_lead review completed stories; PO accepts or rejects."""
+        """PO + dev_lead review completed stories; stakeholders notified via webhook.
+
+        When webhook is enabled:
+        1. Build rich review payload from sprint results
+        2. Send via webhook (Slack/Teams/Matrix/generic)
+        3. Wait for external feedback (file-drop or HTTP callback)
+        4. Apply feedback (backlog changes, new stories, priority shifts)
+        5. Persist in SharedContextDB, publish event on message bus
+
+        When no webhook configured: falls back to PO-only review (backwards compat).
+        """
         print(f"\n  STAKEHOLDER REVIEW (Sprint {sprint_num})")
 
         if self._sprint_results:
@@ -1184,19 +1210,114 @@ and stakeholder communications for the entire project."""
             print(f"  Average velocity: {avg_velocity:.1f} pts/sprint")
             print(f"  Sprints completed: {len(self._sprint_results)}")
 
-        # PO reviews done cards
+        # PO reviews done cards (always happens, webhook or not)
         po = self._agent("po")
-        if po:
-            snapshot = await self.kanban.get_snapshot()
-            done_cards = snapshot.get("done", [])
-            if done_cards:
-                titles = "\n".join(f"- {c['title']}" for c in done_cards)
-                response = await po.generate(
-                    f"Stakeholder review after sprint {sprint_num}.\n"
-                    f"Completed stories:\n{titles}\n\n"
-                    "Provide brief acceptance feedback."
+        po_assessment = ""
+        snapshot = await self.kanban.get_snapshot()
+        done_cards = snapshot.get("done", [])
+
+        if po and done_cards:
+            titles = "\n".join(f"- {c['title']}" for c in done_cards)
+            po_assessment = await po.generate(
+                f"Stakeholder review after sprint {sprint_num}.\n"
+                f"Completed stories:\n{titles}\n\n"
+                "Provide brief acceptance feedback."
+            )
+            print(f"  PO feedback: {po_assessment[:200]}")
+
+        # If webhook not enabled, we're done (backwards-compatible PO-only review)
+        if not getattr(self.config, "stakeholder_webhook_enabled", False):
+            return
+
+        # Build and send webhook payload
+        cadence = getattr(self.config, "stakeholder_review_cadence", 3)
+        payload = self.stakeholder_notifier.build_payload(
+            experiment_name=getattr(self.config, "name", "experiment"),
+            sprint_num=sprint_num,
+            sprint_results=self._sprint_results,
+            completed_stories=done_cards,
+            po_assessment=po_assessment,
+            cadence=cadence,
+        )
+
+        delivered = await self.stakeholder_notifier.send_webhook(payload)
+        if delivered:
+            print("  Webhook delivered, waiting for stakeholder feedback...")
+        else:
+            print("  Webhook delivery failed, proceeding with timeout action")
+
+        # Wait for feedback
+        timeout_minutes = getattr(
+            self.config, "stakeholder_review_timeout_minutes", 60.0
+        )
+        timeout_action = getattr(
+            self.config, "stakeholder_review_timeout_action", "auto_approve"
+        )
+
+        async def po_proxy_generate():
+            """Generate PO proxy feedback when stakeholder times out."""
+            if po:
+                return await po.generate(
+                    f"The stakeholder did not respond to the sprint {sprint_num} review.\n"
+                    "As PO proxy, provide your own acceptance decision and any priority changes."
                 )
-                print(f"  PO feedback: {response[:200]}")
+            return "No PO available for proxy feedback."
+
+        feedback = await self.stakeholder_notifier.wait_for_feedback(
+            sprint_num=sprint_num,
+            timeout_minutes=timeout_minutes,
+            timeout_action=timeout_action,
+            po_generate_func=po_proxy_generate,
+        )
+
+        print(
+            f"  Feedback received: {feedback.decision} "
+            f"(source={feedback.source}, respondent={feedback.respondent})"
+        )
+
+        # Persist feedback
+        await self.db.store_stakeholder_feedback(
+            {
+                "sprint": feedback.sprint,
+                "source": feedback.source,
+                "decision": feedback.decision,
+                "feedback_text": feedback.feedback_text,
+                "priority_changes": feedback.priority_changes,
+                "new_stories": feedback.new_stories,
+                "respondent": feedback.respondent,
+            }
+        )
+
+        # Apply backlog changes from feedback
+        if feedback.priority_changes and self.backlog:
+            for change in feedback.priority_changes:
+                story_id = change.get("story_id", "")
+                action = change.get("action", "")
+                if action == "deprioritize":
+                    self.backlog.mark_returned(story_id)
+                    print(f"    Deprioritized: {story_id}")
+
+        if feedback.new_stories and self.backlog:
+            for story in feedback.new_stories:
+                self.backlog.add_story(story)
+                print(f"    New story added: {story.get('title', 'untitled')}")
+
+        # Publish event on message bus
+        try:
+            await self.message_bus.publish(
+                "system",
+                "stakeholder_feedback",
+                {
+                    "sprint": sprint_num,
+                    "decision": feedback.decision,
+                    "source": feedback.source,
+                    "has_changes": bool(
+                        feedback.priority_changes or feedback.new_stories
+                    ),
+                },
+            )
+        except Exception:
+            pass  # bus may not be running
 
     # -------------------------------------------------------------------------
     # Final report

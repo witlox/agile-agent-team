@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - External Stakeholder Feedback via Webhooks (2026-02-10)
+
+**Stakeholder review now supports external notification and feedback collection**:
+- **StakeholderNotifier** (`src/orchestrator/stakeholder_notify.py`): New module for webhook delivery and feedback collection
+  - `StakeholderReviewPayload` (frozen dataclass): Rich sprint summary with velocity trend, coverage, cycle time, disturbances, completed stories, PO assessment
+  - `StakeholderFeedback` dataclass: Decision, priority changes, new stories from stakeholders
+  - `send_webhook()`: POST JSON to Slack/Teams/Matrix/generic URL with 3-attempt retry (5s/15s/30s backoff)
+  - `wait_for_feedback()`: Two modes — file polling or HTTP callback server (aiohttp)
+  - Three timeout actions: `auto_approve` (default), `po_proxy` (PO generates feedback), `block` (wait indefinitely)
+  - Mock mode: skip HTTP, auto-approve immediately
+- **Config**: New `stakeholder_review:` YAML section with cadence, timeout, webhook, and feedback settings
+  - Default review cadence changed from 5 to 3 sprints
+  - Backward compatible: old `sprints_per_stakeholder_review` field still works
+- **SprintManager**: `stakeholder_review()` rewritten from 20-line stub to full implementation
+  - Builds payload from sprint results, sends webhook, waits for feedback
+  - Applies backlog changes (deprioritize stories, add new stories)
+  - Persists feedback in SharedContextDB, publishes `stakeholder_feedback` event on message bus
+  - Falls back to PO-only review when webhook not configured (backwards compat)
+- **SharedContextDB**: `stakeholder_feedback` table + `store_stakeholder_feedback()` / `get_stakeholder_feedback()` methods
+- **Backlog**: `add_story()` method for stakeholder-injected stories
+- **18 new tests**: 14 unit tests (`test_stakeholder_notify.py`) + 4 integration tests (`test_stakeholder_review.py`)
+- **Test count**: 350 → 368 collected (360 passing, 5 skipped, 3 pre-existing e2e failures)
+
+**Files changed**:
+- `src/orchestrator/stakeholder_notify.py` — **NEW**: StakeholderNotifier, payloads, feedback
+- `tests/unit/test_stakeholder_notify.py` — **NEW**: 14 unit tests
+- `tests/integration/test_stakeholder_review.py` — **NEW**: 4 integration tests
+- `src/orchestrator/config.py` — 9 stakeholder review fields + YAML parsing, default cadence 5→3
+- `config.yaml` — `stakeholder_review:` section, cadence default 3
+- `src/orchestrator/sprint_manager.py` — Rewritten `stakeholder_review()`, StakeholderNotifier creation
+- `src/orchestrator/main.py` — Use `stakeholder_review_cadence`, skip Sprint 0 reviews
+- `src/tools/shared_context.py` — `_stakeholder_feedback` store, `stakeholder_feedback` table, store/get methods
+- `src/orchestrator/backlog.py` — `add_story()` method
+
 ### Added - Async Message Bus for Peer-to-Peer Agent Communication (2026-02-10)
 
 **In-process message bus enabling direct agent-to-agent communication**:

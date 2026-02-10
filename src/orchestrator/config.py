@@ -21,7 +21,19 @@ class ExperimentConfig:
     wip_limits: Dict[str, int] = field(
         default_factory=lambda: {"in_progress": 4, "review": 2}
     )
-    sprints_per_stakeholder_review: int = 5
+    sprints_per_stakeholder_review: int = 3
+    # Stakeholder review configuration
+    stakeholder_review_cadence: int = 3  # Every N sprints
+    stakeholder_review_timeout_minutes: float = 60.0
+    stakeholder_review_timeout_action: str = (
+        "auto_approve"  # auto_approve|po_proxy|block
+    )
+    stakeholder_webhook_enabled: bool = False
+    stakeholder_webhook_url: str = ""
+    stakeholder_webhook_url_env: str = "STAKEHOLDER_WEBHOOK_URL"
+    stakeholder_feedback_mode: str = "file"  # "callback" or "file"
+    stakeholder_feedback_callback_port: int = 8081
+    stakeholder_feedback_poll_interval: int = 30  # seconds
     disturbances_enabled: bool = False
     disturbance_frequencies: Dict[str, float] = field(default_factory=dict)
     blast_radius_controls: Dict[str, float] = field(default_factory=dict)
@@ -82,11 +94,47 @@ def load_config(
     if "team" in data and "wip_limits" in data["team"]:
         wip_limits = data["team"]["wip_limits"]
 
-    sprints_per_stakeholder_review = 5
+    sprints_per_stakeholder_review = 3
     if "experiment" in data and "sprints_per_stakeholder_review" in data["experiment"]:
         sprints_per_stakeholder_review = data["experiment"][
             "sprints_per_stakeholder_review"
         ]
+
+    # Stakeholder review configuration (new section takes precedence)
+    stakeholder_review_cadence = sprints_per_stakeholder_review
+    stakeholder_review_timeout_minutes = 60.0
+    stakeholder_review_timeout_action = "auto_approve"
+    stakeholder_webhook_enabled = False
+    stakeholder_webhook_url = ""
+    stakeholder_webhook_url_env = "STAKEHOLDER_WEBHOOK_URL"
+    stakeholder_feedback_mode = "file"
+    stakeholder_feedback_callback_port = 8081
+    stakeholder_feedback_poll_interval = 30
+
+    if "stakeholder_review" in data:
+        sr = data["stakeholder_review"]
+        stakeholder_review_cadence = sr.get("cadence", stakeholder_review_cadence)
+        # Keep the alias in sync
+        sprints_per_stakeholder_review = stakeholder_review_cadence
+        stakeholder_review_timeout_minutes = float(sr.get("timeout_minutes", 60.0))
+        stakeholder_review_timeout_action = sr.get("timeout_action", "auto_approve")
+
+        if "webhook" in sr:
+            wh = sr["webhook"]
+            stakeholder_webhook_enabled = wh.get("enabled", False)
+            stakeholder_webhook_url = wh.get("url", "")
+            stakeholder_webhook_url_env = wh.get("url_env", "STAKEHOLDER_WEBHOOK_URL")
+            # Resolve URL from env if direct URL not provided
+            if not stakeholder_webhook_url and stakeholder_webhook_url_env:
+                stakeholder_webhook_url = os.environ.get(
+                    stakeholder_webhook_url_env, ""
+                )
+
+        if "feedback" in sr:
+            fb = sr["feedback"]
+            stakeholder_feedback_mode = fb.get("mode", "file")
+            stakeholder_feedback_callback_port = int(fb.get("callback_port", 8081))
+            stakeholder_feedback_poll_interval = int(fb.get("poll_interval", 30))
 
     # Disturbance config
     disturbances_enabled = False
@@ -223,6 +271,15 @@ def load_config(
         runtime_configs=runtime_configs,
         wip_limits=wip_limits,
         sprints_per_stakeholder_review=sprints_per_stakeholder_review,
+        stakeholder_review_cadence=stakeholder_review_cadence,
+        stakeholder_review_timeout_minutes=stakeholder_review_timeout_minutes,
+        stakeholder_review_timeout_action=stakeholder_review_timeout_action,
+        stakeholder_webhook_enabled=stakeholder_webhook_enabled,
+        stakeholder_webhook_url=stakeholder_webhook_url,
+        stakeholder_webhook_url_env=stakeholder_webhook_url_env,
+        stakeholder_feedback_mode=stakeholder_feedback_mode,
+        stakeholder_feedback_callback_port=stakeholder_feedback_callback_port,
+        stakeholder_feedback_poll_interval=stakeholder_feedback_poll_interval,
         disturbances_enabled=disturbances_enabled,
         disturbance_frequencies=disturbance_frequencies,
         blast_radius_controls=blast_radius_controls,

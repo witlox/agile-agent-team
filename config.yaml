@@ -17,7 +17,25 @@ experiment:
   # Override via config or CLI: --duration <minutes>
   sprint_duration_minutes: 60
   num_simulated_days: 5        # Simulated work days per sprint (default: 5)
-  sprints_per_stakeholder_review: 5
+  sprints_per_stakeholder_review: 3
+
+# Stakeholder review — external feedback loop
+# Sends sprint summary via webhook, waits for stakeholder response.
+# If no webhook configured, falls back to PO-only review (current behavior).
+stakeholder_review:
+  cadence: 3                          # Every N sprints (default: 3)
+  timeout_minutes: 60                 # Wait time for stakeholder feedback
+  timeout_action: "auto_approve"      # auto_approve | po_proxy | block
+
+  webhook:
+    enabled: false
+    url_env: "STAKEHOLDER_WEBHOOK_URL"  # Env var containing webhook URL
+    # url: ""                           # Direct URL (overrides url_env)
+
+  feedback:
+    mode: "file"                      # "callback" or "file"
+    callback_port: 8081               # HTTP port for callback mode
+    poll_interval: 30                 # Seconds between file checks
 
 team:
   config_dir: "team_config"

@@ -91,7 +91,10 @@ async def run_experiment(
                 f"sessions={result.pairing_sessions}"
             )
 
-        if sprint_num % config.sprints_per_stakeholder_review == 0:
+        review_cadence = (
+            config.stakeholder_review_cadence or config.sprints_per_stakeholder_review
+        )
+        if sprint_num > 0 and sprint_num % review_cadence == 0:
             await sprint_mgr.stakeholder_review(sprint_num)
 
     await sprint_mgr.generate_final_report()

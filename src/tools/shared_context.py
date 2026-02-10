@@ -24,6 +24,7 @@ class SharedContextDB:
         self._snapshots: List[Dict] = []
         self._disturbance_events: List[Dict] = []
         self._messages: List[Dict] = []
+        self._stakeholder_feedback: List[Dict] = []
         self._next_id = 1
 
     async def initialize(self):
@@ -102,6 +103,18 @@ class SharedContextDB:
                     channel TEXT,
                     reply_to TEXT,
                     sprint INTEGER,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS stakeholder_feedback (
+                    id SERIAL PRIMARY KEY,
+                    sprint INTEGER,
+                    source TEXT,
+                    decision TEXT,
+                    feedback_text TEXT,
+                    priority_changes JSONB,
+                    new_stories JSONB,
+                    respondent TEXT,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
             """
@@ -298,6 +311,48 @@ class SharedContextDB:
                 idx += 1
             query += " ORDER BY id"
             rows = await conn.fetch(query, *params)
+            return [dict(r) for r in rows]
+
+    async def store_stakeholder_feedback(self, feedback_data: Dict) -> None:
+        """Store stakeholder feedback for a sprint review."""
+        if self._mock_mode:
+            self._stakeholder_feedback.append(feedback_data)
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO stakeholder_feedback
+                   (sprint, source, decision, feedback_text,
+                    priority_changes, new_stories, respondent)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)""",
+                feedback_data.get("sprint"),
+                feedback_data.get("source"),
+                feedback_data.get("decision"),
+                feedback_data.get("feedback_text"),
+                json.dumps(feedback_data.get("priority_changes", [])),
+                json.dumps(feedback_data.get("new_stories", [])),
+                feedback_data.get("respondent"),
+            )
+
+    async def get_stakeholder_feedback(
+        self, sprint: Optional[int] = None
+    ) -> List[Dict]:
+        """Return stakeholder feedback, optionally filtered by sprint."""
+        if self._mock_mode:
+            if sprint is not None:
+                return [
+                    f for f in self._stakeholder_feedback if f.get("sprint") == sprint
+                ]
+            return list(self._stakeholder_feedback)
+        async with self.pool.acquire() as conn:
+            if sprint is not None:
+                rows = await conn.fetch(
+                    "SELECT * FROM stakeholder_feedback WHERE sprint = $1 ORDER BY id",
+                    sprint,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT * FROM stakeholder_feedback ORDER BY id"
+                )
             return [dict(r) for r in rows]
 
     async def close(self):

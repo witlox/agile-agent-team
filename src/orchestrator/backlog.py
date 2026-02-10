@@ -64,6 +64,12 @@ class Backlog:
         """Return a story to the pool (e.g. rejected by PO)."""
         self._selected_ids.discard(story_id)
 
+    def add_story(self, story: Dict):
+        """Add a new story to the backlog (e.g. from stakeholder feedback)."""
+        if "id" not in story:
+            story["id"] = f"SH-{len(self._stories) + 1:03d}"
+        self._stories.append(story)
+
     @property
     def remaining(self) -> int:
         """Number of stories not yet selected."""
