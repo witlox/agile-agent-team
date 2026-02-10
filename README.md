@@ -7,7 +7,7 @@ Any code that is in this repo is AI generated as well, the experiment is thus 2-
 
 ## Overview
 
-This project implements an 11-agent that operates like a real software development team and **generates real, tested code**:
+This project implements an 11-agent team that operates like a real software development team and **generates real, tested code**:
 
 - **1 Dev Lead** + **1 QA Lead** + **1 Product Owner**
 - **6 Developers** (2 senior, 2 mid-level, 2 junior)
