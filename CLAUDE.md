@@ -98,9 +98,10 @@ team_config/                   # Agent prompts (Markdown) — compositional
 ├── 04_domain_knowledge/       # Layer 5: Deep technical knowledge
 ├── 05_individuals/            # Layer 6: Personalities
 ├── 06_process_rules/          # XP, Kanban, pairing protocols
-└── 07_meta/
-    ├── meta_learnings.jsonl   # Layer 8: Dynamic learnings (JSONL)
-    └── ...
+├── 07_meta/
+│   ├── meta_learnings.jsonl   # Layer 8: Dynamic learnings (JSONL)
+│   └── ...
+└── 08_specialists/            # External consultant profiles (10 domains)
 
 config.yaml                    # Experiment + runtime + tool configuration
 backlog.yaml                   # Product backlog with BDD scenarios

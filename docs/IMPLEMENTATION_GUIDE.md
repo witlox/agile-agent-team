@@ -626,7 +626,7 @@ grep "duration_seconds" outputs/*/sprint-*/pairing_log.jsonl
 # Run qualification tests
 python -m tests.qualification.qualify \
   --model Qwen2.5-Coder-7B-Instruct \
-  --role dev_jr_fullstack_a
+  --role jamie_junior_fullstack
 
 # Check agent prompts are loading
 grep "Recent Learning" outputs/*/sprint-*/meta_learning_diff.md

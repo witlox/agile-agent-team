@@ -40,7 +40,7 @@ This document summarizes the implementation of the team culture and dynamics as 
 
 ### Git Workflow Documentation
 
-**File**: `team_config/03_process_rules/git_workflow.md`
+**File**: `team_config/06_process_rules/git_workflow.md`
 
 **Covers**:
 - **Stable main principle**: Main is always deployable, always green, always tested
@@ -59,7 +59,7 @@ This document summarizes the implementation of the team culture and dynamics as 
 
 ### Hiring Protocol Documentation
 
-**File**: `team_config/03_process_rules/hiring_protocol.md`
+**File**: `team_config/06_process_rules/hiring_protocol.md`
 
 **3-Round Process**:
 
@@ -319,8 +319,8 @@ tests/unit/test_runtime.py::test_tool_parameters_schema PASSED
 ## Summary of Changes
 
 ### Files Created
-1. `team_config/03_process_rules/git_workflow.md` - Git workflow, merge conflicts, build ownership
-2. `team_config/03_process_rules/hiring_protocol.md` - 3-round hiring process
+1. `team_config/06_process_rules/git_workflow.md` - Git workflow, merge conflicts, build ownership
+2. `team_config/06_process_rules/hiring_protocol.md` - 3-round hiring process
 3. `TEAM_CULTURE_IMPLEMENTATION.md` - This document
 
 ### Files Modified

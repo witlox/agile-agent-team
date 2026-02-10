@@ -123,14 +123,14 @@
 - Diversity champion
 - "You break it, you fix it" but everyone helps
 
-**Git Workflow** (`team_config/03_process_rules/git_workflow.md`):
+**Git Workflow** (`team_config/06_process_rules/git_workflow.md`):
 - Stable main + gitflow
 - Feature branches per story
 - Merge conflict resolution protocol
 - Build ownership culture with team support
 - Blameless post-mortems
 
-**Hiring Protocol** (`team_config/03_process_rules/hiring_protocol.md`):
+**Hiring Protocol** (`team_config/06_process_rules/hiring_protocol.md`):
 - 3-round process: Technical → Domain Fit → Pairing Under Pressure
 - Keyboard switching with increasing pressure (5min → 1min intervals)
 - A+ candidates only standard
@@ -431,7 +431,7 @@ product:
 - `tests/` - Agent-generated test files
 - `.git/` - Git repository with commits on feature branch
 
-**In `team_config/04_meta/`**:
+**In `team_config/07_meta/`**:
 - `meta_learnings.jsonl` - Append-only learning log
   - Filtered per agent at prompt composition time
   - Dynamic 8th layer of agent prompts

@@ -782,7 +782,7 @@ Pairing role assignment follows team culture:
 
 ### Git Workflow (Stable Main + Gitflow)
 
-**Documented in** `team_config/03_process_rules/git_workflow.md`
+**Documented in** `team_config/06_process_rules/git_workflow.md`
 
 - **Stable main**: Always deployable, always green, always tested
 - **Feature branches**: Created automatically per story (`feature/<story-id>`)
@@ -792,7 +792,7 @@ Pairing role assignment follows team culture:
 
 ### Hiring Protocol
 
-**Documented in** `team_config/03_process_rules/hiring_protocol.md`
+**Documented in** `team_config/06_process_rules/hiring_protocol.md`
 
 - **3 rounds**: Technical → Domain Fit → Pairing Under Pressure
 - **Keyboard switching**: 5min → 3min → 2min → 1min (increasing pressure)
@@ -1088,7 +1088,7 @@ cat /tmp/experiment/final_report.json | jq '.sprints[] | {sprint, velocity, dist
 
 **Check meta-learnings:**
 ```bash
-cat team_config/04_meta/meta_learnings.jsonl | jq 'select(.agent_id == "alex_senior_networking")'
+cat team_config/07_meta/meta_learnings.jsonl | jq 'select(.agent_id == "alex_senior_networking")'
 ```
 
 ---

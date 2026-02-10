@@ -340,7 +340,7 @@ git push origin feature/my-feature
 
 ### Add New Agent Role
 
-1. Copy existing profile: `cp team_config/02_individuals/dev_sr_networking.md team_config/02_individuals/dev_sr_NEW.md`
+1. Copy existing profile: `cp team_config/05_individuals/alex_chen.md team_config/05_individuals/new_agent.md`
 2. Modify profile (specialization, cognitive patterns, etc.)
 3. Add model config entry under `models.agents` in `config.yaml`
 4. Run qualification tests: `./scripts/qualify-all-agents.sh --mock`
@@ -362,7 +362,7 @@ The factory autodiscovers profiles via glob — no code registration needed.
 
 ### Add New Process Rule
 
-1. Create file: `team_config/03_process_rules/my_rule.md`
+1. Create file: `team_config/06_process_rules/my_rule.md`
 2. Document the rule clearly with examples
 3. Update orchestrator if enforcement needed
 4. Add tests to verify rule is followed

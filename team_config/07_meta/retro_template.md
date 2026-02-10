@@ -28,7 +28,7 @@ Concrete changes for next sprint.
 ```
 Sprint 4:
 Question: "Why do we use REST instead of GraphQL?"
-Asked by: dev_jr_fullstack_a
+Asked by: jamie_junior_fullstack
 Challenged: "REST is always simpler"
 Result: Evaluated GraphQL, found it better for our use case
 Category: technology_staleness

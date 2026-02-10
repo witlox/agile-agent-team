@@ -144,7 +144,7 @@ This System (Dialogue-Driven):
 
 **Key Files:**
 - `src/agents/pairing.py` - Pairing engine
-- `team_config/03_process_rules/pairing_protocol.md` - Protocol spec
+- `team_config/06_process_rules/pairing_protocol.md` - Protocol spec
 
 ### 3. Agent System
 
@@ -167,11 +167,13 @@ Each agent's behavior comes from **layered prompts**:
 ```
 Agent Prompt = Base + Archetype + Individual + Context
 
-Example: dev_jr_fullstack_a
+Example: jamie_junior_fullstack
 ├── base_agent.md          (universal behavior)
 ├── developer.md           (developer archetype)
-├── dev_jr_fullstack_a.md  (individual profile)
-└── [current context]      (sprint state, learnings)
+├── junior.md              (seniority patterns)
+├── backend.md + frontend.md (specializations)
+├── jamie_rodriguez.md     (individual profile)
+└── [current context]      (sprint state, meta-learnings)
 ```
 
 **Agent Profile Structure:**
@@ -215,7 +217,9 @@ Example: dev_jr_fullstack_a
 - `src/agents/agent_factory.py` - Agent instantiation
 - `team_config/00_base/base_agent.md` - Universal behavior
 - `team_config/01_role_archetypes/*.md` - Role templates
-- `team_config/02_individuals/*.md` - 11 individual profiles
+- `team_config/02_seniority/*.md` - Seniority patterns
+- `team_config/03_specializations/*.md` - Domain expertise
+- `team_config/05_individuals/*.md` - 16 individual profiles
 
 ### 4. Shared Context Database
 
@@ -276,10 +280,11 @@ Meta-Layer Analysis:
   - Generate prompt modifications
   
 Prompt Update:
-  dev_sr_networking.md +=
-    "Recent Learning: Start simple with caching,
-     optimize when measured need arises.
-     (from Sprint N retro)"
+  07_meta/meta_learnings.jsonl +=
+    {"agent_id": "alex_senior_networking",
+     "learning": "Start simple with caching,
+      optimize when measured need arises.",
+     "sprint": N}
 
 Sprint N+1:
   Agent behavior changes based on learning
@@ -300,8 +305,8 @@ Permanent Learnings:
 ```
 
 **Key Files:**
-- `team_config/04_meta/team_evolution.md` - Evolution rules
-- `team_config/04_meta/meta_learnings.jsonl` - Learning log
+- `team_config/07_meta/team_evolution.md` - Evolution rules
+- `team_config/07_meta/meta_learnings.jsonl` - Learning log
 
 ### 6. Process Enforcement
 
@@ -329,9 +334,9 @@ Tier 4: Stakeholder Review
 ```
 
 **Key Files:**
-- `team_config/03_process_rules/xp_practices.md`
-- `team_config/03_process_rules/kanban_workflow.md`
-- `team_config/03_process_rules/consensus_protocol.md`
+- `team_config/06_process_rules/xp_practices.md`
+- `team_config/06_process_rules/kanban_workflow.md`
+- `team_config/06_process_rules/consensus_protocol.md`
 
 ### 7. Disturbance Injection
 
@@ -592,7 +597,7 @@ outputs/experiment-001/
 - ~450k tokens per sprint
 
 **Scaling Up:**
-- More agents: Add to team_config/02_individuals/
+- More agents: Add to team_config/05_individuals/
 - Longer sprints: Increase sprint_duration_minutes
 - More complex tasks: Adjust task decomposition
 
@@ -604,13 +609,13 @@ outputs/experiment-001/
 ## Extension Points
 
 **Adding New Agent Roles:**
-1. Create profile in `team_config/02_individuals/`
+1. Create profile in `team_config/05_individuals/`
 2. Define specialization, cognitive patterns
 3. Run qualification tests
 4. Register in `agent_factory.py`
 
 **Custom Process Rules:**
-1. Add to `team_config/03_process_rules/`
+1. Add to `team_config/06_process_rules/`
 2. Update orchestrator to enforce
 3. Add metrics if needed
 

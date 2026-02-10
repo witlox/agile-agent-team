@@ -11,7 +11,7 @@ The meta-learning system allows agents to evolve their behavior based on retrosp
 
 ### Storage: JSONL Format
 
-Learnings are stored in `team_config/04_meta/meta_learnings.jsonl`:
+Learnings are stored in `team_config/07_meta/meta_learnings.jsonl`:
 
 ```json
 {"sprint": 1, "agent_id": "priya_senior_devops", "learning_type": "drop", "content": {"text": "Stop merging PRs without integration tests"}, "applied": true}
@@ -145,7 +145,7 @@ Require human approval for certain learnings before applying:
 
 - `src/agents/base_agent.py`: Added `_load_meta_learnings()` method and layer 8 composition
 - `src/orchestrator/sprint_manager.py`: Refactored `apply_meta_learning()` to use JSONL-only storage
-- `team_config/04_meta/meta_learnings.jsonl`: Learning storage (one line per learning)
+- `team_config/07_meta/meta_learnings.jsonl`: Learning storage (one line per learning)
 
 ## Verification
 
@@ -154,7 +154,7 @@ Require human approval for certain learnings before applying:
 MOCK_LLM=true python -m src.orchestrator.main --sprints 5 --output /tmp/test --db-url mock://
 
 # Check learnings were stored
-cat team_config/04_meta/meta_learnings.jsonl
+cat team_config/07_meta/meta_learnings.jsonl
 
 # Verify learnings are loaded into prompts
 python -c "

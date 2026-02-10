@@ -114,24 +114,24 @@ Sprint 4 Junior Wins:
 
 ### Updated Files
 
-1. **team_config/02_individuals/dev_jr_fullstack_a.md**
+1. **team_config/05_individuals/jamie_rodriguez.md**
    - Added comprehensive "Value Proposition" section
    - Specific question examples and impacts
    - Reverse mentorship scenarios
    - Fresh knowledge contributions
 
-2. **team_config/02_individuals/dev_jr_fullstack_b.md**
+2. **team_config/05_individuals/jordan_kim.md**
    - Complementary question style (safety-focused)
    - Different domain expertise (accessibility, privacy)
    - Cautious optimism vs unbridled enthusiasm
 
-3. **team_config/02_individuals/dev_sr_networking.md**
+3. **team_config/05_individuals/alex_chen.md**
    - "Responding to Junior Questions" section
    - Anti-patterns vs best practices
    - Pause-before-answering guideline
    - Metrics for learning from juniors
 
-4. **team_config/04_meta/retro_template.md**
+4. **team_config/07_meta/retro_template.md**
    - "Junior Contributions" tracking section
    - Reverse mentorship moments
    - Healthy vs warning indicators

@@ -102,7 +102,8 @@ team_config/            # 8-layer compositional agent profiles
 ├── 04_domain_knowledge/# Deep technical knowledge
 ├── 05_individuals/     # Personalities
 ├── 06_process_rules/   # XP, Kanban, pairing, git workflow
-└── 07_meta/            # Meta-learnings (JSONL)
+├── 07_meta/            # Meta-learnings (JSONL)
+└── 08_specialists/     # External consultant profiles
 
 tests/                  # 293 tests (unit / integration / qualification)
 config.yaml             # Experiment + runtime + tool configuration
