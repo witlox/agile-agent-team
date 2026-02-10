@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Experiment Continuation via `--continue N` (2026-02-10)
+
+**Resume completed experiments without re-running previous sprints**:
+- **`--continue N` CLI argument**: Mutually exclusive with `--sprints`; runs N additional sprints starting from the last completed sprint
+- **`experiment_resume.py`** (`src/orchestrator/experiment_resume.py`): Pure functions for detecting and restoring experiment state from output artifacts
+  - `detect_last_sprint()` / `detect_last_sprint_multi_team()`: Scan output directory for `sprint-NN` directories
+  - `restore_sprint_results()` / `restore_team_results()`: Read prior results from `final_report.json`
+  - `restore_selected_story_ids()` / `restore_selected_story_ids_multi_team()`: Collect story IDs from kanban snapshots
+- **Backlog**: New `mark_selected(story_ids)` method to skip already-completed stories on resume
+- **Single-team resume**: Restores backlog progress + sprint results, continues from `last_sprint + 1`
+- **Multi-team resume**: Restores per-team results, skips iteration zero, recalculates overhead budget with `iteration_zero_share=0.0`
+- **`main.py` refactored**: Extracted `_run_single_team()` and `_run_multi_team()` helpers to reduce duplication
+- **31 new tests**: 26 unit (`test_experiment_resume.py`) + 5 integration (`test_experiment_resume.py`)
+- **Test count**: 487 → 518 collected (510 passing, 5 skipped, 3 pre-existing e2e failures)
+
+**Files changed**:
+- `src/orchestrator/experiment_resume.py` — **NEW**: detect/restore functions
+- `tests/unit/test_experiment_resume.py` — **NEW**: 26 unit tests
+- `tests/integration/test_experiment_resume.py` — **NEW**: 5 integration tests
+- `src/orchestrator/backlog.py` — `mark_selected()` method
+- `src/orchestrator/main.py` — `--continue` arg, `continue_sprints` param, refactored into helper functions
+
 ### Added - Overhead Budget: Outer-Loop Wallclock Management (2026-02-10)
 
 **Multi-team overhead steps are now timeboxed to prevent unbounded experiment time**:
@@ -649,7 +671,7 @@ This project enables research into:
 
 ## Version History Summary
 
-- **Unreleased**: Multi-team orchestration, cross-team coordination, overhead budget, intelligent story distribution, stakeholder webhooks, async message bus
+- **Unreleased**: Experiment continuation (`--continue N`), multi-team orchestration, cross-team coordination, overhead budget, intelligent story distribution, stakeholder webhooks, async message bus
 - **v1.3.0** (2026-02-09): Agile ceremonies (2-phase planning, standups, sprint review, pair rotation)
 - **v1.2.0** (2026-02-08): Sprint 0 multi-language infrastructure, language specialists
 - **v1.1.0** (2026-02-07): Remote git integration, brownfield support

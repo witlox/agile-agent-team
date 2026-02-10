@@ -346,6 +346,20 @@ python -m src.orchestrator.main \
   --output outputs/free-swap-experiment
 ```
 
+### Continuing a completed experiment
+
+If you want more data from an existing experiment, use `--continue` instead of re-running:
+
+```bash
+# Add 10 more sprints to the baseline experiment (starts at sprint 11)
+python -m src.orchestrator.main \
+  --config config.yaml \
+  --continue 10 \
+  --output outputs/baseline-experiment
+```
+
+The resume logic detects the last completed sprint from the output directory, restores backlog progress from kanban snapshots, and restores prior sprint results from `final_report.json`. The final report is rewritten to include all sprints (old + new).
+
 ### Running multiple variants simultaneously
 
 Use separate config files per variant, then run in parallel:

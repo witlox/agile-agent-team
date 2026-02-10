@@ -33,6 +33,12 @@ MOCK_LLM=true python -m src.orchestrator.main \
   --output /tmp/test-run \
   --db-url mock://
 
+# Continue the experiment for 2 more sprints (resumes from sprint 4)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --continue 2 \
+  --output /tmp/test-run \
+  --db-url mock://
+
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 

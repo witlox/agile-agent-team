@@ -85,6 +85,26 @@ In mock mode:
 - In-memory store replaces PostgreSQL
 - **Agents still execute tools and generate real code**
 
+### Continuing a completed experiment
+
+After an experiment finishes, you can add more sprints without re-running the existing ones:
+
+```bash
+# Run initial experiment (3 sprints)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --sprints 3 \
+  --output /tmp/my-first-run \
+  --db-url mock://
+
+# Continue for 2 more sprints (resumes at sprint 4)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --continue 2 \
+  --output /tmp/my-first-run \
+  --db-url mock://
+```
+
+The resume logic scans the output directory for `sprint-NN` directories and `final_report.json` to restore backlog progress and sprint results. Works for both single-team and multi-team modes.
+
 ### Running the tests
 
 ```bash
@@ -203,11 +223,14 @@ All experiment parameters live in `config.yaml`. The CLI only exposes:
 | Flag | Default | Purpose |
 |------|---------|---------|
 | `--config` | `config.yaml` | Path to config file |
-| `--sprints` | `10` | Number of sprints to run |
+| `--sprints` | `10` | Number of sprints for a fresh experiment |
+| `--continue N` | _(none)_ | Continue a previous experiment for N more sprints (mutually exclusive with `--sprints`) |
 | `--duration` | _(from config)_ | Override sprint duration (minutes) |
 | `--output` | `outputs/experiment` | Output directory |
 | `--backlog` | `backlog.yaml` | Product backlog YAML |
 | `--db-url` | _(from config)_ | Override database URL |
+
+`--sprints` and `--continue` are mutually exclusive. Use `--sprints` to start a fresh experiment and `--continue` to resume one from its output artifacts.
 
 Everything else — runtimes, disturbances, profile swapping, WIP limits, team constraints — is set in `config.yaml`.
 

@@ -43,10 +43,16 @@ MOCK_LLM=true python -m src.orchestrator.main \
   --output /tmp/quick-test \
   --db-url mock://
 
+# Continue a previous experiment for 2 more sprints
+MOCK_LLM=true python -m src.orchestrator.main \
+  --continue 2 \
+  --output /tmp/test-run \
+  --db-url mock://
+
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 
-# Tests (487 tests: 479 passing, 5 skipped, 3 pre-existing e2e failures)
+# Tests (518 tests: 510 passing, 5 skipped, 3 pre-existing e2e failures)
 pytest tests/unit/            # Tools, config, backlog, kanban, runtimes, multi-language
 pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git, stakeholder
 pytest tests/qualification/   # Agent creation, prompt loading
@@ -149,7 +155,8 @@ outputs/                       # Experiment artifacts (gitignored)
 | **Metrics** | ✅ Complete | Prometheus integration, **custom metrics recording** |
 | **Stakeholder webhooks** | ✅ Complete | Webhook notifications, file/callback feedback, timeout actions |
 | **Message bus** | ✅ Complete | Async pub/sub, channels, direct messaging, two backends |
-| **Testing** | ✅ Complete | 487 tests (479 passing, 5 skipped, 3 pre-existing e2e failures) |
+| **Experiment resume** | ✅ Complete | `--continue N` resumes from output artifacts (single + multi-team) |
+| **Testing** | ✅ Complete | 518 tests (510 passing, 5 skipped, 3 pre-existing e2e failures) |
 
 ## Code Generation Workflow
 
@@ -407,8 +414,14 @@ MOCK_LLM=true python -m src.orchestrator.main \
   --output /tmp/e2e-test \
   --db-url mock://
 
+# Continue the experiment for 2 more sprints (starts at sprint 4)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --continue 2 \
+  --output /tmp/e2e-test \
+  --db-url mock://
+
 # Verify:
-# - 3 sprint directories in /tmp/e2e-test/
+# - 5 sprint directories in /tmp/e2e-test/
 # - Code workspaces in /tmp/agent-workspace/
 # - meta_learnings.jsonl has new entries
 # - All tests pass: pytest tests/
@@ -448,7 +461,7 @@ ls -la /tmp/agent-workspace/sprint-01/*/
 ## Testing
 
 ```bash
-# All tests (487 collected: 479 pass, 5 skip, 3 pre-existing e2e failures)
+# All tests (518 collected: 510 pass, 5 skip, 3 pre-existing e2e failures)
 pytest
 
 # By category

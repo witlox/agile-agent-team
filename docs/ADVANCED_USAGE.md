@@ -539,13 +539,33 @@ MOCK_LLM=true python -m src.orchestrator.main \
   --db-url mock://
 ```
 
+### Continuing experiments
+
+If an experiment finishes and you want more data, use `--continue N` instead of re-running from scratch:
+
+```bash
+# Initial 10-sprint experiment
+MOCK_LLM=true python -m src.orchestrator.main \
+  --sprints 10 \
+  --output /tmp/baseline \
+  --db-url mock://
+
+# Add 10 more sprints (starts at sprint 11)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --continue 10 \
+  --output /tmp/baseline \
+  --db-url mock://
+```
+
+The resume logic restores backlog progress and sprint results from the output directory's `final_report.json` and `kanban.json` snapshots. The final report is rewritten to include both old and new sprint results. Works for both single-team and multi-team modes.
+
 ### Recommended experiment sequence
 
 1. **Baseline**: `disturbances: false`, `swap: none` → 10 sprints
 2. **Disturbances only**: `disturbances: true`, `swap: none` → 10 sprints
 3. **Full chaos**: `disturbances: true`, `swap: constrained` → 20 sprints
 4. **AI-optimal**: `disturbances: true`, `swap: free` → 20 sprints
-5. **Long-term**: Enable turnover, run 30+ sprints
+5. **Long-term**: Enable turnover, run 30+ sprints (use `--continue` to extend)
 
 Compare `final_report.json` across runs to measure resilience and learning curves.
 
@@ -1106,6 +1126,14 @@ MOCK_LLM=true python -m src.orchestrator.main \
   --config examples/06-multi-team/config.yaml \
   --backlog examples/06-multi-team/backlog.yaml \
   --sprints 3 \
+  --output /tmp/multi-team-test \
+  --db-url mock://
+
+# Continue the multi-team experiment for 2 more sprints
+MOCK_LLM=true python -m src.orchestrator.main \
+  --config examples/06-multi-team/config.yaml \
+  --backlog examples/06-multi-team/backlog.yaml \
+  --continue 2 \
   --output /tmp/multi-team-test \
   --db-url mock://
 ```
