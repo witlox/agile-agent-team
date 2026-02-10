@@ -618,7 +618,9 @@ and stakeholder communications for the entire project."""
         At 60 min each simulated day gets ~6 min of wall-clock, enough for
         ~160 code-generation LLM calls across up to 4 parallel pairs.
         """
-        duration = getattr(self.config, "sprint_duration_minutes", 60)
+        duration = duration_override or getattr(
+            self.config, "sprint_duration_minutes", 60
+        )
         num_days = 10  # 2-week sprint = 10 working days
         time_per_day = duration / num_days  # ~6 minutes per day
 

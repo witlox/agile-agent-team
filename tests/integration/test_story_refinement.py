@@ -95,9 +95,7 @@ async def test_team_asks_clarifying_questions(
     """Test team generates clarifying questions."""
     session = StoryRefinementSession(mock_po, mock_team, mock_dev_lead)
 
-    _ = await session.refine_stories(
-        sample_stories, sprint_num=1, team_capacity=20
-    )
+    _ = await session.refine_stories(sample_stories, sprint_num=1, team_capacity=20)
 
     # Team should have asked questions (conversation history should grow)
     for agent in mock_team:

@@ -186,7 +186,9 @@ def test_all_specialist_profiles_loadable():
     from pathlib import Path
 
     system = SpecialistConsultantSystem(
-        team_config_dir="team_config", max_per_sprint=3, velocity_penalty_per_consultation=2.0
+        team_config_dir="team_config",
+        max_per_sprint=3,
+        velocity_penalty_per_consultation=2.0,
     )
 
     # All 10 domains should have real profiles
@@ -208,11 +210,16 @@ def test_all_specialist_profiles_loadable():
         profile = system._load_specialist_profile(domain)
 
         # Should not be the synthetic fallback
-        assert not profile.startswith("# {domain.upper()} Specialist\n\nYou are an external consultant")
+        assert not profile.startswith(
+            "# {domain.upper()} Specialist\n\nYou are an external consultant"
+        )
         # Should have curated content
         assert len(profile) > 500  # Real profiles are substantial
         # Should be domain-specific
-        assert domain.replace("_", " ") in profile.lower() or domain in system.specialist_domains[domain].lower()
+        assert (
+            domain.replace("_", " ") in profile.lower()
+            or domain in system.specialist_domains[domain].lower()
+        )
 
     # Verify all files exist
     specialists_dir = Path("team_config/08_specialists")

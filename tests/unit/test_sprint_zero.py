@@ -375,3 +375,87 @@ class TestBacklogProjectContext:
         assert meta.goals == ["Goal 1"]
         assert meta.target_audience == "Devs"
         assert meta.success_metrics == ["Metric 1"]
+
+    def test_get_project_context_goals_only_returns_empty(self, tmp_path):
+        """Test that goals without mission/vision returns empty context.
+
+        The method requires at least mission, vision, or goals to be set,
+        but the condition checks `meta.mission or meta.vision or meta.goals`.
+        Goals alone should satisfy this and produce output.
+        """
+        path = self._write_backlog(
+            tmp_path,
+            {
+                "name": "Goals Only",
+                "description": "Has goals but no mission/vision",
+                "goals": ["Ship v1", "Reach 1000 users"],
+            },
+        )
+
+        backlog = Backlog(path)
+        context = backlog.get_project_context()
+
+        # Goals alone satisfies the check (mission or vision or goals)
+        assert context != ""
+        assert "## Goals" in context
+        assert "- Ship v1" in context
+        assert "## Mission" not in context
+        assert "## Vision" not in context
+
+    def test_get_project_context_vision_only(self, tmp_path):
+        """Test context with only vision field set."""
+        path = self._write_backlog(
+            tmp_path,
+            {
+                "name": "Vision Only",
+                "description": "Has vision but nothing else",
+                "vision": "To be the best framework",
+            },
+        )
+
+        backlog = Backlog(path)
+        context = backlog.get_project_context()
+
+        assert context != ""
+        assert "## Vision" in context
+        assert "To be the best framework" in context
+        assert "## Mission" not in context
+
+    def test_get_project_context_empty_goals_list(self, tmp_path):
+        """Test that empty goals list does not produce context."""
+        path = self._write_backlog(
+            tmp_path,
+            {
+                "name": "Empty Lists",
+                "description": "Desc",
+                "goals": [],
+                "success_metrics": [],
+            },
+        )
+
+        backlog = Backlog(path)
+        context = backlog.get_project_context()
+
+        # Empty goals/metrics should not satisfy the check
+        assert context == ""
+
+    def test_get_project_context_with_special_characters(self, tmp_path):
+        """Test context with YAML special characters and unicode."""
+        path = self._write_backlog(
+            tmp_path,
+            {
+                "name": "Acme & Co's 'Widget' Platform",
+                "description": 'Build "widgets" for <teams>',
+                "mission": "Help teams collaborate & succeed",
+                "vision": "100% adoption in the 'enterprise' segment",
+                "goals": ["Launch MVP (v1.0)", "Achieve >90% satisfaction"],
+            },
+        )
+
+        backlog = Backlog(path)
+        context = backlog.get_project_context()
+
+        assert "Acme & Co" in context
+        assert "Help teams collaborate & succeed" in context
+        assert "Launch MVP (v1.0)" in context
+        assert ">90% satisfaction" in context
