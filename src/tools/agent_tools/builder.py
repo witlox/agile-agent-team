@@ -1,7 +1,7 @@
 """Multi-language build tools."""
 
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from .base import Tool, ToolResult
 from .test_runner_multi import LanguageDetector
@@ -41,7 +41,7 @@ class MultiLanguageBuilder(Tool):
             },
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self, language: str = "", release: bool = False, clean: bool = False
     ) -> ToolResult:
         """Build project with language-specific build tool."""
@@ -196,7 +196,7 @@ class MultiLanguageBuilder(Tool):
         return await self._run_build(build_cmd, "cmake build")
 
     async def _run_build(
-        self, cmd: List[str], tool_name: str, env: Dict[str, str] = None
+        self, cmd: List[str], tool_name: str, env: Optional[Dict[str, str]] = None
     ) -> ToolResult:
         """Execute build command."""
         try:

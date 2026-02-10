@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 
 
 class ConventionAnalyzer:
@@ -32,7 +32,7 @@ class ConventionAnalyzer:
 
     def analyze_python(self) -> Dict:
         """Analyze Python code conventions."""
-        conventions = {
+        conventions: Dict[str, Any] = {
             "line_length": None,
             "quote_style": None,
             "indent_size": None,
@@ -140,7 +140,7 @@ class ConventionAnalyzer:
 
     def analyze_go(self) -> Dict:
         """Analyze Go code conventions."""
-        conventions = {
+        conventions: Dict[str, Any] = {
             "has_go_mod": False,
             "has_golangci_config": False,
             "test_pattern": "table-driven",  # Go standard
@@ -167,7 +167,7 @@ class ConventionAnalyzer:
 
     def analyze_rust(self) -> Dict:
         """Analyze Rust code conventions."""
-        conventions = {
+        conventions: Dict[str, Any] = {
             "has_cargo": False,
             "has_rustfmt_config": False,
             "edition": "2021",
@@ -200,7 +200,7 @@ class ConventionAnalyzer:
 
     def analyze_typescript(self) -> Dict:
         """Analyze TypeScript code conventions."""
-        conventions = {
+        conventions: Dict[str, Any] = {
             "has_tsconfig": False,
             "has_eslint": False,
             "has_prettier": False,
@@ -279,7 +279,7 @@ class ConventionAnalyzer:
 
     def analyze_cpp(self) -> Dict:
         """Analyze C++ code conventions."""
-        conventions = {
+        conventions: Dict[str, Any] = {
             "has_cmake": False,
             "has_clang_format": False,
             "has_clang_tidy": False,
@@ -368,9 +368,9 @@ class ConventionAnalyzer:
 
         return config
 
-    def _augment_go(self, detected: Dict) -> Dict:
+    def _augment_go(self, detected: Dict) -> Dict[str, Any]:
         """Augment Go conventions with standards."""
-        config = {
+        config: Dict[str, Any] = {
             "language": "go",
             "formatter": "gofmt + goimports",
             "linter": "golangci-lint",

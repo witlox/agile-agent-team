@@ -130,7 +130,7 @@ class AnthropicRuntime(AgentRuntime):
                 # Add assistant message and tool results to conversation
                 messages.append({"role": "assistant", "content": response.content})
                 if tool_results:
-                    messages.append({"role": "user", "content": tool_results})
+                    messages.append({"role": "user", "content": tool_results})  # type: ignore[dict-item]
 
             elif response.stop_reason == "end_turn":
                 # Task complete

@@ -128,7 +128,7 @@ class WebSearchTool(Tool):
             "required": ["query"],
         }
 
-    async def execute(self, **kwargs: Any) -> ToolResult:
+    async def execute(self, **kwargs: Any) -> ToolResult:  # type: ignore[override]
         """Execute a web search."""
         query = kwargs.get("query", "")
         max_results = int(kwargs.get("max_results", 5))
@@ -309,7 +309,7 @@ class WebFetchTool(Tool):
             "required": ["url"],
         }
 
-    async def execute(self, **kwargs: Any) -> ToolResult:
+    async def execute(self, **kwargs: Any) -> ToolResult:  # type: ignore[override]
         """Fetch a URL and return plain text."""
         url: str = kwargs.get("url", "")
         max_chars = int(kwargs.get("max_chars", 10000))

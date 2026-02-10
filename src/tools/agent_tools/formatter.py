@@ -41,7 +41,7 @@ class MultiLanguageFormatter(Tool):
             },
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self, path: str = "", language: str = "", check_only: bool = False
     ) -> ToolResult:
         """Format code with language-specific formatter."""

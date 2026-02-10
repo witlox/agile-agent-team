@@ -69,7 +69,7 @@ class PairRotationManager:
         3. Ensure no one is assigned twice in same day
         """
         pairs = []
-        assigned_navigators = set()
+        assigned_navigators: Set[str] = set()
 
         # Create working list of partners (remove owners who are also partners)
         available = [p for p in partners if p not in owners]
@@ -122,7 +122,8 @@ class PairRotationManager:
 
     def _normalize_pair(self, agent1: str, agent2: str) -> Tuple[str, str]:
         """Normalize pair to canonical form (alphabetical order)."""
-        return tuple(sorted([agent1, agent2]))
+        a, b = sorted([agent1, agent2])
+        return (a, b)
 
     def get_pairing_statistics(self) -> Dict:
         """Get statistics about pairing coverage.
@@ -172,7 +173,7 @@ class PairRotationManager:
             - paired_with: List of agents paired with and count
             - total_pairings: Total number of pairing sessions
         """
-        paired_with = defaultdict(int)
+        paired_with: Dict[str, int] = defaultdict(int)
 
         for (a1, a2), count in self.pairing_history.items():
             if a1 == agent_id:

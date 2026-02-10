@@ -30,7 +30,7 @@ class ReadFileTool(Tool):
             "required": ["path"],
         }
 
-    async def execute(self, path: str) -> ToolResult:
+    async def execute(self, path: str) -> ToolResult:  # type: ignore[override]
         """Read file contents."""
         try:
             full_path = self._resolve_path(path)
@@ -90,7 +90,7 @@ class WriteFileTool(Tool):
             "required": ["path", "content"],
         }
 
-    async def execute(self, path: str, content: str) -> ToolResult:
+    async def execute(self, path: str, content: str) -> ToolResult:  # type: ignore[override]
         """Write content to file."""
         try:
             full_path = self._resolve_path(path)
@@ -145,7 +145,7 @@ class EditFileTool(Tool):
             "required": ["path", "old_text", "new_text"],
         }
 
-    async def execute(self, path: str, old_text: str, new_text: str) -> ToolResult:
+    async def execute(self, path: str, old_text: str, new_text: str) -> ToolResult:  # type: ignore[override]
         """Edit file by text replacement."""
         try:
             full_path = self._resolve_path(path)
@@ -221,7 +221,7 @@ class ListFilesTool(Tool):
             },
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self, pattern: str = "**/*", max_results: int = 100
     ) -> ToolResult:
         """List files matching pattern."""
@@ -287,7 +287,7 @@ class SearchCodeTool(Tool):
             "required": ["pattern"],
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self, pattern: str, file_pattern: str = "**/*", max_results: int = 50
     ) -> ToolResult:
         """Search for pattern in files."""

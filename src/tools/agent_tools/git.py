@@ -1,7 +1,7 @@
 """Git operation tools."""
 
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .base import Tool, ToolResult
 
@@ -21,7 +21,7 @@ class GitStatusTool(Tool):
     def parameters(self) -> Dict[str, Any]:
         return {"type": "object", "properties": {}}
 
-    async def execute(self) -> ToolResult:
+    async def execute(self) -> ToolResult:  # type: ignore[override]
         """Run git status."""
         return await self._run_git_command("git status --short")
 
@@ -86,7 +86,7 @@ class GitDiffTool(Tool):
             },
         }
 
-    async def execute(self, path: str = ".", staged: bool = False) -> ToolResult:
+    async def execute(self, path: str = ".", staged: bool = False) -> ToolResult:  # type: ignore[override]
         """Run git diff."""
         cmd = "git diff --cached" if staged else "git diff"
         if path != ".":
@@ -147,7 +147,7 @@ class GitAddTool(Tool):
             "required": ["files"],
         }
 
-    async def execute(self, files: list) -> ToolResult:
+    async def execute(self, files: list) -> ToolResult:  # type: ignore[override]
         """Stage files."""
         if not files:
             return ToolResult(success=False, output="", error="No files specified")
@@ -206,7 +206,7 @@ class GitCommitTool(Tool):
             "required": ["message"],
         }
 
-    async def execute(self, message: str) -> ToolResult:
+    async def execute(self, message: str) -> ToolResult:  # type: ignore[override]
         """Create commit."""
         # Escape message for shell
         safe_message = message.replace('"', '\\"').replace("'", "\\'")
@@ -272,7 +272,7 @@ class GitRemoteTool(Tool):
             "required": ["url"],
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self, url: str, name: str = "origin", action: str = "add"
     ) -> ToolResult:
         """Configure remote."""
@@ -340,8 +340,11 @@ class GitPushTool(Tool):
             },
         }
 
-    async def execute(
-        self, remote: str = "origin", branch: str = None, set_upstream: bool = True
+    async def execute(  # type: ignore[override]
+        self,
+        remote: str = "origin",
+        branch: Optional[str] = None,
+        set_upstream: bool = True,
     ) -> ToolResult:
         """Push to remote."""
         # Get current branch if not specified

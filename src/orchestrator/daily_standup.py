@@ -228,7 +228,7 @@ class DailyStandupSession:
         # Dev lead resolves each blocker
         for blocker_info in blockers_to_resolve:
             decision = await self._dev_lead_makes_decision(
-                blocker_info["blocker"], sprint_num, day_num
+                str(blocker_info["blocker"]), sprint_num, day_num
             )
             decisions.append(
                 {

@@ -41,7 +41,7 @@ class MultiLanguageLinter(Tool):
             },
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self, path: str = "", language: str = "", fix: bool = False
     ) -> ToolResult:
         """Lint code with language-specific linter."""

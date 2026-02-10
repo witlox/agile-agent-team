@@ -30,7 +30,7 @@ class TechnicalPlanningSession:
 
     async def plan_implementation(
         self, refined_stories: List, sprint_num: int
-    ) -> Tuple[List[Task], Dict[str, str]]:
+    ) -> Tuple[List[Task], Dict[str, List[str]]]:
         """Break down stories into tasks and assign owners.
 
         Args:
@@ -238,8 +238,9 @@ Keep it practical and implementable. Break complex tasks into smaller ones.
             agent
             for agent in self.team
             if hasattr(agent.config, "specializations")
+            and best_spec is not None
             and any(
-                best_spec in str(s).lower() or s.lower() in str(best_spec).lower()
+                best_spec in str(s).lower() or str(s).lower() in best_spec.lower()
                 for s in agent.config.specializations
             )
         ]

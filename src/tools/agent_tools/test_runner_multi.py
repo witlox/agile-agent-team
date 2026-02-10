@@ -95,7 +95,7 @@ class MultiLanguageTestRunner(Tool):
             },
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self,
         path: str = "",
         language: str = "",

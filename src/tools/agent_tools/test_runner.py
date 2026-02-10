@@ -52,7 +52,7 @@ class RunTestsTool(Tool):
             },
         }
 
-    async def execute(
+    async def execute(  # type: ignore[override]
         self,
         path: str = "tests/",
         verbose: bool = False,
@@ -233,7 +233,7 @@ class RunBDDTestsTool(Tool):
             },
         }
 
-    async def execute(self, feature_file: str = "") -> ToolResult:
+    async def execute(self, feature_file: str = "") -> ToolResult:  # type: ignore[override]
         """Run BDD tests."""
         try:
             # Build pytest command for BDD

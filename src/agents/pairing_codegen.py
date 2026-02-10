@@ -328,12 +328,12 @@ class CodeGenPairingEngine:
 
                 # Phase 4.5: Push and create PR if remote git enabled
                 pr_url = await self._push_and_create_pr(
-                    driver, workspace, task, commit_sha
+                    driver, workspace, task, commit_sha or ""
                 )
                 if pr_url:
                     session_result["pr_url"] = pr_url
                     # Store PR URL in kanban card metadata
-                    if self.kanban and task.get("id"):
+                    if self.kanban and self.db and task.get("id"):
                         try:
                             await self.db.update_card_field(
                                 task["id"], "metadata", json.dumps({"pr_url": pr_url})
@@ -546,7 +546,12 @@ class CodeGenPairingEngine:
                 }
 
                 # Detect flaky tests if we have multiple iterations with varying results
-                if self.disturbance_engine and len(test_history) > 1:
+                if (
+                    self.disturbance_engine
+                    and self.kanban
+                    and self.db
+                    and len(test_history) > 1
+                ):
                     pass_counts = [r["passed"] for r in test_history]
                     if len(set(pass_counts)) > 1:  # Inconsistent results
                         await self.disturbance_engine.detect_flaky_tests(
@@ -567,12 +572,13 @@ class CodeGenPairingEngine:
         }
 
         # Detect test failures after max iterations
-        if self.disturbance_engine:
+        if self.disturbance_engine and self.kanban and self.db:
             await self.disturbance_engine.detect_test_failures(
                 card_id=card_id,
                 iteration_count=max_iterations,
                 final_result=final_result,
                 kanban=self.kanban,
+                db=self.db,
             )
 
         return final_result

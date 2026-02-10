@@ -5,7 +5,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ..agents.base_agent import BaseAgent
 from ..agents.messaging import MessageBus, create_message_bus
@@ -80,6 +80,7 @@ class SprintManager:
         )
 
         # Use CodeGenPairingEngine if agents have runtimes, else fallback to PairingEngine
+        self.pairing_engine: Union[CodeGenPairingEngine, PairingEngine]
         if self._agents_have_runtimes():
             self.pairing_engine = CodeGenPairingEngine(
                 agents,
@@ -719,10 +720,10 @@ and stakeholder communications for the entire project."""
         much time remains and self-regulate (e.g. simplify approach, skip
         nice-to-haves).
         """
-        duration = duration_override or getattr(
-            self.config, "sprint_duration_minutes", 60
+        duration = duration_override or int(
+            getattr(self.config, "sprint_duration_minutes", 60)
         )
-        num_days = getattr(self.config, "num_simulated_days", 5)
+        num_days = int(getattr(self.config, "num_simulated_days", 5))
         time_per_day = duration / num_days
         sprint_end = datetime.now() + timedelta(minutes=duration)
 
@@ -747,7 +748,7 @@ and stakeholder communications for the entire project."""
         all_partners = all_developers + all_testers
 
         # Track current day's pairs
-        current_pairs = {}  # owner_id -> navigator_id
+        current_pairs: Dict[str, str] = {}  # owner_id -> navigator_id
 
         for day_num in range(1, num_days + 1):
             print(f"\n  === Day {day_num} of {num_days} ===")
@@ -793,7 +794,8 @@ and stakeholder communications for the entire project."""
                 print(f"  All work complete on Day {day_num}")
                 break
 
-        await self.pairing_engine.wait_for_completion()
+        if hasattr(self.pairing_engine, "wait_for_completion"):
+            await self.pairing_engine.wait_for_completion()
 
     async def _run_day_pairing_sessions(
         self,

@@ -46,8 +46,8 @@ class VLLMRuntime(AgentRuntime):
             {"role": "user", "content": user_message},
         ]
 
-        all_tool_calls = []
-        files_changed = []
+        all_tool_calls: List[Dict] = []
+        files_changed: List[str] = []
 
         for turn in range(max_turns):
             # Generate response

@@ -1,7 +1,7 @@
 """Shared context database for team state."""
 
 import json
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 class SharedContextDB:
@@ -13,7 +13,7 @@ class SharedContextDB:
 
     def __init__(self, database_url: str):
         self.database_url = database_url
-        self.pool = None
+        self.pool: Any = None
         self._mock_mode = database_url == "mock://" or not database_url.startswith(
             "postgresql"
         )
@@ -260,7 +260,7 @@ class SharedContextDB:
             )
             return [dict(r) for r in rows]
 
-    async def update_card_field(self, card_id: int, field: str, value: str):
+    async def update_card_field(self, card_id: Union[int, str], field: str, value: str):
         """Update a single text field on a kanban card."""
         if self._mock_mode:
             for card in self._cards:

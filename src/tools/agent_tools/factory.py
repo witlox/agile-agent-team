@@ -1,6 +1,6 @@
 """Tool factory for creating tool instances."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from .base import Tool
 from .filesystem import (
@@ -85,7 +85,7 @@ TOOL_SETS = {
 
 
 def create_tools(
-    tool_names: List[str], workspace_root: str, config: Dict[str, Any] = None
+    tool_names: List[str], workspace_root: str, config: Optional[Dict[str, Any]] = None
 ) -> List[Tool]:
     """Create tool instances from a list of names.
 
@@ -125,7 +125,7 @@ def create_tools(
                 f"Unknown tool: {name}. Available tools: {list(TOOL_REGISTRY.keys())}"
             )
 
-        tool = tool_class(workspace_root=workspace_root, config=config)
+        tool = tool_class(workspace_root=workspace_root, config=config)  # type: ignore[abstract]
         tools.append(tool)
         seen.add(name)
 

@@ -36,7 +36,7 @@ class BashTool(Tool):
             "required": ["command"],
         }
 
-    async def execute(self, command: str, timeout: int = 60) -> ToolResult:
+    async def execute(self, command: str, timeout: int = 60) -> ToolResult:  # type: ignore[override]
         """Execute shell command."""
         # Security checks
         if not self._is_safe_command(command):

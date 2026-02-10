@@ -50,7 +50,9 @@ class WorkspaceManager:
         self.db = db
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_sprint_workspace(self, sprint_num: int, story_id: str = None) -> Path:
+    def create_sprint_workspace(
+        self, sprint_num: int, story_id: Optional[str] = None
+    ) -> Path:
         """Create a workspace for a sprint with feature branch.
 
         Follows stable main + gitflow:

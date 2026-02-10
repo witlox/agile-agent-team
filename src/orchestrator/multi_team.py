@@ -531,7 +531,7 @@ class MultiTeamOrchestrator:
         deadline = tracker.get_deadline(timeout)
         started = datetime.now()
         timed_out = False
-        recs: List[str] = []
+        recs = []
 
         try:
             recs = await asyncio.wait_for(
