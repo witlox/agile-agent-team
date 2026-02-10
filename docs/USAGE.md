@@ -98,7 +98,7 @@ In mock mode:
 pytest tests/unit/         # Tools, config, backlog, kanban, runtimes, multi-language
 pytest tests/integration/  # Pairing, codegen, ceremonies, remote git, sprint workflow
 pytest tests/qualification/  # Agent creation, prompts
-pytest                     # All 293 tests
+pytest                     # All 324 tests
 ```
 
 ---
@@ -211,6 +211,7 @@ All experiment parameters live in `config.yaml`. The CLI only exposes:
 |------|---------|---------|
 | `--config` | `config.yaml` | Path to config file |
 | `--sprints` | `10` | Number of sprints to run |
+| `--duration` | _(from config)_ | Override sprint duration (minutes) |
 | `--output` | `outputs/experiment` | Output directory |
 | `--backlog` | `backlog.yaml` | Product backlog YAML |
 | `--db-url` | _(from config)_ | Override database URL |
@@ -285,7 +286,7 @@ runtimes:
 
   tools:
     workspace_root: "/tmp/agent-workspace"
-    allowed_commands: ["git", "pytest", "python", "pip", ...]
+    allowed_commands:  # 48 commands: git, gh, glab, python, go, cargo, npm, cmake, etc.
 
 # Agent definitions
 models:
@@ -1179,6 +1180,29 @@ curl http://localhost:8080/metrics
 | Shorter sprints (rapid iteration) | `sprint_duration_minutes: 10` |
 | Turnover simulation (long experiments) | `team.turnover.enabled: true` |
 | More tester participation | `team.tester_pairing.frequency: 0.40` |
+
+### Example Configurations
+
+The `examples/` directory contains 5 ready-to-use config+backlog pairs:
+
+| Example | Team | Runtime | Language | Key Feature |
+|---------|------|---------|----------|-------------|
+| `01-startup-mvp/` | 5 agents | Anthropic | Python | Small team, no disturbances, 45-min sprints |
+| `02-enterprise-brownfield/` | 11 agents | vLLM | Go+Python | Brownfield, GitHub PRs, full disturbances |
+| `03-oss-rust-library/` | 7 agents | Hybrid | Rust | Seniors on Anthropic, juniors on vLLM, GitLab MRs |
+| `04-chaos-experiment/` | 11 agents | Both | Python+TS | Max disturbances, free swapping, 20 sprints |
+| `05-quick-demo/` | 3 agents | Mock | Python | Minimal setup, 15-min sprints, 3 stories |
+
+```bash
+# Try the quick demo (no API keys needed)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --config examples/05-quick-demo/config.yaml \
+  --backlog examples/05-quick-demo/backlog.yaml \
+  --sprints 2 \
+  --duration 15 \
+  --output /tmp/quick-demo \
+  --db-url mock://
+```
 
 ### Recommended Experiment Sequence
 

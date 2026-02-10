@@ -105,7 +105,8 @@ team_config/            # 8-layer compositional agent profiles
 ├── 07_meta/            # Meta-learnings (JSONL)
 └── 08_specialists/     # External consultant profiles
 
-tests/                  # 293 tests (unit / integration / qualification)
+tests/                  # 324 tests (unit / integration / qualification)
+examples/               # 5 example config+backlog pairs
 config.yaml             # Experiment + runtime + tool configuration
 backlog.yaml            # Product backlog with BDD scenarios
 ```

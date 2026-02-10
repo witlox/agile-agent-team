@@ -2,7 +2,7 @@
 
 **Date**: February 2026
 **Current State**: ✅ **100% Complete and Operational**
-**Tests**: 293 collected (287 passing, 3 skipped, 3 pre-existing e2e failures)
+**Tests**: 324 collected (318 passing, 3 skipped, 3 pre-existing e2e failures)
 
 ---
 
@@ -30,7 +30,7 @@
 - `src/agents/agent_factory.py` - Creates agents with runtimes from config
 - Three deployment modes: offline (vLLM), online (Anthropic), hybrid
 
-**Tests**: Unit + integration + qualification = **293 collected (287 passing, 3 skipped, 3 pre-existing e2e failures)**
+**Tests**: Unit + integration + qualification = **324 collected (318 passing, 3 skipped, 3 pre-existing e2e failures)**
 
 ---
 
@@ -405,7 +405,7 @@ product:
 - ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ **293 tests collected** (287 passing, 3 skipped, 3 pre-existing e2e failures)
+- ✅ **324 tests collected** (318 passing, 3 skipped, 3 pre-existing e2e failures)
 - ✅ Unit tests — Kanban, tools (base, factory, filesystem, git, bash), config, backlog, runtimes, disturbances, metrics, multi-language (test runner, builder, linter, formatter), specialist, profile swapping, meta-learning
 - ✅ Integration tests — Pairing, codegen, ceremonies, remote git, sprint workflow
 - ✅ Qualification tests — Agent creation, prompt loading
@@ -533,7 +533,7 @@ Meta-Learning (learnings → JSONL)
 **Qualification Tests**:
 - `test_agent_qualification.py` - Agent creation, prompt loading, conversation
 
-**293 tests collected, 287 pass, 3 skipped (tools not installed), 3 pre-existing e2e failures**
+**324 tests collected, 318 pass, 3 skipped (tools not installed), 3 pre-existing e2e failures**
 
 ---
 
@@ -735,7 +735,7 @@ models:
 **Status**: 100% complete and operational
 
 **Key Achievements**:
-- ✅ 293 tests (287 passing, 3 skipped, 3 pre-existing e2e failures)
+- ✅ 324 tests (318 passing, 3 skipped, 3 pre-existing e2e failures)
 - ✅ Real code generation (BDD → implement → test → commit)
 - ✅ Three deployment modes (offline, online, hybrid)
 - ✅ Full sprint lifecycle (planning → dev → QA → retro → meta)

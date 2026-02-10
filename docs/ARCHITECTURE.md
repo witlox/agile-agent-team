@@ -713,12 +713,16 @@ outputs/experiment-001/
 
 ## Future Work
 
+**Completed (previously planned):**
+1. ~~Real code execution~~ ✅ BDD-driven code generation with tool use
+2. ~~Integration with GitHub/GitLab~~ ✅ Remote git push, PR/MR creation, QA merge
+
 **Planned Enhancements:**
-1. Real code execution (not just simulation)
-2. Integration with GitHub/GitLab
-3. Multi-team coordination experiments
-4. Long-running experiments (100+ sprints)
-5. Comparison with human team data
+1. Multi-team coordination experiments
+2. Long-running experiments (100+ sprints)
+3. Comparison with human team data
+4. Web UI for experiment monitoring
+5. Redis-based inter-agent coordination
 
 **Research Questions:**
 1. Does velocity follow power law or linear growth?

@@ -46,7 +46,7 @@ MOCK_LLM=true python -m src.orchestrator.main \
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 
-# Tests (293 tests: 287 passing, 3 skipped, 3 pre-existing e2e failures)
+# Tests (324 tests: 318 passing, 3 skipped, 3 pre-existing e2e failures)
 pytest tests/unit/            # Tools, config, backlog, kanban, runtimes, multi-language
 pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git
 pytest tests/qualification/   # Agent creation, prompt loading
@@ -110,6 +110,13 @@ team_config/                   # Agent prompts (Markdown) — compositional
 │   └── ...
 └── 08_specialists/            # External consultant profiles (10 domains)
 
+examples/                      # 5 example config+backlog pairs
+├── 01-startup-mvp/            # Small Anthropic team, Python SaaS
+├── 02-enterprise-brownfield/  # Full vLLM team, Go+Python, GitHub PRs
+├── 03-oss-rust-library/       # Hybrid team, Rust, GitLab MRs
+├── 04-chaos-experiment/       # Max disturbances, free swapping, 20 sprints
+└── 05-quick-demo/             # 3 agents, mock mode, 15-min sprints
+
 config.yaml                    # Experiment + runtime + tool configuration
 backlog.yaml                   # Product backlog with BDD scenarios
 pyproject.toml                 # Tool config (black, ruff, mypy)
@@ -138,7 +145,7 @@ outputs/                       # Experiment artifacts (gitignored)
 | **Disturbances** | ✅ Complete | 6 types, blast radius controls, **detection wired** |
 | **Profile swapping** | ✅ Complete | Swap/revert/decay, proficiency penalties |
 | **Metrics** | ✅ Complete | Prometheus integration, **custom metrics recording** |
-| **Testing** | ✅ Complete | 293 tests (287 passing, 3 skipped, 3 pre-existing e2e failures) |
+| **Testing** | ✅ Complete | 324 tests (318 passing, 3 skipped, 3 pre-existing e2e failures) |
 
 ## Code Generation Workflow
 
@@ -434,7 +441,7 @@ ls -la /tmp/agent-workspace/sprint-01/*/
 ## Testing
 
 ```bash
-# All tests (293 collected: 287 pass, 3 skip, 3 pre-existing e2e failures)
+# All tests (324 collected: 318 pass, 3 skip, 3 pre-existing e2e failures)
 pytest
 
 # By category
@@ -491,6 +498,7 @@ workspace = Path(tmpdir).resolve()
 
 - **Research design**: `README.md`, `RESEARCH_QUESTIONS.md`
 - **Usage guide**: `docs/USAGE.md` (configuration, disturbances, profile swapping)
+- **Example configs**: `examples/` (5 config+backlog pairs for common scenarios)
 - **Implementation summary**: `docs/IMPLEMENTATION_STATUS.md` (code generation architecture)
 - **Contributing**: `CONTRIBUTING.md`
 - **Auto memory**: `~/.claude/projects/-Users-witlox-src-agile-agent-team/memory/MEMORY.md`
