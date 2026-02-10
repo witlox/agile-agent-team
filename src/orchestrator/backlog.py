@@ -77,6 +77,10 @@ class Backlog:
             self._selected_ids.add(story["id"])
         return selected
 
+    def mark_selected(self, story_ids: "set[str]") -> None:
+        """Mark stories as already selected (for experiment resume)."""
+        self._selected_ids.update(story_ids)
+
     def mark_returned(self, story_id: str):
         """Return a story to the pool (e.g. rejected by PO)."""
         self._selected_ids.discard(story_id)
