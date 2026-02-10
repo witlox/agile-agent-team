@@ -67,12 +67,37 @@ class AgentFactory:
             )
 
             # Get tool names for this agent
-            tool_names = agent_cfg.get("tools", [])
+            tool_names = list(agent_cfg.get("tools", []))
             if not tool_names:
                 return None
 
-            # Get tool configuration
-            tools_config = self.runtime_configs.get("tools", {})
+            # Auto-add web tools to PO if domain research is enabled
+            domain_research = self.runtime_configs.get("domain_research", {})
+            web_search_cfg = domain_research.get("web_search", {})
+            if domain_research.get("enabled", False):
+                is_po = "po" in agent_id or agent_cfg.get("role_archetype") == "leader"
+                if is_po:
+                    if "web_search" not in tool_names:
+                        tool_names.append("web_search")
+                    if "web_fetch" not in tool_names:
+                        tool_names.append("web_fetch")
+
+            # Get tool configuration (merge web search config into tool config)
+            tools_config = dict(self.runtime_configs.get("tools", {}))
+            if web_search_cfg:
+                tools_config["web_search"] = web_search_cfg
+
+            # For Anthropic runtime, enable native web search if configured
+            if (
+                runtime_type == "anthropic"
+                and web_search_cfg.get("enabled", False)
+                and ("po" in agent_id or agent_cfg.get("role_archetype") == "leader")
+            ):
+                runtime_config = dict(runtime_config)
+                runtime_config["web_search_enabled"] = True
+                runtime_config["web_search_max_uses"] = web_search_cfg.get(
+                    "max_results", 5
+                )
 
             # Create runtime
             runtime = create_runtime(

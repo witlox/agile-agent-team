@@ -23,6 +23,8 @@ class ProductMetadata:
     goals: List[str] = field(default_factory=list)
     target_audience: str = ""
     success_metrics: List[str] = field(default_factory=list)
+    # Domain research context documents
+    context_documents: List[str] = field(default_factory=list)
 
 
 class Backlog:
@@ -87,6 +89,7 @@ class Backlog:
             goals=product.get("goals", []),
             target_audience=product.get("target_audience", ""),
             success_metrics=product.get("success_metrics", []),
+            context_documents=product.get("context_documents", []),
         )
 
     def get_project_context(self) -> str:
@@ -117,6 +120,12 @@ class Backlog:
             parts.append("## Success Metrics")
             for m in meta.success_metrics:
                 parts.append(f"- {m}")
+            parts.append("")
+
+        if meta.context_documents:
+            parts.append("## Reference Documents")
+            for doc in meta.context_documents:
+                parts.append(f"- {doc}")
             parts.append("")
 
         # Only return if there is meaningful context beyond name/description

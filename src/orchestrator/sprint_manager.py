@@ -412,6 +412,10 @@ class SprintManager:
         by the stakeholder and produces a refined business brief.  This
         brief is stored in the PO's conversation history so it informs all
         subsequent story presentations and stakeholder interactions.
+
+        When domain research is enabled and the PO has a runtime, the PO
+        can also read local context documents and search the web for
+        competitor analysis and market context.
         """
         po = self._agent("po")
         if not po:
@@ -427,7 +431,41 @@ class SprintManager:
             print("    No stakeholder context in backlog, skipping refinement")
             return
 
-        prompt = f"""You are starting a new project. Before Sprint 1 begins, study the
+        # Check if PO has runtime (tools) and domain research is enabled
+        has_research_tools = po.runtime is not None and getattr(
+            self.config, "domain_research_enabled", False
+        )
+
+        if has_research_tools:
+            # Use execute_coding_task so PO can read documents and search web
+            prompt = f"""You are starting a new project. Study the stakeholder context and \
+available research tools to build deep domain knowledge.
+
+{project_context}
+
+**Your research tasks:**
+1. Read any reference documents listed above (use read_file)
+2. Search the web for competitor analysis, market context, and technical \
+landscape (use web_search)
+3. Fetch and read key pages for deeper understanding (use web_fetch)
+
+Then write a comprehensive **Business Knowledge Brief** covering:
+1. **Product elevator pitch** (2-3 sentences)
+2. **Key differentiators** — what sets this apart from competitors
+3. **Competitive landscape** — who else is in this space, their \
+strengths/weaknesses
+4. **Primary user personas** and their pain points
+5. **Definition of success** — how we measure winning
+6. **Scope boundaries** — what this product is NOT
+7. **Technical landscape** — relevant technologies, trends, constraints
+
+This brief will guide your story presentations and prioritization decisions."""
+
+            result = await po.execute_coding_task(prompt, max_turns=10)
+            response = result.get("content", "")
+        else:
+            # Fallback: original generate-only path (no tools)
+            prompt = f"""You are starting a new project. Before Sprint 1 begins, study the
 stakeholder context below and prepare yourself to represent this product.
 
 {project_context}
@@ -444,7 +482,7 @@ will use throughout the project. Cover:
 This brief will guide your story presentations, prioritization decisions,
 and stakeholder communications for the entire project."""
 
-        response = await po.generate(prompt)
+            response = await po.generate(prompt)
 
         # Store in PO conversation history so it persists across sprints
         po.conversation_history.append(

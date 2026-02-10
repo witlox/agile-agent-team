@@ -29,6 +29,11 @@ product:
     - "Time to first task (onboarding friction)"
     - "NPS score from team leads"
 
+  # Optional: local files for PO domain research (read during Sprint 0)
+  # context_documents:
+  #   - "docs/product_vision.md"
+  #   - "docs/competitive_analysis.md"
+
   # Multi-language support for Sprint 0
   languages: [python, typescript]
 

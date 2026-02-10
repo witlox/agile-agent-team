@@ -52,6 +52,16 @@ class AnthropicRuntime(AgentRuntime):
         # Convert tools to Anthropic's format
         tool_schemas = [self._tool_to_anthropic_schema(t) for t in self.tool_list]
 
+        # Add native web search server tool if enabled
+        if self.config.get("web_search_enabled", False):
+            tool_schemas.append(
+                {
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": self.config.get("web_search_max_uses", 5),
+                }
+            )
+
         messages = [{"role": "user", "content": user_message}]
 
         all_tool_calls = []
@@ -82,7 +92,21 @@ class AnthropicRuntime(AgentRuntime):
 
                 for content_block in response.content:
                     if content_block.type == "tool_use":
-                        # Execute tool
+                        # Skip native server tools (web_search) — their
+                        # results come back as separate content blocks that
+                        # the API handles automatically.
+                        if content_block.name == "web_search" and self.config.get(
+                            "web_search_enabled", False
+                        ):
+                            all_tool_calls.append(
+                                {
+                                    "name": "web_search",
+                                    "params": content_block.input,
+                                }
+                            )
+                            continue
+
+                        # Execute local tool
                         result = await self._execute_tool(
                             content_block.name, content_block.input
                         )
@@ -105,7 +129,8 @@ class AnthropicRuntime(AgentRuntime):
 
                 # Add assistant message and tool results to conversation
                 messages.append({"role": "assistant", "content": response.content})
-                messages.append({"role": "user", "content": tool_results})
+                if tool_results:
+                    messages.append({"role": "user", "content": tool_results})
 
             elif response.stop_reason == "end_turn":
                 # Task complete

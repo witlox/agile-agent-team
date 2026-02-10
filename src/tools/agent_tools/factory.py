@@ -24,6 +24,7 @@ from .test_runner_multi import MultiLanguageTestRunner
 from .formatter import MultiLanguageFormatter
 from .linter import MultiLanguageLinter
 from .builder import MultiLanguageBuilder
+from .web import WebSearchTool, WebFetchTool
 
 
 # Tool registry mapping names to classes
@@ -45,6 +46,8 @@ TOOL_REGISTRY = {
     "format_code": MultiLanguageFormatter,
     "lint_code": MultiLanguageLinter,
     "build_code": MultiLanguageBuilder,
+    "web_search": WebSearchTool,
+    "web_fetch": WebFetchTool,
 }
 
 # Predefined tool sets
@@ -61,6 +64,7 @@ TOOL_SETS = {
     "bash": ["bash"],
     "test_runner": ["run_tests", "run_bdd_tests"],
     "code_quality": ["format_code", "lint_code", "build_code"],
+    "web": ["web_search", "web_fetch"],
     "basic": ["read_file", "write_file", "list_files"],
     "developer": [
         "read_file",

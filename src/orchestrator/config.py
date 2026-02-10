@@ -4,7 +4,7 @@ import os
 
 import yaml
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -50,6 +50,9 @@ class ExperimentConfig:
     remote_git_config: Dict[str, Dict] = field(default_factory=dict)
     # Sprint 0 configuration
     sprint_zero_enabled: bool = True  # Run Sprint 0 for infrastructure setup
+    # Domain research configuration (PO reads context docs + web search)
+    domain_research_enabled: bool = False
+    domain_research_config: Dict[str, Any] = field(default_factory=dict)
 
 
 def load_config(
@@ -163,6 +166,24 @@ def load_config(
     if "sprint_zero" in data:
         sprint_zero_enabled = data["sprint_zero"].get("enabled", True)
 
+    # Domain research configuration
+    domain_research_enabled = False
+    domain_research_config: Dict[str, Any] = {}
+    if "domain_research" in data:
+        dr = data["domain_research"]
+        domain_research_enabled = dr.get("enabled", False)
+        domain_research_config = {
+            "context_documents": dr.get("context_documents", []),
+            "web_search": dr.get("web_search", {}),
+        }
+
+    # Inject domain_research into runtime_configs so AgentFactory can see it
+    if domain_research_enabled:
+        runtime_configs["domain_research"] = {
+            "enabled": True,
+            **domain_research_config,
+        }
+
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
     resolved_db_url = (
         database_url or os.environ.get("DATABASE_URL") or data["database"]["url"]
@@ -201,4 +222,6 @@ def load_config(
         remote_git_provider=remote_git_provider,
         remote_git_config=remote_git_config,
         sprint_zero_enabled=sprint_zero_enabled,
+        domain_research_enabled=domain_research_enabled,
+        domain_research_config=domain_research_config,
     )

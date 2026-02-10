@@ -574,6 +574,80 @@ product:
 
 **How the PO uses it**: During Sprint 0, the PO agent receives the context and produces a Business Knowledge Brief. This brief shapes how the PO presents stories throughout the experiment — grounding acceptance criteria, priorities, and trade-off decisions in the product's purpose.
 
+### Domain Research (Context Documents + Web Search)
+
+Beyond the static product context, the PO can perform active research during Sprint 0. Two optional layers enrich the PO's domain knowledge:
+
+**Layer 1 — Context Documents**: Local files (markdown, text) that the PO reads during Sprint 0 to absorb stakeholder-provided knowledge.
+
+```yaml
+# backlog.yaml
+product:
+  context_documents:
+    - "docs/product_vision.md"
+    - "docs/competitive_analysis.md"
+```
+
+**Layer 2 — Web Search**: The PO searches the web for competitor analysis, market context, and technical landscape. Three runtime paths are supported:
+
+| Runtime | Web Search Approach |
+|---------|-------------------|
+| **Anthropic** | Native `web_search` server tool in the API — no custom tool needed |
+| **vLLM** | Custom `web_search` + `web_fetch` agent tools calling a configured search API |
+| **Mock** | Canned search results for testing (no API key needed) |
+
+**Configuration:**
+
+```yaml
+# config.yaml
+domain_research:
+  enabled: true                     # Master switch (default: false)
+  context_documents:                # Local files for PO to read
+    - "docs/product_vision.md"
+  web_search:
+    enabled: true                   # Enable web search (default: false)
+    engine: "brave"                 # brave | google | kagi
+    api_key_env: "BRAVE_API_KEY"    # Env var holding the search API key
+    max_results: 5                  # Results per query
+```
+
+**Setup for each search engine:**
+
+```bash
+# Brave (recommended — generous free tier)
+export BRAVE_API_KEY="BSA..."
+
+# Google Custom Search
+export GOOGLE_API_KEY="AIza..."
+# Also set google_cx in config: web_search.google_cx: "your-cx-id"
+
+# Kagi
+export KAGI_API_KEY="..."
+```
+
+**How it works:**
+
+1. During Sprint 0, if `domain_research.enabled: true` and the PO has a runtime:
+   - PO reads any `context_documents` listed in backlog.yaml using `read_file`
+   - PO searches the web using `web_search` (or Anthropic's native search)
+   - PO fetches and reads key pages using `web_fetch`
+2. PO writes a comprehensive **Business Knowledge Brief** covering:
+   - Elevator pitch, key differentiators, competitive landscape
+   - User personas, definition of success, scope boundaries
+   - Technical landscape and trends
+3. Brief stored in PO conversation history for the entire experiment
+
+**Fallback**: If domain research is disabled or the PO has no runtime, the PO falls back to the original generate-only path (rephrasing the backlog context without external knowledge).
+
+**Disabling domain research:**
+
+```yaml
+domain_research:
+  enabled: false
+```
+
+Or simply omit the `domain_research` section entirely (backward compatible).
+
 ### Backlog Format with BDD
 
 ```yaml

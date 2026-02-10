@@ -541,6 +541,18 @@ remote_git:
   # Git author metadata for commit attribution
   author_email_domain: "agent.local"  # Generates emails like alex_senior_networking@agent.local
 
+# Domain research (optional, recommended)
+# When enabled, the PO reads context documents and searches the web during
+# Sprint 0 to build deep domain knowledge before the first sprint.
+domain_research:
+  enabled: false                    # Set to true to enable PO domain research
+  context_documents: []             # Local files for PO to read during Sprint 0
+  web_search:
+    enabled: false                  # Set to true to enable web search
+    engine: "brave"                 # google | brave | kagi
+    api_key_env: "SEARCH_API_KEY"   # Environment variable with search API key
+    max_results: 5                  # Results per search query
+
 # Sprint 0 Infrastructure Setup
 sprint_zero:
   enabled: true  # Set to false to skip Sprint 0 and start with Sprint 1
