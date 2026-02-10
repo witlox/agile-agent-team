@@ -166,7 +166,12 @@ class CodeGenPairingEngine:
         return pairs
 
     async def run_pairing_session(
-        self, pair: Tuple[BaseAgent, BaseAgent], task: Dict, sprint_num: int
+        self,
+        pair: Tuple[BaseAgent, BaseAgent],
+        task: Dict,
+        sprint_num: int,
+        deadline: Optional[datetime] = None,
+        sprint_end: Optional[datetime] = None,
     ) -> Dict:
         """Execute pairing session with real code generation.
 
@@ -183,6 +188,8 @@ class CodeGenPairingEngine:
             pair: (driver, navigator) agents
             task: Story/task dict with id, title, description, acceptance_criteria
             sprint_num: Current sprint number
+            deadline: Wall-clock end time for the current simulated day
+            sprint_end: Wall-clock end time for the whole sprint
 
         Returns:
             Session result dict
@@ -231,7 +238,13 @@ class CodeGenPairingEngine:
             # Phase 2: Implementation using driver's runtime
             if driver.runtime:
                 impl_result = await self._implement_with_runtime(
-                    driver, navigator, task, workspace, feature_file
+                    driver,
+                    navigator,
+                    task,
+                    workspace,
+                    feature_file,
+                    deadline=deadline,
+                    sprint_end=sprint_end,
                 )
                 session_result.update(impl_result)
             else:
@@ -332,11 +345,15 @@ class CodeGenPairingEngine:
         task: Dict,
         workspace: Path,
         feature_file: Optional[Path],
+        deadline: Optional[datetime] = None,
+        sprint_end: Optional[datetime] = None,
     ) -> Dict:
         """Implement code using driver's runtime (tool-using agent)."""
 
         # Build task description for driver
-        task_prompt = self._build_implementation_prompt(task, workspace, feature_file)
+        task_prompt = self._build_implementation_prompt(
+            task, workspace, feature_file, deadline=deadline, sprint_end=sprint_end
+        )
 
         # Driver implements using agentic loop
         result = await driver.execute_coding_task(
@@ -352,7 +369,12 @@ class CodeGenPairingEngine:
         }
 
     def _build_implementation_prompt(
-        self, task: Dict, workspace: Path, feature_file: Optional[Path]
+        self,
+        task: Dict,
+        workspace: Path,
+        feature_file: Optional[Path],
+        deadline: Optional[datetime] = None,
+        sprint_end: Optional[datetime] = None,
     ) -> str:
         """Build implementation task prompt for agent."""
         prompt_parts = []
@@ -388,6 +410,24 @@ class CodeGenPairingEngine:
         prompt_parts.append(
             "\nUse your tools (read_file, write_file, edit_file, bash, run_tests) to complete this task."
         )
+
+        # Time context — let agent self-regulate under time pressure
+        if deadline:
+            remaining_day = max(0, (deadline - datetime.now()).total_seconds() / 60)
+            prompt_parts.append("\n## Time Context")
+            prompt_parts.append(f"- Remaining time today: ~{remaining_day:.0f} minutes")
+            if sprint_end:
+                remaining_sprint = max(
+                    0, (sprint_end - datetime.now()).total_seconds() / 60
+                )
+                prompt_parts.append(
+                    f"- Remaining time in sprint: ~{remaining_sprint:.0f} minutes"
+                )
+            prompt_parts.append(
+                "- If time is short, focus on completing a working MVP rather than "
+                "adding polish. Prefer a simpler approach that passes tests over "
+                "an ambitious one that might not finish."
+            )
 
         return "\n".join(prompt_parts)
 

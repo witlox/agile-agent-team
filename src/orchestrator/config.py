@@ -9,11 +9,11 @@ from typing import Any, Dict, List, Optional
 
 @dataclass
 class ExperimentConfig:
-    name: str
-    sprint_duration_minutes: int
-    database_url: str
-    team_config_dir: str
-    vllm_endpoint: str
+    name: str = ""
+    sprint_duration_minutes: int = 60  # Wall-clock minutes per sprint (recommended: 60)
+    database_url: str = ""
+    team_config_dir: str = "team_config"
+    vllm_endpoint: str = ""
     agent_configs: Dict[str, Dict] = field(default_factory=dict)
     runtime_configs: Dict[str, Dict] = field(
         default_factory=dict
@@ -48,6 +48,8 @@ class ExperimentConfig:
     remote_git_enabled: bool = False
     remote_git_provider: str = "github"  # "github" or "gitlab"
     remote_git_config: Dict[str, Dict] = field(default_factory=dict)
+    # Sprint time simulation
+    num_simulated_days: int = 5  # Simulated working days per sprint
     # Sprint 0 configuration
     sprint_zero_enabled: bool = True  # Run Sprint 0 for infrastructure setup
     # Domain research configuration (PO reads context docs + web search)
@@ -161,6 +163,11 @@ def load_config(
             "author_email_domain": rg.get("author_email_domain", "agent.local"),
         }
 
+    # Sprint time simulation
+    num_simulated_days = 5
+    if "experiment" in data:
+        num_simulated_days = data["experiment"].get("num_simulated_days", 5)
+
     # Sprint 0 configuration
     sprint_zero_enabled = True
     if "sprint_zero" in data:
@@ -191,7 +198,7 @@ def load_config(
 
     return ExperimentConfig(
         name=data["experiment"]["name"],
-        sprint_duration_minutes=data["experiment"]["sprint_duration_minutes"],
+        sprint_duration_minutes=data["experiment"].get("sprint_duration_minutes", 60),
         database_url=resolved_db_url,
         team_config_dir=data["team"]["config_dir"],
         vllm_endpoint=data["models"]["vllm_endpoint"],
@@ -221,6 +228,7 @@ def load_config(
         remote_git_enabled=remote_git_enabled,
         remote_git_provider=remote_git_provider,
         remote_git_config=remote_git_config,
+        num_simulated_days=num_simulated_days,
         sprint_zero_enabled=sprint_zero_enabled,
         domain_research_enabled=domain_research_enabled,
         domain_research_config=domain_research_config,

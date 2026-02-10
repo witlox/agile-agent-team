@@ -122,3 +122,61 @@ def test_load_config_database_url_override(tmp_path):
     path = _write_config(tmp_path, MINIMAL_CONFIG)
     cfg = load_config(path, database_url="postgresql://override:5432/db")
     assert cfg.database_url == "postgresql://override:5432/db"
+
+
+# ---------------------------------------------------------------------------
+# num_simulated_days tests
+# ---------------------------------------------------------------------------
+
+
+def test_config_num_simulated_days_default(tmp_path):
+    """Missing num_simulated_days field defaults to 5."""
+    path = _write_config(tmp_path, MINIMAL_CONFIG)
+    cfg = load_config(path)
+    assert cfg.num_simulated_days == 5
+
+
+def test_config_num_simulated_days_custom(tmp_path):
+    """Explicit num_simulated_days value is loaded correctly."""
+    data = {
+        **MINIMAL_CONFIG,
+        "experiment": {
+            **MINIMAL_CONFIG["experiment"],
+            "num_simulated_days": 8,
+        },
+    }
+    path = _write_config(tmp_path, data)
+    cfg = load_config(path)
+    assert cfg.num_simulated_days == 8
+
+
+# ---------------------------------------------------------------------------
+# sprint_duration_minutes tests
+# ---------------------------------------------------------------------------
+
+
+def test_config_sprint_duration_default(tmp_path):
+    """Missing sprint_duration_minutes defaults to 60."""
+    data = {
+        "experiment": {"name": "test"},
+        "team": {"config_dir": "team_config"},
+        "models": {"vllm_endpoint": "http://localhost:8000"},
+        "database": {"url": "mock://"},
+    }
+    path = _write_config(tmp_path, data)
+    cfg = load_config(path)
+    assert cfg.sprint_duration_minutes == 60
+
+
+def test_config_sprint_duration_custom(tmp_path):
+    """Explicit sprint_duration_minutes value is loaded correctly."""
+    data = {
+        **MINIMAL_CONFIG,
+        "experiment": {
+            **MINIMAL_CONFIG["experiment"],
+            "sprint_duration_minutes": 90,
+        },
+    }
+    path = _write_config(tmp_path, data)
+    cfg = load_config(path)
+    assert cfg.sprint_duration_minutes == 90

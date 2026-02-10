@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Configurable Sprint Timing & Agent Time Awareness (2026-02-10)
+
+**Wall-clock sprint duration now configurable (default: 60 min)**:
+- `sprint_duration_minutes` in config.yaml now optional (defaults to 60 if omitted)
+- New CLI flag `--duration <minutes>` overrides config value
+- `ExperimentConfig` fields all have sensible defaults (no required positional args)
+
+**Reduced simulated days from 10 to 5 (configurable)**:
+- New config field `num_simulated_days` (default: 5) under `experiment` section
+- At 60 min wall-clock, each simulated day now gets ~12 min instead of ~6 min
+- Gives agents enough time for full implement → test → fix → commit cycles
+
+**Agent time awareness — wall-clock deadlines passed to agents**:
+- `sprint_end` and `day_end` deadlines computed in `run_development()` and threaded to agents
+- `_build_implementation_prompt()` appends a `## Time Context` section with remaining minutes
+- Agents see remaining time and get guidance: "If time is short, focus on completing a working MVP"
+- Bridges the gap between scope-boxed AI agents and time-boxed agile sprints
+
+**Files changed**:
+- `src/orchestrator/config.py` — `sprint_duration_minutes` default 60, `num_simulated_days` field + parsing
+- `src/orchestrator/main.py` — `--duration` CLI arg, passed to config override
+- `src/orchestrator/sprint_manager.py` — configurable day count, `sprint_end` computation, deadline threading
+- `src/agents/pairing_codegen.py` — `deadline`/`sprint_end` params, `## Time Context` prompt injection
+- `config.yaml` — `num_simulated_days: 5`, `--duration` comment
+- `tests/unit/test_config.py` — 4 new tests (2 for duration, 2 for simulated days)
+- `tests/integration/test_sprint_zero_refinement.py` — updated day count assertions
+- Documentation: CLAUDE.md, DESIGN_RATIONALE.md, ARCHITECTURE.md, IMPLEMENTATION_STATUS.md, sprint_planning.md
+
 ### Added - Pre-commit Hooks (2026-02-10)
 
 **Automated Code Quality Gates**:

@@ -423,8 +423,9 @@ async def test_duration_override_actually_used_in_run_development():
             duration = duration_override or getattr(
                 manager.config, "sprint_duration_minutes", 60
             )
+            num_days = getattr(manager.config, "num_simulated_days", 5)
             captured["duration"] = duration
-            captured["time_per_day"] = duration / 10
+            captured["time_per_day"] = duration / num_days
             # Don't run the actual loop
 
         manager.run_development = instrumented_run_dev
@@ -432,12 +433,12 @@ async def test_duration_override_actually_used_in_run_development():
         # Sprint 0 uses half duration
         await manager.run_development(0, duration_override=30)
         assert captured["duration"] == 30
-        assert captured["time_per_day"] == 3.0
+        assert captured["time_per_day"] == 6.0
 
         # Regular sprint uses full config duration
         await manager.run_development(1)
         assert captured["duration"] == 60
-        assert captured["time_per_day"] == 6.0
+        assert captured["time_per_day"] == 12.0
 
 
 # ---------------------------------------------------------------------------

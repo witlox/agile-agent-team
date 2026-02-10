@@ -99,7 +99,7 @@ def dialogue_driven_pairing():
 
 **Original proposal:** 15 minutes
 **Revised to:** 20 minutes
-**Final decision:** 60 minutes
+**Final decision:** 60 minutes (5 simulated days, configurable)
 
 **Reasoning:**
 - Each sprint involves ~244 LLM API calls across all phases
@@ -108,7 +108,7 @@ def dialogue_driven_pairing():
 - Code generation has ~160 calls (parallelizable up to 4 pairs/day)
 - At 20 min, day budgets of 2 min were too tight for multi-turn
   tool-using code generation (implement → test → fix → commit)
-- 60 min gives 6 min/day, enough for code-gen sessions to complete
+- 60 min / 5 days = 12 min/day, enough for code-gen sessions
 
 ```
 20 minutes (original):
@@ -116,11 +116,12 @@ def dialogue_driven_pairing():
   - Only 1-2 LLM turns per pair before day boundary hit
   - Sessions cut short, incomplete implementations
 
-60 minutes (revised):
-  - 6 min per simulated day
+60 minutes (revised, 5 simulated days):
+  - 12 min per simulated day
   - 8-16 LLM turns per pair per day
   - Full implement → test → fix → commit cycles complete
   - Room for standup discussions and pair rotation
+  - Agents receive wall-clock deadlines and self-regulate
 ```
 
 ---

@@ -277,7 +277,7 @@ product:
 
 **Overview**: Complete agile ceremony implementation with Product Owner participation.
 
-**Time Simulation**: 60 minutes wall-clock = 10 simulated days (2-week sprint)
+**Time Simulation**: 60 minutes wall-clock = 5 simulated days (configurable via `num_simulated_days`)
 
 **Product Owner Role** (`team_config/01_role_archetypes/product_owner.md`):
 - Backlog management and prioritization
@@ -318,7 +318,7 @@ product:
 - Max tasks = half team size
 - Implementation: `src/orchestrator/pair_rotation.py`
 
-**Sprint Review/Demo** (End of Day 10):
+**Sprint Review/Demo** (End of last simulated day):
 - Team demonstrates completed stories (working software, user perspective)
 - PO reviews acceptance criteria
 - PO decides: Accepted ✅ / Rejected ❌ / Accepted with notes 🤔
@@ -330,14 +330,14 @@ product:
 - Documentation: `team_config/06_process_rules/sprint_review.md` (350 lines)
 
 **Sprint Manager Integration** (`src/orchestrator/sprint_manager.py`):
-- Day-based simulation (10 days per sprint)
+- Day-based simulation (5 days per sprint, configurable)
 - Daily standup + pair rotation + pairing sessions
 - Task pull logic respecting dependencies
 - Methods: `run_planning()`, `run_development()`, `_run_day_pairing_sessions()`, `_pull_task_for_owner()`
 
 **Benefits**:
 - ✅ Complete agile workflow with PO participation
-- ✅ Realistic time simulation (20 min = 10 days)
+- ✅ Realistic time simulation (configurable simulated days with agent time awareness)
 - ✅ Pair rotation ensures knowledge transfer
 - ✅ Task ownership provides continuity
 - ✅ Daily standups surface dependencies and architectural issues early
@@ -386,7 +386,7 @@ product:
 - ✅ **2-Phase Planning**: PO + Team refinement, then Team-only technical planning
 - ✅ **Disturbance injection**: 7 types (including merge conflicts)
 - ✅ **Specialist consultants**: Max 3 per sprint, velocity penalty, knowledge transfer - NEW
-- ✅ **Development**: Day-based simulation (20 min = 10 days) with daily standups
+- ✅ **Development**: Day-based simulation (5 simulated days, configurable) with daily standups and agent time awareness
 - ✅ **Pair rotation**: Navigator rotates daily, owner stays (round-robin algorithm)
 - ✅ **Daily standups**: Coordination, architectural alignment, Dev Lead facilitation
 - ✅ **QA review**: QA lead approves/rejects

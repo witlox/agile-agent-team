@@ -19,10 +19,15 @@ async def run_experiment(
     output_dir: str,
     backlog_path: str,
     database_url: str = "",
+    duration_minutes: int = 0,
 ):
     """Run the complete experiment for N sprints."""
 
     config = load_config(config_path, database_url=database_url or None)
+
+    # CLI --duration overrides config file value
+    if duration_minutes > 0:
+        config.sprint_duration_minutes = duration_minutes
 
     db = SharedContextDB(config.database_url)
     await db.initialize()
@@ -102,11 +107,22 @@ def main() -> None:
     parser.add_argument(
         "--db-url", default="", help="Override database URL (use mock:// for local dev)"
     )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=0,
+        help="Wall-clock minutes per sprint (default: 60, overrides config)",
+    )
     args = parser.parse_args()
 
     asyncio.run(
         run_experiment(
-            args.config, args.sprints, args.output, args.backlog, args.db_url
+            args.config,
+            args.sprints,
+            args.output,
+            args.backlog,
+            args.db_url,
+            args.duration,
         )
     )
 

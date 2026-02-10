@@ -36,6 +36,13 @@ MOCK_LLM=true python -m src.orchestrator.main \
   --output /tmp/test-run \
   --db-url mock://
 
+# Override wall-clock sprint duration (default: 60 min, from config.yaml)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --sprints 1 \
+  --duration 30 \
+  --output /tmp/quick-test \
+  --db-url mock://
+
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 

@@ -257,7 +257,10 @@ class SprintManager:
     async def _run_sprint_zero(self):
         """Run Sprint 0 - infrastructure setup and PO domain refinement.
 
-        Sprint 0 runs at half the regular sprint duration.
+        Sprint 0 is *scope-boxed* (not time-boxed): PO domain refinement and
+        planning must complete fully before proceeding.  There is no wall-clock
+        deadline for these phases.  Development runs at half the regular sprint
+        duration.
 
         Flow:
         1. PO domain refinement: PO studies stakeholder context and refines
@@ -651,16 +654,22 @@ and stakeholder communications for the entire project."""
     ):
         """Development phase with daily standups and pair rotation.
 
-        Wall-clock duration (default 60 min) = 10 simulated days (2 weeks).
-        Each day: standup (except Day 1) + pairing sessions + rotation prep.
-        At 60 min each simulated day gets ~6 min of wall-clock, enough for
-        ~160 code-generation LLM calls across up to 4 parallel pairs.
+        Wall-clock duration (default 60 min) is divided into simulated working
+        days (default 5, configurable via ``num_simulated_days``).  Each day:
+        standup (except Day 1) + pairing sessions + rotation prep.
+
+        Agents are *scope-boxed* (they finish when done), but agile sprints are
+        *time-boxed* (fixed duration).  To bridge the gap we pass wall-clock
+        deadlines (``sprint_end`` / ``day_end``) to agents so they can see how
+        much time remains and self-regulate (e.g. simplify approach, skip
+        nice-to-haves).
         """
         duration = duration_override or getattr(
             self.config, "sprint_duration_minutes", 60
         )
-        num_days = 10  # 2-week sprint = 10 working days
-        time_per_day = duration / num_days  # ~6 minutes per day
+        num_days = getattr(self.config, "num_simulated_days", 5)
+        time_per_day = duration / num_days
+        sprint_end = datetime.now() + timedelta(minutes=duration)
 
         # Get initial task assignments and pairs
         snapshot = await self.kanban.get_snapshot()
@@ -716,7 +725,7 @@ and stakeholder communications for the entire project."""
 
             # Run pairing sessions for the day
             await self._run_day_pairing_sessions(
-                sprint_num, day_num, current_pairs, day_end
+                sprint_num, day_num, current_pairs, day_end, sprint_end
             )
 
             # Update in-progress tasks for next day
@@ -737,6 +746,7 @@ and stakeholder communications for the entire project."""
         day_num: int,
         pairs: Dict[str, str],  # owner_id -> navigator_id
         day_end: datetime,
+        sprint_end: Optional[datetime] = None,
     ):
         """Run pairing sessions for one day."""
 
@@ -774,7 +784,11 @@ and stakeholder communications for the entire project."""
                     if isinstance(self.pairing_engine, CodeGenPairingEngine):
                         t = asyncio.create_task(
                             self.pairing_engine.run_pairing_session(
-                                pair, task, sprint_num
+                                pair,
+                                task,
+                                sprint_num,
+                                deadline=day_end,
+                                sprint_end=sprint_end,
                             )
                         )
                     else:

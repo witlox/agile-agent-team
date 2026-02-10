@@ -1,6 +1,6 @@
 # Sprint Planning - Two-Phase Process
 
-Sprint planning happens on Day 0 of each sprint. The goal is to select and plan work for the next 2 weeks (10 working days).
+Sprint planning happens on Day 0 of each sprint. The goal is to select and plan work for the next sprint (5 simulated working days by default, configurable via `num_simulated_days`).
 
 ## Overview
 

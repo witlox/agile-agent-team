@@ -52,7 +52,7 @@ This experiment tests whether:
 ### 1. Sprint Orchestrator
 
 **Responsibilities:**
-- Time management (60 minutes wall-clock → 2 weeks simulated)
+- Time management (60 minutes wall-clock → 5 simulated days, configurable)
 - Phase coordination (planning → dev → retro)
 - Process enforcement (pairing protocol, WIP limits)
 - Artifact generation (Kanban snapshots, logs, reports)
@@ -592,7 +592,7 @@ outputs/experiment-001/
 ## Scalability Considerations
 
 **Current Implementation:**
-- 11 agents, 60-minute sprints
+- 11 agents, 60-minute sprints (5 simulated days)
 - ~244 LLM API calls per sprint (~118 top-level, rest inner turns)
 - ~450k tokens per sprint
 
@@ -647,7 +647,7 @@ outputs/experiment-001/
 
 **Typical Sprint Timing:**
 - Planning: ~5 minutes wall-clock (~52 LLM calls, mostly serial)
-- Development: ~50 minutes (10 simulated days, ~160 LLM calls, up to 4 parallel pairs)
+- Development: ~50 minutes (5 simulated days, ~160 LLM calls, up to 4 parallel pairs)
 - QA + Sprint Review: ~3 minutes (~10 LLM calls)
 - Retrospective: ~1 minute (~11 LLM calls, fully parallel)
 - Artifact generation: 30 seconds
