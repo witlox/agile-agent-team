@@ -449,6 +449,13 @@ models:
 
 ## Development
 
+### Setup
+
+```bash
+pip install -r requirements.txt
+pre-commit install  # Hooks run black, ruff, mypy on every commit
+```
+
 ### Running Tests
 
 ```bash

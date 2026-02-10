@@ -48,11 +48,11 @@ cd agile-agent-team
 python3.11 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# Install dependencies (includes dev tools: pytest, black, mypy, ruff, pre-commit)
 pip install -r requirements.txt
 
-# Install development tools
-pip install pytest black mypy ruff
+# Wire pre-commit hooks (runs black, ruff, mypy on every commit)
+pre-commit install
 ```
 
 ### 3. Create a Branch
@@ -67,18 +67,19 @@ git checkout -b fix/your-bug-fix
 
 ### Code Style
 
-We follow standard Python conventions:
+Pre-commit hooks run automatically on every commit (black, ruff, mypy). You can also run them manually:
 
 ```bash
-# Format code
+# Run all hooks on all files
+pre-commit run --all-files
+
+# Or run individually
 black src/
-
-# Lint
 ruff check src/
-
-# Type check
 mypy src/
 ```
+
+Tool configuration lives in `pyproject.toml`.
 
 ### Agent Profiles
 
@@ -321,14 +322,15 @@ git clone YOUR_FORK
 cd agile-agent-team
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+pre-commit install
 
 # Make changes
 git checkout -b feature/my-feature
 # ... edit files ...
-black src/ && ruff check src/
+pre-commit run --all-files  # Check formatting, linting, types
 pytest
 
-# Submit
+# Submit (pre-commit hooks run automatically)
 git commit -am "Add: My feature"
 git push origin feature/my-feature
 # Create PR on GitHub

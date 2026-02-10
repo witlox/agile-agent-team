@@ -22,7 +22,7 @@ This is a research project implementing an 11-agent software development team us
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install pytest black mypy ruff  # dev tools
+pre-commit install  # Wire git hooks (black, ruff, mypy)
 ```
 
 No Kubernetes or vLLM required for local development. Use mock mode (see below).
@@ -45,10 +45,11 @@ pytest tests/integration/     # Pairing, codegen, sprint workflow
 pytest tests/qualification/   # Agent prompt loading
 pytest                        # all tests
 
-# Code quality
-black src/
-ruff check src/
-mypy src/
+# Code quality (runs automatically on commit via pre-commit hooks)
+pre-commit run --all-files   # Run all hooks manually
+black src/                   # Format only
+ruff check src/              # Lint only
+mypy src/                    # Type-check only
 ```
 
 ## Architecture
@@ -103,6 +104,8 @@ team_config/                   # Agent prompts (Markdown) — compositional
 
 config.yaml                    # Experiment + runtime + tool configuration
 backlog.yaml                   # Product backlog with BDD scenarios
+pyproject.toml                 # Tool config (black, ruff, mypy)
+.pre-commit-config.yaml        # Pre-commit hooks (black, ruff, mypy)
 tests/                         # unit/, integration/, qualification/
 outputs/                       # Experiment artifacts (gitignored)
 /tmp/agent-workspace/          # Generated code workspaces
@@ -346,7 +349,8 @@ You CAN:
 - Python 3.11+, async-first (`asyncio`)
 - Type hints on all function signatures
 - Docstrings on all public functions and classes
-- Format with `black`, lint with `ruff`, type-check with `mypy`
+- **Pre-commit hooks** enforce formatting (`black`), linting (`ruff`), and type-checking (`mypy`) on every commit
+- Tool config centralized in `pyproject.toml`
 - Commit message prefix: `Add:`, `Fix:`, `Improve:`, `Docs:`, `Refactor:`
 
 ## Key Concepts

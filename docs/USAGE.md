@@ -31,6 +31,7 @@ cd agile-agent-team
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pre-commit install  # Wire git hooks (black, ruff, mypy)
 
 # Run 3 sprints with fully mocked LLM and in-memory database
 MOCK_LLM=true python -m src.orchestrator.main \

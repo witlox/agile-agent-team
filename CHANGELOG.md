@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Pre-commit Hooks (2026-02-10)
+
+**Automated Code Quality Gates**:
+- **pre-commit framework**: `black`, `ruff`, and `mypy` run automatically on every commit
+- **`pyproject.toml`**: Centralized tool configuration (line-length 88, ruff E/F/W rules, mypy non-strict)
+- **`.pre-commit-config.yaml`**: Hook definitions using official repos (black, ruff-pre-commit) and local mypy
+- **mypy**: Runs informational-only (non-blocking) due to 93 pre-existing type errors; remove `|| true` once resolved
+- **ruff**: E501 (line length) ignored since black handles formatting
+- **Dependencies**: Added `pre-commit==3.6.0` to `requirements.txt`
+
 ### Added - Research-Critical Test Coverage (2026-02-09)
 
 **Profile Swapping Tests** (13 tests - Research Question 4):
