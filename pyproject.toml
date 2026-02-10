@@ -1,0 +1,15 @@
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+select = ["E", "F", "W"]
+ignore = ["E501"]  # Line length handled by black
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+no_implicit_optional = true
+files = ["src/"]
