@@ -1,0 +1,142 @@
+# Example 3: fastcache — High-Performance Caching Library in Rust
+#
+# An open-source caching library with multiple eviction policies,
+# thread-safe access, and async support. Designed for embedded use
+# in Rust services.
+
+product:
+  name: "fastcache - High-Performance Caching Library"
+  description: >
+    A fast, thread-safe, in-process caching library for Rust with
+    pluggable eviction policies (LRU, LFU, TTL), async support, and
+    comprehensive benchmarks.
+
+  mission: >
+    Provide the fastest, safest in-process cache for Rust applications
+    that is easy to use and hard to misuse.
+  vision: >
+    Become the default caching crate for Rust web services, replacing
+    ad-hoc HashMap-based caches with a well-tested, benchmarked library.
+  goals:
+    - "Publish v0.1 to crates.io within 5 sprints"
+    - "LRU cache faster than lru-rs for common workloads"
+    - "Zero unsafe code in public API"
+    - "100% documentation coverage (all public items)"
+  target_audience: >
+    Rust developers building web services, CLI tools, or any application
+    that benefits from in-process caching.
+  success_metrics:
+    - "Downloads on crates.io"
+    - "Benchmark results vs alternatives"
+    - "GitHub stars and community contributions"
+
+  languages: [rust]
+  tech_stack:
+    - github-actions
+  repository:
+    type: greenfield
+    url: ""
+
+stories:
+  - id: US-001
+    title: "Core cache with LRU eviction"
+    description: "As a library user I can create an LRU cache with a maximum capacity"
+    acceptance_criteria:
+      - "Cache::new(capacity) creates bounded cache"
+      - "get() returns Option<&V>, updates access order"
+      - "insert() adds entry, evicts LRU if at capacity"
+      - "remove() deletes entry, returns Option<V>"
+      - "len() and is_empty() work correctly"
+    story_points: 5
+    priority: 1
+    scenarios:
+      - name: "Basic LRU eviction"
+        given:
+          - "a cache with capacity 2"
+          - "entries (a=1) and (b=2) inserted"
+        when:
+          - "I insert (c=3)"
+        then:
+          - "entry (a=1) is evicted (least recently used)"
+          - "cache contains (b=2) and (c=3)"
+      - name: "Access updates recency"
+        given:
+          - "a cache with capacity 2"
+          - "entries (a=1) and (b=2) inserted"
+        when:
+          - "I get(a)"
+          - "I insert (c=3)"
+        then:
+          - "entry (b=2) is evicted (a was accessed more recently)"
+          - "cache contains (a=1) and (c=3)"
+
+  - id: US-002
+    title: "Thread-safe cache wrapper"
+    description: "As a library user I can use the cache safely from multiple threads"
+    acceptance_criteria:
+      - "ConcurrentCache wraps Cache with interior mutability"
+      - "All operations are Send + Sync"
+      - "No deadlocks under concurrent read/write"
+    story_points: 5
+    priority: 2
+
+  - id: US-003
+    title: "TTL-based expiration"
+    description: "As a library user I can set a time-to-live on cache entries"
+    acceptance_criteria:
+      - "insert_with_ttl(key, value, Duration) sets expiration"
+      - "Expired entries not returned by get()"
+      - "Background cleanup of expired entries (lazy or periodic)"
+    story_points: 5
+    priority: 3
+
+  - id: US-004
+    title: "LFU eviction policy"
+    description: "As a library user I can choose LFU (Least Frequently Used) eviction"
+    acceptance_criteria:
+      - "Cache::with_policy(Policy::LFU, capacity)"
+      - "Evicts entry with lowest access count"
+      - "Frequency counts reset periodically to avoid stale popular entries"
+    story_points: 5
+    priority: 4
+
+  - id: US-005
+    title: "Async cache interface"
+    description: "As a library user I can use the cache in async Rust code"
+    acceptance_criteria:
+      - "AsyncCache with async get/insert/remove"
+      - "Compatible with tokio and async-std runtimes"
+      - "No blocking operations on the async runtime"
+    story_points: 5
+    priority: 5
+
+  - id: US-006
+    title: "Cache statistics and metrics"
+    description: "As a library user I can query cache hit/miss statistics"
+    acceptance_criteria:
+      - "stats() returns CacheStats { hits, misses, evictions, size }"
+      - "Hit rate calculated as hits / (hits + misses)"
+      - "Stats are thread-safe and low-overhead"
+    story_points: 3
+    priority: 6
+
+  - id: US-007
+    title: "Benchmarks and documentation"
+    description: "As a potential user I can see benchmarks and comprehensive docs"
+    acceptance_criteria:
+      - "Criterion benchmarks for get/insert/eviction"
+      - "Comparison with hashbrown and lru-rs"
+      - "README with usage examples"
+      - "All public items documented with /// doc comments"
+    story_points: 3
+    priority: 7
+
+  - id: US-008
+    title: "Serialization support"
+    description: "As a library user I can serialize/deserialize the cache for persistence"
+    acceptance_criteria:
+      - "Optional serde feature flag"
+      - "Serialize and Deserialize derived for Cache when K,V: Serialize"
+      - "Roundtrip test: serialize → deserialize → same state"
+    story_points: 3
+    priority: 8

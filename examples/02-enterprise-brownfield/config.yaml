@@ -1,0 +1,370 @@
+# Example 2: Enterprise Brownfield
+#
+# Scenario: Full 11-person enterprise team working on an existing Go+Python
+# microservices codebase. Uses local vLLM for all agents, GitHub integration
+# for PRs, full disturbances, and constrained profile swapping.
+#
+# Demonstrates:
+#   - Brownfield development (clone existing repo, build incrementally)
+#   - Remote git integration (push branches, create PRs, QA merge)
+#   - Full disturbance injection (realistic failure scenarios)
+#   - Turnover simulation (team member departure after sprint 5)
+#   - Per-sprint workspace persistence
+#
+# Usage:
+#   export GITHUB_TOKEN="ghp_..."
+#   python -m src.orchestrator.main \
+#     --config examples/02-enterprise-brownfield/config.yaml \
+#     --backlog examples/02-enterprise-brownfield/backlog.yaml \
+#     --sprints 10 \
+#     --output /tmp/enterprise-brownfield
+
+experiment:
+  name: "enterprise-brownfield"
+  sprint_duration_minutes: 60
+  num_simulated_days: 5
+  sprints_per_stakeholder_review: 5
+
+team:
+  config_dir: "team_config"
+  max_engineers: 10
+  max_total_team_size: 13
+
+  turnover:
+    enabled: true
+    starts_after_sprint: 5
+    probability_per_sprint: 0.10   # 10% chance — higher than default
+    backfill_enabled: true
+
+  tester_pairing:
+    enabled: true
+    frequency: 0.20
+    role: "navigator"
+
+  wip_limits:
+    in_progress: 4
+    review: 2
+
+  quality_gates:
+    min_test_coverage_lines: 85
+    min_test_coverage_branches: 80
+    max_cyclomatic_complexity: 10
+
+  definition_of_done:
+    - "All acceptance criteria met"
+    - "Test coverage >= 85%"
+    - "All tests passing"
+    - "Code reviewed by pair"
+    - "PR approved by QA"
+    - "Deployed to staging"
+    - "PO acceptance"
+
+disturbances:
+  enabled: true
+  frequencies:
+    dependency_breaks: 0.20        # 1 in 5 sprints
+    production_incident: 0.15      # 1 in ~7 sprints
+    flaky_test: 0.30              # 1 in ~3 sprints (common in brownfield)
+    scope_creep: 0.25             # 1 in 4 sprints
+    junior_misunderstanding: 0.33  # 1 in 3 sprints
+    architectural_debt_surfaces: 0.25  # 1 in 4 (brownfield has more debt)
+    merge_conflict: 0.40          # 1 in ~2.5 sprints (shared codebase)
+  blast_radius_controls:
+    max_velocity_impact: 0.30
+    max_quality_regression: 0.15
+
+runtimes:
+  anthropic:
+    enabled: false
+
+  local_vllm:
+    enabled: true
+    endpoint: "http://vllm-gh200-module-1:8000"
+    tool_use_protocol: "xml"
+    max_tokens: 8192
+    temperature: 0.7
+
+  tools:
+    workspace_root: "/tmp/agent-workspace"
+    allowed_commands:
+      # Version control
+      - "git"
+      - "gh"
+      # Python
+      - "python"
+      - "pip"
+      - "pytest"
+      - "mypy"
+      - "black"
+      - "ruff"
+      - "flake8"
+      # Go
+      - "go"
+      - "gofmt"
+      - "goimports"
+      - "golangci-lint"
+      # General
+      - "ls"
+      - "cat"
+      - "grep"
+      - "find"
+      - "mkdir"
+      - "touch"
+      - "echo"
+      - "cp"
+      - "mv"
+      - "rm"
+      - "head"
+      - "tail"
+      - "wc"
+      - "diff"
+      - "sort"
+      - "sed"
+      - "curl"
+      - "make"
+      - "env"
+      - "which"
+    blocked_patterns:
+      - "rm -rf /"
+      - "dd if="
+      - "mkfs"
+      - "sudo"
+      - "curl.*|.*bash"
+      - "wget.*|.*sh"
+
+code_generation:
+  workspace_mode: "per_sprint"           # Shared workspace for brownfield
+  persist_across_sprints: true           # Continue from previous sprint
+  merge_completed_stories: true          # Auto-merge feature branches after QA
+  repo_config:
+    url: "https://github.com/your-org/orderflow-service.git"  # Replace with real repo
+    branch: "main"
+    clone_mode: "incremental"            # Reuse workspace, pull latest
+  coverage:
+    enabled: true
+    source: "."
+    min_line_coverage: 85
+    min_branch_coverage: 80
+
+models:
+  vllm_endpoint: "http://vllm-gh200-module-1:8000"
+  agents:
+    # --- Senior Developers (2) ---
+    alex_senior_networking:
+      name: "Alex Chen (Senior Networking Specialist)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: networking
+      auxiliary_specializations: [security]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    priya_senior_devops:
+      name: "Priya Sharma (Senior DevOps Specialist)"
+      individual: priya_sharma
+      seniority: senior
+      primary_specialization: devops
+      auxiliary_specializations: [cloud_architecture]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Indian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    # --- Mid-Level Developers (2) ---
+    marcus_mid_backend:
+      name: "Marcus Okafor (Mid-Level Backend Developer)"
+      individual: marcus_okafor
+      seniority: mid
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Nigerian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git"]
+      model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    elena_mid_frontend:
+      name: "Elena Volkov (Mid-Level Frontend Developer)"
+      individual: elena_volkov
+      seniority: mid
+      primary_specialization: frontend
+      auxiliary_specializations: [ui_ux]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Russian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git"]
+      model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    # --- Junior Developers (2) ---
+    jamie_junior_fullstack:
+      name: "Jamie Rodriguez (Junior Full-Stack Developer)"
+      individual: jamie_rodriguez
+      seniority: junior
+      primary_specialization: backend
+      auxiliary_specializations: [frontend]
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Mexican-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+      temperature: 0.8
+      max_tokens: 2048
+
+    jordan_junior_backend:
+      name: "Jordan Kim (Junior Backend Developer)"
+      individual: jordan_kim
+      seniority: junior
+      primary_specialization: backend
+      auxiliary_specializations: [database]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Korean-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+      temperature: 0.8
+      max_tokens: 2048
+
+    # --- Testers (2 + 1 QA Lead) ---
+    yuki_senior_tester_integration:
+      name: "Yuki Tanaka (Senior Integration Tester)"
+      individual: yuki_tanaka
+      seniority: senior
+      primary_specialization: test_automation
+      auxiliary_specializations: [backend]
+      role_archetype: tester
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Japanese"
+      runtime: "local_vllm"
+      tools: ["filesystem", "bash"]
+      model: "Qwen/Qwen2.5-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    maria_mid_tester_e2e:
+      name: "Maria Santos (Mid-Level E2E Tester)"
+      individual: maria_santos
+      seniority: mid
+      primary_specialization: test_automation
+      auxiliary_specializations: [frontend]
+      role_archetype: tester
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Brazilian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "bash"]
+      model: "Qwen/Qwen2.5-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    sophie_senior_qa_lead:
+      name: "Sophie Dubois (QA Lead)"
+      individual: sophie_dubois
+      seniority: senior
+      primary_specialization: quality_engineering
+      auxiliary_specializations: [test_automation]
+      role_archetype: tester+leader
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "French"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "Qwen/Qwen2.5-72B-Instruct"
+      temperature: 0.7
+      max_tokens: 4096
+
+    # --- Leaders ---
+    ahmed_senior_dev_lead:
+      name: "Ahmed Hassan (Development Lead)"
+      individual: ahmed_hassan
+      seniority: senior
+      primary_specialization: backend
+      auxiliary_specializations: [distributed_systems]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Egyptian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+      temperature: 0.7
+      max_tokens: 4096
+
+    alex_senior_po:
+      name: "Alex Chen (Product Owner)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: api_design
+      role_archetype: leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "Qwen/Qwen2.5-72B-Instruct"
+      temperature: 0.8
+      max_tokens: 4096
+
+database:
+  url: "postgresql://postgres:password@shared-db:5432/team_context"
+  redis_url: "redis://redis:6379"
+
+monitoring:
+  prometheus_port: 8080
+  grafana_url: "http://grafana:3000"
+
+profile_swapping:
+  mode: "constrained"
+  allowed_scenarios:
+    - "critical_production_incident"
+    - "specialist_unavailable"
+    - "deliberate_cross_training"
+  penalties:
+    context_switch_slowdown: 1.20
+    proficiency_reduction: 0.70
+    knowledge_decay_sprints: 1
+
+remote_git:
+  enabled: true
+  provider: "github"
+  github:
+    token_env: "GITHUB_TOKEN"
+    base_branch: "main"
+    merge_method: "squash"
+    draft_prs: false
+  gitlab:
+    token_env_pattern: "GITLAB_TOKEN_{role_id}"
+    base_branch: "main"
+    merge_method: "squash"
+    draft_prs: false
+  author_email_domain: "agent.local"
+
+domain_research:
+  enabled: false
+
+sprint_zero:
+  enabled: false       # Brownfield — infrastructure already exists

@@ -1,0 +1,357 @@
+# Example 4: Chaos Experiment
+#
+# Scenario: Research experiment studying team resilience under maximum stress.
+# All disturbances cranked to high frequencies, free profile swapping,
+# turnover enabled early, 20 sprints for longitudinal data.
+#
+# Demonstrates:
+#   - Maximum disturbance injection (all types at high frequency)
+#   - Free profile swapping (agents cover any role)
+#   - Early turnover simulation (departures after sprint 5)
+#   - Long experiment duration (20 sprints for statistical significance)
+#   - 90-minute sprints for more development time under chaos
+#
+# Usage:
+#   MOCK_LLM=true python -m src.orchestrator.main \
+#     --config examples/04-chaos-experiment/config.yaml \
+#     --backlog examples/04-chaos-experiment/backlog.yaml \
+#     --sprints 20 \
+#     --output /tmp/chaos-experiment
+
+experiment:
+  name: "chaos-resilience-study"
+  sprint_duration_minutes: 90       # Longer sprints — more time for chaos recovery
+  num_simulated_days: 5
+  sprints_per_stakeholder_review: 5
+
+team:
+  config_dir: "team_config"
+  max_engineers: 10
+  max_total_team_size: 13
+
+  turnover:
+    enabled: true
+    starts_after_sprint: 5          # Early turnover — sprint 5
+    probability_per_sprint: 0.15    # 15% chance — aggressive
+    backfill_enabled: true
+
+  tester_pairing:
+    enabled: true
+    frequency: 0.25                 # Higher tester participation
+    role: "navigator"
+
+  wip_limits:
+    in_progress: 3                  # Tighter WIP — more pressure
+    review: 1                       # Only 1 in review — bottleneck by design
+
+  quality_gates:
+    min_test_coverage_lines: 85
+    min_test_coverage_branches: 80
+    max_cyclomatic_complexity: 10
+
+  definition_of_done:
+    - "All acceptance criteria met"
+    - "Test coverage >= 85%"
+    - "All tests passing"
+    - "Code reviewed by pair"
+    - "PO acceptance"
+
+# Maximum chaos — all disturbance types at high frequency
+disturbances:
+  enabled: true
+  frequencies:
+    dependency_breaks: 0.40         # 2 in 5 sprints
+    production_incident: 0.30       # Nearly 1 in 3 sprints
+    flaky_test: 0.50               # Every other sprint
+    scope_creep: 0.40              # 2 in 5 sprints
+    junior_misunderstanding: 0.50   # Every other sprint
+    architectural_debt_surfaces: 0.35  # 1 in 3 sprints
+    merge_conflict: 0.60           # Majority of sprints
+  blast_radius_controls:
+    max_velocity_impact: 0.50       # Allow up to 50% velocity drop
+    max_quality_regression: 0.25    # Allow up to 25% coverage drop
+
+runtimes:
+  anthropic:
+    enabled: true
+    api_key_env: "ANTHROPIC_API_KEY"
+    default_model: "claude-sonnet-4-5"
+    max_tokens: 8192
+
+  local_vllm:
+    enabled: true
+    endpoint: "http://vllm-gh200-module-1:8000"
+    tool_use_protocol: "xml"
+    max_tokens: 8192
+    temperature: 0.7
+
+  tools:
+    workspace_root: "/tmp/agent-workspace"
+    allowed_commands:
+      # Version control
+      - "git"
+      # Python
+      - "python"
+      - "pip"
+      - "pytest"
+      - "mypy"
+      - "black"
+      - "ruff"
+      - "flake8"
+      # TypeScript (mixed language project)
+      - "npm"
+      - "node"
+      - "npx"
+      - "tsc"
+      # General
+      - "ls"
+      - "cat"
+      - "grep"
+      - "find"
+      - "mkdir"
+      - "touch"
+      - "echo"
+      - "cp"
+      - "mv"
+      - "rm"
+      - "head"
+      - "tail"
+      - "wc"
+      - "diff"
+      - "sort"
+      - "uniq"
+      - "sed"
+      - "awk"
+      - "tree"
+      - "env"
+      - "which"
+    blocked_patterns:
+      - "rm -rf /"
+      - "dd if="
+      - "mkfs"
+      - "sudo"
+      - "curl.*|.*bash"
+      - "wget.*|.*sh"
+
+code_generation:
+  workspace_mode: "per_story"
+  persist_across_sprints: false
+  merge_completed_stories: false
+  repo_config:
+    url: ""
+    branch: "main"
+    clone_mode: "fresh"
+  coverage:
+    enabled: true
+    source: "src"
+    min_line_coverage: 85
+    min_branch_coverage: 80
+
+models:
+  vllm_endpoint: "http://vllm-gh200-module-1:8000"
+  agents:
+    # Full 11-agent team — same as baseline config
+    alex_senior_networking:
+      name: "Alex Chen (Senior Networking Specialist)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: networking
+      auxiliary_specializations: [security]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    priya_senior_devops:
+      name: "Priya Sharma (Senior DevOps Specialist)"
+      individual: priya_sharma
+      seniority: senior
+      primary_specialization: devops
+      auxiliary_specializations: [cloud_architecture]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Indian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+      temperature: 0.7
+      max_tokens: 3072
+
+    marcus_mid_backend:
+      name: "Marcus Okafor (Mid-Level Backend Developer)"
+      individual: marcus_okafor
+      seniority: mid
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Nigerian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git"]
+      model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    elena_mid_frontend:
+      name: "Elena Volkov (Mid-Level Frontend Developer)"
+      individual: elena_volkov
+      seniority: mid
+      primary_specialization: frontend
+      auxiliary_specializations: [ui_ux]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Russian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git"]
+      model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    jamie_junior_fullstack:
+      name: "Jamie Rodriguez (Junior Full-Stack Developer)"
+      individual: jamie_rodriguez
+      seniority: junior
+      primary_specialization: backend
+      auxiliary_specializations: [frontend]
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Mexican-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+      temperature: 0.8
+      max_tokens: 2048
+
+    jordan_junior_backend:
+      name: "Jordan Kim (Junior Backend Developer)"
+      individual: jordan_kim
+      seniority: junior
+      primary_specialization: backend
+      auxiliary_specializations: [database]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Korean-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+      temperature: 0.8
+      max_tokens: 2048
+
+    yuki_senior_tester_integration:
+      name: "Yuki Tanaka (Senior Integration Tester)"
+      individual: yuki_tanaka
+      seniority: senior
+      primary_specialization: test_automation
+      auxiliary_specializations: [backend]
+      role_archetype: tester
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Japanese"
+      runtime: "local_vllm"
+      tools: ["filesystem", "bash"]
+      model: "Qwen/Qwen2.5-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    maria_mid_tester_e2e:
+      name: "Maria Santos (Mid-Level E2E Tester)"
+      individual: maria_santos
+      seniority: mid
+      primary_specialization: test_automation
+      auxiliary_specializations: [frontend]
+      role_archetype: tester
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Brazilian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "bash"]
+      model: "Qwen/Qwen2.5-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    sophie_senior_qa_lead:
+      name: "Sophie Dubois (QA Lead)"
+      individual: sophie_dubois
+      seniority: senior
+      primary_specialization: quality_engineering
+      auxiliary_specializations: [test_automation]
+      role_archetype: tester+leader
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "French"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "Qwen/Qwen2.5-72B-Instruct"
+      temperature: 0.7
+      max_tokens: 4096
+
+    ahmed_senior_dev_lead:
+      name: "Ahmed Hassan (Development Lead)"
+      individual: ahmed_hassan
+      seniority: senior
+      primary_specialization: backend
+      auxiliary_specializations: [distributed_systems]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Egyptian"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+      temperature: 0.7
+      max_tokens: 4096
+
+    alex_senior_po:
+      name: "Alex Chen (Product Owner)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: api_design
+      role_archetype: leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "Qwen/Qwen2.5-72B-Instruct"
+      temperature: 0.8
+      max_tokens: 4096
+
+database:
+  url: "mock://"
+  redis_url: ""
+
+monitoring:
+  prometheus_port: 8080
+  grafana_url: ""
+
+# Free profile swapping — agents can cover any role
+profile_swapping:
+  mode: "free"
+  allowed_scenarios:
+    - "critical_production_incident"
+    - "specialist_unavailable"
+    - "deliberate_cross_training"
+    - "team_member_departure"
+  penalties:
+    context_switch_slowdown: 1.30    # 30% slower — higher penalty under chaos
+    proficiency_reduction: 0.60      # Only 60% proficiency when swapped
+    knowledge_decay_sprints: 1
+
+remote_git:
+  enabled: false
+
+domain_research:
+  enabled: false
+
+sprint_zero:
+  enabled: false

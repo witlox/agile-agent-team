@@ -1,0 +1,86 @@
+# Example 5: HelloAPI — Trivial 3-Story Backlog
+#
+# The simplest possible backlog for a quick demo. Three tiny stories
+# that can be completed in 2 short sprints.
+
+product:
+  name: "HelloAPI - Minimal REST API"
+  description: >
+    A trivial REST API with three endpoints. Used to demonstrate the
+    agile-agent-team system with minimal setup.
+
+  mission: >
+    Provide the simplest possible demo of the agent team system.
+  vision: >
+    A working API generated entirely by AI agents in under 5 minutes.
+  goals:
+    - "Three working endpoints"
+    - "All tests passing"
+  target_audience: >
+    Developers evaluating the agile-agent-team system.
+  success_metrics:
+    - "All 3 stories completed"
+    - "Tests pass for each endpoint"
+
+  languages: [python]
+  tech_stack:
+    - pytest
+  repository:
+    type: greenfield
+    url: ""
+
+stories:
+  - id: US-001
+    title: "Hello endpoint"
+    description: "As a user I can call GET /hello and receive a greeting"
+    acceptance_criteria:
+      - "GET /hello returns 200 with JSON body"
+      - "Response contains 'message': 'Hello, World!'"
+    story_points: 1
+    priority: 1
+    scenarios:
+      - name: "Hello returns greeting"
+        given:
+          - "the API server is running"
+        when:
+          - "I send GET /hello"
+        then:
+          - "I receive 200 OK"
+          - "the response body is {'message': 'Hello, World!'}"
+
+  - id: US-002
+    title: "Health check endpoint"
+    description: "As an operator I can call GET /health to check service status"
+    acceptance_criteria:
+      - "GET /health returns 200 with status 'ok'"
+      - "Response includes uptime in seconds"
+    story_points: 1
+    priority: 2
+    scenarios:
+      - name: "Health check returns ok"
+        given:
+          - "the API server is running"
+        when:
+          - "I send GET /health"
+        then:
+          - "I receive 200 OK"
+          - "the response contains 'status': 'ok'"
+          - "the response contains 'uptime' as a positive number"
+
+  - id: US-003
+    title: "Version endpoint"
+    description: "As a consumer I can call GET /version to check API version"
+    acceptance_criteria:
+      - "GET /version returns 200 with version string"
+      - "Version follows semver format (e.g., '0.1.0')"
+    story_points: 1
+    priority: 3
+    scenarios:
+      - name: "Version returns semver"
+        given:
+          - "the API server is running"
+        when:
+          - "I send GET /version"
+        then:
+          - "I receive 200 OK"
+          - "the response contains 'version' matching semver pattern"

@@ -1,0 +1,205 @@
+# Example 1: Startup MVP
+#
+# Scenario: Small 5-person startup team building a Python SaaS app.
+# Uses Anthropic Claude for all agents, no disturbances, fast 45-min sprints.
+# Good starting point for teams wanting high-quality code generation.
+#
+# Usage:
+#   export ANTHROPIC_API_KEY="sk-ant-..."
+#   python -m src.orchestrator.main \
+#     --config examples/01-startup-mvp/config.yaml \
+#     --backlog examples/01-startup-mvp/backlog.yaml \
+#     --sprints 3 \
+#     --output /tmp/startup-mvp
+
+experiment:
+  name: "startup-mvp"
+  sprint_duration_minutes: 45    # Shorter sprints for fast iteration
+  num_simulated_days: 4          # 4 simulated days per sprint
+  sprints_per_stakeholder_review: 3
+
+team:
+  config_dir: "team_config"
+  max_engineers: 4
+  max_total_team_size: 5
+
+  turnover:
+    enabled: false
+
+  tester_pairing:
+    enabled: false     # No dedicated testers — devs write their own tests
+
+  wip_limits:
+    in_progress: 2
+    review: 1
+
+  quality_gates:
+    min_test_coverage_lines: 80
+    min_test_coverage_branches: 70
+    max_cyclomatic_complexity: 10
+
+  definition_of_done:
+    - "All acceptance criteria met"
+    - "Test coverage >= 80%"
+    - "All tests passing"
+    - "Code reviewed by pair"
+
+disturbances:
+  enabled: false       # No disturbances — focus on shipping
+
+runtimes:
+  anthropic:
+    enabled: true
+    api_key_env: "ANTHROPIC_API_KEY"
+    default_model: "claude-sonnet-4-5"
+    max_tokens: 8192
+
+  local_vllm:
+    enabled: false
+
+  tools:
+    workspace_root: "/tmp/agent-workspace"
+    allowed_commands:
+      # Version control
+      - "git"
+      # Python
+      - "python"
+      - "pip"
+      - "pytest"
+      - "mypy"
+      - "black"
+      - "ruff"
+      # General
+      - "ls"
+      - "cat"
+      - "grep"
+      - "find"
+      - "mkdir"
+      - "touch"
+      - "echo"
+      - "cp"
+      - "mv"
+      - "head"
+      - "tail"
+      - "diff"
+    blocked_patterns:
+      - "rm -rf /"
+      - "dd if="
+      - "mkfs"
+      - "sudo"
+      - "curl.*|.*bash"
+      - "wget.*|.*sh"
+
+code_generation:
+  workspace_mode: "per_story"
+  persist_across_sprints: false
+  merge_completed_stories: false
+  repo_config:
+    url: ""
+    branch: "main"
+    clone_mode: "fresh"
+  coverage:
+    enabled: true
+    source: "src"
+    min_line_coverage: 80
+    min_branch_coverage: 70
+
+models:
+  agents:
+    # Senior developer + tech lead (1)
+    alex_senior_networking:
+      name: "Alex Chen (Senior Developer / Tech Lead)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "anthropic"
+      tools: ["filesystem", "git", "bash"]
+      temperature: 0.7
+      max_tokens: 8192
+
+    # Mid-level developer (2)
+    marcus_mid_backend:
+      name: "Marcus Okafor (Mid-Level Backend Developer)"
+      individual: marcus_okafor
+      seniority: mid
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Nigerian"
+      runtime: "anthropic"
+      tools: ["filesystem", "git", "bash"]
+      temperature: 0.7
+      max_tokens: 8192
+
+    elena_mid_frontend:
+      name: "Elena Volkov (Mid-Level Full-Stack Developer)"
+      individual: elena_volkov
+      seniority: mid
+      primary_specialization: frontend
+      auxiliary_specializations: [backend]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Russian"
+      runtime: "anthropic"
+      tools: ["filesystem", "git", "bash"]
+      temperature: 0.7
+      max_tokens: 8192
+
+    # Junior developer (1)
+    jamie_junior_fullstack:
+      name: "Jamie Rodriguez (Junior Developer)"
+      individual: jamie_rodriguez
+      seniority: junior
+      primary_specialization: backend
+      auxiliary_specializations: [frontend]
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Mexican-American"
+      runtime: "anthropic"
+      tools: ["filesystem", "git"]
+      temperature: 0.8
+      max_tokens: 8192
+
+    # Product Owner (1)
+    alex_senior_po:
+      name: "Sophia Martinez (Product Owner)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: api_design
+      role_archetype: leader
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Spanish-American"
+      runtime: "anthropic"
+      tools: ["filesystem"]
+      temperature: 0.8
+      max_tokens: 4096
+
+database:
+  url: "mock://"
+  redis_url: ""
+
+monitoring:
+  prometheus_port: 8080
+  grafana_url: ""
+
+profile_swapping:
+  mode: "none"
+
+remote_git:
+  enabled: false
+
+domain_research:
+  enabled: false
+
+sprint_zero:
+  enabled: false

@@ -1,0 +1,196 @@
+# Example 4: StressApp — Moderately Complex App for Chaos Experiments
+#
+# Designed to generate enough work for 20 sprints of chaos testing.
+# 15 stories across backend, frontend, and infrastructure — ensures every
+# sprint has work even when disturbances consume capacity.
+
+product:
+  name: "StressApp - Team Collaboration Platform"
+  description: >
+    A real-time collaboration platform with messaging, file sharing,
+    and project tracking. Complex enough to stress-test team dynamics
+    under continuous disturbances.
+
+  mission: >
+    Build a feature-rich collaboration tool that exercises all aspects
+    of team development: API design, real-time features, storage,
+    authentication, and frontend.
+  vision: >
+    A platform that covers enough complexity domains to stress-test
+    AI team resilience across 20 sprints of chaos.
+  goals:
+    - "Complete core messaging within 5 sprints"
+    - "Add file sharing and search by sprint 10"
+    - "Full admin and analytics by sprint 15"
+    - "Polish and hardening in final 5 sprints"
+  target_audience: >
+    Research experiment — studying how AI teams handle compounding
+    disturbances over extended periods.
+  success_metrics:
+    - "Sprint velocity trend under disturbances"
+    - "Defect rate over time"
+    - "Profile swap frequency and success rate"
+    - "Meta-learning adaptation speed"
+
+  languages: [python, typescript]
+  tech_stack:
+    - docker
+    - github-actions
+    - pytest
+    - jest
+  repository:
+    type: greenfield
+    url: ""
+
+stories:
+  - id: US-001
+    title: "User registration and authentication"
+    description: "As a new user I can register and log in to the platform"
+    acceptance_criteria:
+      - "Email/password registration with validation"
+      - "JWT-based authentication"
+      - "Password reset via email"
+    story_points: 3
+    priority: 1
+
+  - id: US-002
+    title: "User profile management"
+    description: "As a user I can update my profile (name, avatar, status)"
+    acceptance_criteria:
+      - "Profile fields: display name, avatar URL, status message"
+      - "Avatar upload to object storage"
+      - "Status visible to team members"
+    story_points: 3
+    priority: 2
+
+  - id: US-003
+    title: "Create and manage channels"
+    description: "As a user I can create messaging channels and invite members"
+    acceptance_criteria:
+      - "Public and private channels"
+      - "Channel owner can invite/remove members"
+      - "Channel list with unread counts"
+    story_points: 5
+    priority: 3
+
+  - id: US-004
+    title: "Real-time messaging"
+    description: "As a channel member I can send and receive messages in real time"
+    acceptance_criteria:
+      - "Messages delivered via WebSocket"
+      - "Message persistence in database"
+      - "Typing indicators"
+      - "Message timestamps"
+    story_points: 8
+    priority: 4
+
+  - id: US-005
+    title: "Message threads and replies"
+    description: "As a user I can reply to a message creating a thread"
+    acceptance_criteria:
+      - "Thread replies nested under parent message"
+      - "Thread notification to parent author"
+      - "Thread count shown on parent message"
+    story_points: 5
+    priority: 5
+
+  - id: US-006
+    title: "File sharing in channels"
+    description: "As a channel member I can share files up to 25MB"
+    acceptance_criteria:
+      - "Drag-and-drop file upload"
+      - "Preview for images and PDFs"
+      - "Download link with access control"
+    story_points: 5
+    priority: 6
+
+  - id: US-007
+    title: "Full-text message search"
+    description: "As a user I can search across all my channels for messages"
+    acceptance_criteria:
+      - "Search by keyword across message content"
+      - "Filter by channel, date range, author"
+      - "Results sorted by relevance with highlights"
+    story_points: 5
+    priority: 7
+
+  - id: US-008
+    title: "Notification preferences"
+    description: "As a user I can configure when and how I receive notifications"
+    acceptance_criteria:
+      - "Per-channel mute/unmute"
+      - "Do-not-disturb schedule"
+      - "Email digest option (immediate, hourly, daily)"
+    story_points: 3
+    priority: 8
+
+  - id: US-009
+    title: "Message reactions (emoji)"
+    description: "As a user I can react to messages with emoji"
+    acceptance_criteria:
+      - "Click to add/remove reaction"
+      - "Reaction counts visible to all"
+      - "Notification to message author"
+    story_points: 2
+    priority: 9
+
+  - id: US-010
+    title: "Project boards"
+    description: "As a team I can create kanban-style project boards linked to channels"
+    acceptance_criteria:
+      - "Create board with customizable columns"
+      - "Cards with title, description, assignee, due date"
+      - "Drag-and-drop between columns"
+    story_points: 8
+    priority: 10
+
+  - id: US-011
+    title: "Admin dashboard"
+    description: "As an admin I can manage users, channels, and view usage stats"
+    acceptance_criteria:
+      - "User list with role management (admin, member, guest)"
+      - "Channel audit log"
+      - "Storage usage per user"
+    story_points: 5
+    priority: 11
+
+  - id: US-012
+    title: "API rate limiting and abuse prevention"
+    description: "As the platform I protect against API abuse"
+    acceptance_criteria:
+      - "Per-user rate limits (100 req/min)"
+      - "Per-IP rate limits for unauthenticated endpoints"
+      - "429 responses with Retry-After"
+    story_points: 3
+    priority: 12
+
+  - id: US-013
+    title: "Onboarding wizard"
+    description: "As a new user I am guided through initial setup"
+    acceptance_criteria:
+      - "Step-by-step: profile → create/join channel → send first message"
+      - "Skip option for experienced users"
+      - "Progress indicator"
+    story_points: 3
+    priority: 13
+
+  - id: US-014
+    title: "Analytics and usage metrics"
+    description: "As an admin I can see platform usage analytics"
+    acceptance_criteria:
+      - "Daily/weekly/monthly active users"
+      - "Messages sent per day"
+      - "Most active channels"
+      - "Storage growth over time"
+    story_points: 5
+    priority: 14
+
+  - id: US-015
+    title: "Data export and GDPR compliance"
+    description: "As a user I can export my data or request account deletion"
+    acceptance_criteria:
+      - "Export all personal data as JSON/ZIP"
+      - "Account deletion with 30-day grace period"
+      - "Admin notified of deletion requests"
+    story_points: 5
+    priority: 15

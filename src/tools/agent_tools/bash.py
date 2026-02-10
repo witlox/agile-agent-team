@@ -97,16 +97,37 @@ class BashTool(Tool):
         allowed_commands = self.config.get(
             "allowed_commands",
             [
+                # Version control
                 "git",
-                "pytest",
+                "gh",
+                "glab",
+                # Python
                 "python",
                 "pip",
-                "npm",
-                "node",
+                "pytest",
                 "mypy",
                 "black",
                 "ruff",
                 "flake8",
+                # Go
+                "go",
+                "gofmt",
+                "goimports",
+                "golangci-lint",
+                # Rust
+                "cargo",
+                # TypeScript / JavaScript
+                "npm",
+                "node",
+                "npx",
+                "tsc",
+                # C++
+                "cmake",
+                "ctest",
+                "make",
+                "clang-format",
+                "clang-tidy",
+                # General file/shell operations
                 "ls",
                 "cat",
                 "grep",
@@ -114,6 +135,23 @@ class BashTool(Tool):
                 "mkdir",
                 "touch",
                 "echo",
+                "cp",
+                "mv",
+                "rm",
+                "head",
+                "tail",
+                "wc",
+                "diff",
+                "sort",
+                "uniq",
+                "sed",
+                "awk",
+                "tree",
+                "env",
+                "which",
+                "tar",
+                "curl",
+                "wget",
             ],
         )
 

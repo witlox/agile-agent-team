@@ -1,0 +1,171 @@
+# Example 5: Quick Demo
+#
+# Scenario: Minimal configuration for trying the system locally in mock mode.
+# 3 agents, 2 sprints, 15-minute sprints. No LLM calls required.
+#
+# Demonstrates:
+#   - Mock mode (MOCK_LLM=true, no API keys needed)
+#   - Minimal team (3 agents)
+#   - Fast execution (~5 minutes total)
+#   - Simplest possible setup
+#
+# Usage:
+#   MOCK_LLM=true python -m src.orchestrator.main \
+#     --config examples/05-quick-demo/config.yaml \
+#     --backlog examples/05-quick-demo/backlog.yaml \
+#     --sprints 2 \
+#     --duration 15 \
+#     --output /tmp/quick-demo \
+#     --db-url mock://
+
+experiment:
+  name: "quick-demo"
+  sprint_duration_minutes: 15       # Very short — just a demo
+  num_simulated_days: 3             # 3 simulated days
+  sprints_per_stakeholder_review: 2
+
+team:
+  config_dir: "team_config"
+  max_engineers: 2
+  max_total_team_size: 3
+
+  turnover:
+    enabled: false
+
+  tester_pairing:
+    enabled: false
+
+  wip_limits:
+    in_progress: 2
+    review: 1
+
+  quality_gates:
+    min_test_coverage_lines: 70
+    min_test_coverage_branches: 60
+    max_cyclomatic_complexity: 15
+
+  definition_of_done:
+    - "All acceptance criteria met"
+    - "Tests passing"
+    - "Code reviewed by pair"
+
+disturbances:
+  enabled: false                    # No disturbances for demo
+
+runtimes:
+  anthropic:
+    enabled: false
+
+  local_vllm:
+    enabled: false                  # Mock mode — no real runtime needed
+
+  tools:
+    workspace_root: "/tmp/agent-workspace"
+    allowed_commands:
+      - "git"
+      - "python"
+      - "pip"
+      - "pytest"
+      - "ls"
+      - "cat"
+      - "grep"
+      - "find"
+      - "mkdir"
+      - "touch"
+      - "echo"
+      - "cp"
+      - "head"
+      - "diff"
+    blocked_patterns:
+      - "rm -rf /"
+      - "dd if="
+      - "mkfs"
+      - "sudo"
+      - "curl.*|.*bash"
+      - "wget.*|.*sh"
+
+code_generation:
+  workspace_mode: "per_story"
+  persist_across_sprints: false
+  merge_completed_stories: false
+  repo_config:
+    url: ""
+    branch: "main"
+    clone_mode: "fresh"
+  coverage:
+    enabled: true
+    source: "src"
+    min_line_coverage: 70
+    min_branch_coverage: 60
+
+models:
+  agents:
+    # Senior developer (drives implementation + leads)
+    alex_senior_networking:
+      name: "Alex Chen (Senior Developer)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem", "git", "bash"]
+      model: "mock"
+      temperature: 0.7
+      max_tokens: 2048
+
+    # Junior developer (pairs with senior)
+    jamie_junior_fullstack:
+      name: "Jamie Rodriguez (Junior Developer)"
+      individual: jamie_rodriguez
+      seniority: junior
+      primary_specialization: backend
+      auxiliary_specializations: [frontend]
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Mexican-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "mock"
+      temperature: 0.8
+      max_tokens: 2048
+
+    # Product Owner (manages backlog + reviews)
+    alex_senior_po:
+      name: "Alex Chen (Product Owner)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: api_design
+      role_archetype: leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "mock"
+      temperature: 0.8
+      max_tokens: 2048
+
+database:
+  url: "mock://"
+  redis_url: ""
+
+monitoring:
+  prometheus_port: 8080
+  grafana_url: ""
+
+profile_swapping:
+  mode: "none"
+
+remote_git:
+  enabled: false
+
+domain_research:
+  enabled: false
+
+sprint_zero:
+  enabled: false

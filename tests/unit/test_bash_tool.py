@@ -26,8 +26,8 @@ def test_is_safe_command_allowed(tool):
 
 def test_is_safe_command_blocked_first_word(tool):
     """Commands not in the allowed list are rejected."""
-    assert tool._is_safe_command("curl http://example.com") is False
-    assert tool._is_safe_command("wget http://example.com") is False
+    assert tool._is_safe_command("nc -l 8080") is False
+    assert tool._is_safe_command("nmap 192.168.1.0/24") is False
 
 
 def test_is_safe_command_blocked_pattern_rm_rf(tool):
@@ -105,6 +105,6 @@ async def test_execute_echo(tmp_path):
 async def test_execute_blocked_command(tmp_path):
     """Blocked command returns error without running."""
     tool = BashTool(workspace_root=str(tmp_path))
-    result = await tool.execute(command="curl http://evil.com")
+    result = await tool.execute(command="nc -l 8080")
     assert not result.success
     assert "not allowed" in result.error

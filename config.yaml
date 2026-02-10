@@ -97,21 +97,61 @@ runtimes:
   tools:
     workspace_root: "/tmp/agent-workspace"  # Base directory for code generation
     allowed_commands:
+      # Version control
       - "git"
-      - "pytest"
+      - "gh"            # GitHub CLI (remote git integration)
+      - "glab"          # GitLab CLI (remote git integration)
+      # Python
       - "python"
       - "pip"
+      - "pytest"
       - "mypy"
       - "black"
       - "ruff"
+      - "flake8"
+      # Go
+      - "go"
+      - "gofmt"
+      - "goimports"
+      - "golangci-lint"
+      # Rust
+      - "cargo"
+      # TypeScript / JavaScript
       - "npm"
       - "node"
+      - "npx"
+      - "tsc"
+      # C++
+      - "cmake"
+      - "ctest"
+      - "make"
+      - "clang-format"
+      - "clang-tidy"
+      # General file/shell operations
       - "ls"
       - "cat"
       - "grep"
       - "find"
       - "mkdir"
+      - "touch"
       - "echo"
+      - "cp"
+      - "mv"
+      - "rm"
+      - "head"
+      - "tail"
+      - "wc"
+      - "diff"
+      - "sort"
+      - "uniq"
+      - "sed"
+      - "awk"
+      - "tree"
+      - "env"
+      - "which"
+      - "tar"
+      - "curl"
+      - "wget"
     blocked_patterns:
       - "rm -rf /"
       - "dd if="

@@ -1,0 +1,295 @@
+# Example 3: OSS Rust Library
+#
+# Scenario: 7-person team building an open-source Rust caching library.
+# Hybrid runtime: seniors use Anthropic Claude for quality, juniors use local
+# vLLM for cost efficiency. GitLab integration for MR-based workflow.
+#
+# Demonstrates:
+#   - Hybrid runtime (mix Anthropic + vLLM per agent)
+#   - Rust-focused development (cargo, clippy, rustfmt)
+#   - GitLab integration (MRs instead of PRs)
+#   - Domain research enabled (PO researches caching patterns)
+#   - Moderate disturbances
+#
+# Usage:
+#   export ANTHROPIC_API_KEY="sk-ant-..."
+#   export GITLAB_TOKEN_alex_senior_networking="glpat-..."
+#   # ... set tokens for other agents
+#   python -m src.orchestrator.main \
+#     --config examples/03-oss-rust-library/config.yaml \
+#     --backlog examples/03-oss-rust-library/backlog.yaml \
+#     --sprints 5 \
+#     --output /tmp/oss-rust-lib
+
+experiment:
+  name: "oss-rust-library"
+  sprint_duration_minutes: 60
+  num_simulated_days: 5
+  sprints_per_stakeholder_review: 5
+
+team:
+  config_dir: "team_config"
+  max_engineers: 6
+  max_total_team_size: 7
+
+  turnover:
+    enabled: false
+
+  tester_pairing:
+    enabled: true
+    frequency: 0.15
+    role: "navigator"
+
+  wip_limits:
+    in_progress: 3
+    review: 2
+
+  quality_gates:
+    min_test_coverage_lines: 90    # High bar for a library
+    min_test_coverage_branches: 85
+    max_cyclomatic_complexity: 8
+
+  definition_of_done:
+    - "All acceptance criteria met"
+    - "Test coverage >= 90%"
+    - "All tests passing"
+    - "cargo clippy passes with no warnings"
+    - "Code reviewed by pair"
+    - "Documentation updated"
+    - "PO acceptance"
+
+disturbances:
+  enabled: true
+  frequencies:
+    dependency_breaks: 0.15
+    production_incident: 0.00      # Library — no production
+    flaky_test: 0.20
+    scope_creep: 0.15
+    junior_misunderstanding: 0.25
+    architectural_debt_surfaces: 0.20
+    merge_conflict: 0.25
+  blast_radius_controls:
+    max_velocity_impact: 0.25
+    max_quality_regression: 0.10
+
+runtimes:
+  anthropic:
+    enabled: true
+    api_key_env: "ANTHROPIC_API_KEY"
+    default_model: "claude-sonnet-4-5"
+    max_tokens: 8192
+
+  local_vllm:
+    enabled: true
+    endpoint: "http://vllm-gh200-module-1:8000"
+    tool_use_protocol: "xml"
+    max_tokens: 8192
+    temperature: 0.7
+
+  tools:
+    workspace_root: "/tmp/agent-workspace"
+    allowed_commands:
+      # Version control
+      - "git"
+      - "glab"
+      # Rust
+      - "cargo"
+      # General
+      - "ls"
+      - "cat"
+      - "grep"
+      - "find"
+      - "mkdir"
+      - "touch"
+      - "echo"
+      - "cp"
+      - "mv"
+      - "rm"
+      - "head"
+      - "tail"
+      - "wc"
+      - "diff"
+      - "tree"
+      - "env"
+      - "which"
+    blocked_patterns:
+      - "rm -rf /"
+      - "dd if="
+      - "mkfs"
+      - "sudo"
+      - "curl.*|.*bash"
+      - "wget.*|.*sh"
+
+code_generation:
+  workspace_mode: "per_story"
+  persist_across_sprints: false
+  merge_completed_stories: false
+  repo_config:
+    url: ""
+    branch: "main"
+    clone_mode: "fresh"
+  coverage:
+    enabled: true
+    source: "src"
+    min_line_coverage: 90
+    min_branch_coverage: 85
+
+models:
+  vllm_endpoint: "http://vllm-gh200-module-1:8000"
+  agents:
+    # --- Seniors on Anthropic (quality) ---
+    alex_senior_networking:
+      name: "Alex Chen (Senior Systems Developer)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: rust_specialist
+      auxiliary_specializations: [systems_programming]
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "anthropic"                  # Senior → Anthropic
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      temperature: 0.7
+      max_tokens: 8192
+
+    kai_senior_rust:
+      name: "Kai Anderson (Senior Rust Specialist)"
+      individual: kai_anderson
+      seniority: senior
+      primary_specialization: rust_specialist
+      auxiliary_specializations: [systems_programming]
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Swedish-American"
+      runtime: "anthropic"                  # Senior → Anthropic
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      temperature: 0.7
+      max_tokens: 8192
+
+    # --- Mid-level on vLLM (cost) ---
+    marcus_mid_backend:
+      name: "Marcus Okafor (Mid-Level Developer)"
+      individual: marcus_okafor
+      seniority: mid
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Nigerian"
+      runtime: "local_vllm"                 # Mid → vLLM
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    elena_mid_frontend:
+      name: "Elena Volkov (Mid-Level Developer)"
+      individual: elena_volkov
+      seniority: mid
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "Russian"
+      runtime: "local_vllm"                 # Mid → vLLM
+      tools: ["filesystem", "git", "bash", "format_code", "lint_code", "run_tests", "build_code"]
+      model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+      temperature: 0.7
+      max_tokens: 2048
+
+    # --- Junior on vLLM (cost) ---
+    jamie_junior_fullstack:
+      name: "Jamie Rodriguez (Junior Developer)"
+      individual: jamie_rodriguez
+      seniority: junior
+      primary_specialization: backend
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+        cultural_background: "Mexican-American"
+      runtime: "local_vllm"                 # Junior → vLLM
+      tools: ["filesystem", "git"]
+      model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+      temperature: 0.8
+      max_tokens: 2048
+
+    # --- QA on Anthropic (quality matters for review) ---
+    sophie_senior_qa_lead:
+      name: "Sophie Dubois (QA Lead)"
+      individual: sophie_dubois
+      seniority: senior
+      primary_specialization: quality_engineering
+      auxiliary_specializations: [test_automation]
+      role_archetype: tester+leader
+      demographics:
+        pronouns: "she/her"
+        cultural_background: "French"
+      runtime: "anthropic"                  # QA → Anthropic
+      tools: ["filesystem", "git", "bash"]
+      temperature: 0.7
+      max_tokens: 4096
+
+    # --- Product Owner ---
+    alex_senior_po:
+      name: "Alex Chen (Product Owner)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: api_design
+      role_archetype: leader
+      demographics:
+        pronouns: "he/him"
+        cultural_background: "Chinese-American"
+      runtime: "local_vllm"
+      tools: ["filesystem"]
+      model: "Qwen/Qwen2.5-72B-Instruct"
+      temperature: 0.8
+      max_tokens: 4096
+
+database:
+  url: "mock://"
+  redis_url: ""
+
+monitoring:
+  prometheus_port: 8080
+  grafana_url: ""
+
+profile_swapping:
+  mode: "constrained"
+  allowed_scenarios:
+    - "specialist_unavailable"
+    - "deliberate_cross_training"
+  penalties:
+    context_switch_slowdown: 1.15
+    proficiency_reduction: 0.75
+    knowledge_decay_sprints: 2
+
+remote_git:
+  enabled: true
+  provider: "gitlab"
+  github:
+    token_env: "GITHUB_TOKEN"
+    base_branch: "main"
+    merge_method: "squash"
+    draft_prs: false
+  gitlab:
+    token_env_pattern: "GITLAB_TOKEN_{role_id}"
+    base_branch: "main"
+    merge_method: "squash"
+    draft_prs: true                # Draft MRs for review
+  author_email_domain: "agent.local"
+
+domain_research:
+  enabled: true
+  context_documents: []
+  web_search:
+    enabled: true
+    engine: "brave"
+    api_key_env: "SEARCH_API_KEY"
+    max_results: 5
+
+sprint_zero:
+  enabled: true

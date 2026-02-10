@@ -1,0 +1,142 @@
+# Example 2: OrderFlow — Order Management Microservice
+#
+# Brownfield backlog: Adding features to an existing Go+Python order service.
+# Assumes the repo already has basic order CRUD. These stories add new
+# capabilities incrementally.
+
+product:
+  name: "OrderFlow - Order Management Service"
+  description: >
+    An existing order management microservice (Go API + Python workers)
+    that needs new features: webhook notifications, bulk operations,
+    advanced search, and audit logging.
+
+  mission: >
+    Provide a reliable, scalable order management backbone for the
+    e-commerce platform.
+  vision: >
+    The single source of truth for order state across all channels,
+    with real-time notifications and comprehensive audit trails.
+  goals:
+    - "Add webhook notifications within 2 sprints"
+    - "Implement bulk order operations for merchant dashboard"
+    - "Full audit log for compliance requirements"
+  target_audience: >
+    Internal platform teams and merchant dashboard that consume
+    the order management API.
+  success_metrics:
+    - "Webhook delivery success rate > 99.5%"
+    - "Bulk operations handle 1000 orders in < 10s"
+    - "Audit log query latency p95 < 200ms"
+
+  languages: [go, python]
+  tech_stack:
+    - docker
+    - github-actions
+    - pytest
+  repository:
+    type: brownfield
+    url: "https://github.com/your-org/orderflow-service.git"
+
+stories:
+  - id: US-001
+    title: "Webhook notification system"
+    description: "As a consumer I can register webhook URLs to receive order state change notifications"
+    acceptance_criteria:
+      - "POST /webhooks registers a callback URL"
+      - "Webhook fired on order status change (created, paid, shipped, delivered)"
+      - "Retries with exponential backoff (3 attempts)"
+      - "HMAC signature for payload verification"
+    story_points: 5
+    priority: 1
+    scenarios:
+      - name: "Register webhook"
+        given:
+          - "I am authenticated as a merchant"
+        when:
+          - "I POST /webhooks with url https://merchant.example.com/orders"
+        then:
+          - "the webhook is registered"
+          - "I receive 201 with webhook ID"
+      - name: "Webhook fired on status change"
+        given:
+          - "a webhook is registered for merchant M1"
+          - "order O1 belongs to merchant M1"
+        when:
+          - "order O1 status changes to shipped"
+        then:
+          - "a POST is sent to the registered webhook URL"
+          - "the payload contains order ID, new status, and timestamp"
+          - "the payload is signed with HMAC-SHA256"
+
+  - id: US-002
+    title: "Bulk order status update"
+    description: "As a merchant I can update the status of multiple orders in one request"
+    acceptance_criteria:
+      - "POST /orders/bulk-update accepts list of order IDs and new status"
+      - "Maximum 1000 orders per request"
+      - "Returns per-order success/failure report"
+      - "Atomic: all succeed or none change (transaction)"
+    story_points: 5
+    priority: 2
+
+  - id: US-003
+    title: "Order search with filters"
+    description: "As a merchant I can search orders by date range, status, and customer email"
+    acceptance_criteria:
+      - "GET /orders?status=shipped&from=2026-01-01&to=2026-02-01"
+      - "Pagination with cursor-based approach"
+      - "Results within 200ms for up to 100k orders"
+    story_points: 3
+    priority: 3
+
+  - id: US-004
+    title: "Audit log for order mutations"
+    description: "As a compliance officer I can view a complete audit trail of all order changes"
+    acceptance_criteria:
+      - "Every create, update, delete recorded with actor, timestamp, diff"
+      - "GET /orders/:id/audit returns chronological log"
+      - "Immutable — audit entries cannot be deleted"
+    story_points: 5
+    priority: 4
+
+  - id: US-005
+    title: "Order export to CSV"
+    description: "As a merchant I can export filtered orders to CSV"
+    acceptance_criteria:
+      - "POST /orders/export triggers async CSV generation"
+      - "Webhook notification when export is ready"
+      - "Download link valid for 1 hour"
+    story_points: 3
+    priority: 5
+
+  - id: US-006
+    title: "Rate limiting per merchant"
+    description: "As the platform I enforce per-merchant API rate limits"
+    acceptance_criteria:
+      - "Default: 500 requests/minute per merchant API key"
+      - "429 response with Retry-After header"
+      - "Configurable per merchant tier"
+    story_points: 3
+    priority: 6
+
+  - id: US-007
+    title: "Health check and readiness probe"
+    description: "As an operator I need health and readiness endpoints for Kubernetes"
+    acceptance_criteria:
+      - "GET /health returns 200 if service is alive"
+      - "GET /ready returns 200 only when DB and queue connections are healthy"
+      - "Readiness probe checks all downstream dependencies"
+    story_points: 2
+    priority: 7
+
+  - id: US-008
+    title: "Order cancellation workflow"
+    description: "As a customer I can cancel an order if it has not been shipped yet"
+    acceptance_criteria:
+      - "POST /orders/:id/cancel transitions to cancelled status"
+      - "Only allowed when status is created or paid"
+      - "Triggers refund workflow (event published)"
+      - "Webhook notification sent to merchant"
+    story_points: 5
+    priority: 8

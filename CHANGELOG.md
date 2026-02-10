@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Complete Allowed Commands & Example Configurations (2026-02-10)
+
+**Expanded `allowed_commands` from 15 to 48 commands**:
+- Version control: Added `gh` (GitHub CLI), `glab` (GitLab CLI) for remote git integration
+- Go: `go`, `gofmt`, `goimports`, `golangci-lint`
+- Rust: `cargo` (build, test, format, lint)
+- TypeScript: `npx`, `tsc` (added to existing `npm`, `node`)
+- C++: `cmake`, `ctest`, `make`, `clang-format`, `clang-tidy`
+- Python: Added `flake8` (was in bash.py defaults but missing from config.yaml)
+- Shell utilities: `touch`, `cp`, `mv`, `rm`, `head`, `tail`, `wc`, `diff`, `sort`, `uniq`, `sed`, `awk`, `tree`, `env`, `which`, `tar`, `curl`, `wget`
+- Updated hardcoded defaults in `src/tools/agent_tools/bash.py` to match
+
+**5 example configuration pairs** (`examples/<name>/config.yaml` + `backlog.yaml`):
+- `01-startup-mvp/` — 5-person Anthropic team, Python SaaS, no disturbances, 45-min sprints
+- `02-enterprise-brownfield/` — Full 11-person vLLM team, Go+Python brownfield, GitHub PRs, full disturbances
+- `03-oss-rust-library/` — 7-person hybrid team (seniors on Anthropic, juniors on vLLM), Rust, GitLab MRs
+- `04-chaos-experiment/` — Full team, max disturbances, free profile swapping, turnover, 20 sprints
+- `05-quick-demo/` — 3 agents, mock mode, 15-min sprints, trivial 3-story backlog
+
+**Files changed**:
+- `config.yaml` — Expanded `allowed_commands` (15 → 48)
+- `src/tools/agent_tools/bash.py` — Updated hardcoded default allowlist to match
+- `examples/01-startup-mvp/` — config.yaml + backlog.yaml (NoteKeep API)
+- `examples/02-enterprise-brownfield/` — config.yaml + backlog.yaml (OrderFlow service)
+- `examples/03-oss-rust-library/` — config.yaml + backlog.yaml (fastcache crate)
+- `examples/04-chaos-experiment/` — config.yaml + backlog.yaml (StressApp platform)
+- `examples/05-quick-demo/` — config.yaml + backlog.yaml (HelloAPI)
+
 ### Changed - Configurable Sprint Timing & Agent Time Awareness (2026-02-10)
 
 **Wall-clock sprint duration now configurable (default: 60 min)**:

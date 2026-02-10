@@ -1,0 +1,138 @@
+# Example 1: NoteKeep — Simple Note-Taking API
+#
+# A straightforward Python REST API for a note-taking service.
+# 6 stories, ~15 story points total — fits in 3 sprints with a small team.
+
+product:
+  name: "NoteKeep - Simple Note-Taking API"
+  description: >
+    A lightweight REST API for personal note-taking. Users can register,
+    authenticate, and manage their notes with full CRUD operations, search,
+    and sharing capabilities.
+
+  mission: >
+    Provide the simplest possible note-taking backend that developers can
+    build frontends on top of.
+  vision: >
+    A clean, well-documented API that serves as the foundation for
+    note-taking apps across web, mobile, and CLI clients.
+  goals:
+    - "Ship core CRUD API within 2 sprints"
+    - "Add search and sharing in sprint 3"
+    - "Maintain <100ms p95 latency for all endpoints"
+  target_audience: >
+    Developers building note-taking applications who need a simple,
+    reliable backend API.
+  success_metrics:
+    - "API response time p95 < 100ms"
+    - "100% test coverage on business logic"
+    - "Zero known bugs at launch"
+
+  languages: [python]
+  tech_stack:
+    - pytest
+  repository:
+    type: greenfield
+    url: ""
+
+stories:
+  - id: US-001
+    title: "User registration"
+    description: "As a new user I can register with email and password so I can access NoteKeep"
+    acceptance_criteria:
+      - "Email format validated"
+      - "Password hashed with bcrypt"
+      - "Duplicate email rejected with 409 status"
+    story_points: 2
+    priority: 1
+    scenarios:
+      - name: "Successful registration"
+        given:
+          - "the system is ready"
+          - "no user exists with email user@example.com"
+        when:
+          - "I POST /register with email user@example.com and password Pass1234"
+        then:
+          - "I receive 201 Created"
+          - "the response contains a user ID"
+      - name: "Duplicate email rejected"
+        given:
+          - "a user exists with email user@example.com"
+        when:
+          - "I POST /register with email user@example.com and password Pass1234"
+        then:
+          - "I receive 409 Conflict"
+
+  - id: US-002
+    title: "User login"
+    description: "As a registered user I can log in to receive an access token"
+    acceptance_criteria:
+      - "JWT issued on success"
+      - "Invalid credentials return 401"
+      - "Token expires in 24 hours"
+    story_points: 2
+    priority: 2
+    scenarios:
+      - name: "Successful login"
+        given:
+          - "a user exists with email user@example.com and password Pass1234"
+        when:
+          - "I POST /login with email user@example.com and password Pass1234"
+        then:
+          - "I receive 200 OK with a JWT token"
+      - name: "Invalid credentials"
+        given:
+          - "a user exists with email user@example.com"
+        when:
+          - "I POST /login with email user@example.com and password WrongPass"
+        then:
+          - "I receive 401 Unauthorized"
+
+  - id: US-003
+    title: "Create note"
+    description: "As an authenticated user I can create a new note with title and body"
+    acceptance_criteria:
+      - "Title required, max 200 chars"
+      - "Body optional, max 10000 chars"
+      - "Note ID and timestamps returned"
+    story_points: 2
+    priority: 3
+    scenarios:
+      - name: "Create note successfully"
+        given:
+          - "I am authenticated as user@example.com"
+        when:
+          - "I POST /notes with title 'My First Note' and body 'Hello world'"
+        then:
+          - "I receive 201 Created"
+          - "the response contains note ID and created_at timestamp"
+
+  - id: US-004
+    title: "List and read notes"
+    description: "As an authenticated user I can list my notes and read any single note"
+    acceptance_criteria:
+      - "GET /notes returns paginated list (20 per page)"
+      - "GET /notes/:id returns single note"
+      - "Only own notes visible"
+    story_points: 2
+    priority: 4
+
+  - id: US-005
+    title: "Update and delete notes"
+    description: "As an authenticated user I can update or delete my own notes"
+    acceptance_criteria:
+      - "PUT /notes/:id updates title and/or body"
+      - "DELETE /notes/:id soft-deletes the note"
+      - "Cannot modify other users' notes (403)"
+    story_points: 3
+    priority: 5
+
+  - id: US-006
+    title: "Search notes"
+    description: "As an authenticated user I can search my notes by keyword"
+    acceptance_criteria:
+      - "GET /notes?q=keyword searches title and body"
+      - "Case-insensitive matching"
+      - "Results sorted by relevance"
+    story_points: 3
+    priority: 6
