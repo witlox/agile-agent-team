@@ -12,7 +12,7 @@ from src.agents.base_agent import BaseAgent, AgentConfig
 def temp_team_config(tmp_path):
     """Create temporary team_config directory."""
     config_dir = tmp_path / "team_config"
-    specialists_dir = config_dir / "07_specialists"
+    specialists_dir = config_dir / "08_specialists"
     specialists_dir.mkdir(parents=True)
 
     # Create a test specialist profile

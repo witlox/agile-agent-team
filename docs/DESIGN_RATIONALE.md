@@ -95,27 +95,32 @@ def dialogue_driven_pairing():
 - Assumption challenges
 - Collective code ownership
 
-### Why 20-Minute Sprints?
+### Why 60-Minute Sprints?
 
 **Original proposal:** 15 minutes
-**Final decision:** 20 minutes
+**Revised to:** 20 minutes
+**Final decision:** 60 minutes
 
 **Reasoning:**
-- Need breathing room for dialogue
-- 15 min felt rushed in calculations
-- 20 min allows 3-4 features with proper discussion
-- Matches time for meaningful architectural conversations
+- Each sprint involves ~244 LLM API calls across all phases
+- LLM calls average ~15s (Anthropic) to ~30s (vLLM local)
+- Story refinement alone is ~48 mostly-serial calls (PO bottleneck)
+- Code generation has ~160 calls (parallelizable up to 4 pairs/day)
+- At 20 min, day budgets of 2 min were too tight for multi-turn
+  tool-using code generation (implement → test → fix → commit)
+- 60 min gives 6 min/day, enough for code-gen sessions to complete
 
 ```
-15 minutes:
-  - 2-3 micro-features
-  - 6-9 TDD cycles
-  - Felt rushed for dialogue
+20 minutes (original):
+  - 2 min per simulated day
+  - Only 1-2 LLM turns per pair before day boundary hit
+  - Sessions cut short, incomplete implementations
 
-20 minutes:
-  - 3-4 micro-features  
-  - 9-12 TDD cycles
-  - Room for deep design discussions
+60 minutes (revised):
+  - 6 min per simulated day
+  - 8-16 LLM turns per pair per day
+  - Full implement → test → fix → commit cycles complete
+  - Room for standup discussions and pair rotation
 ```
 
 ---

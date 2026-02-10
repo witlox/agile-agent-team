@@ -77,8 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   5. Learnings recorded, velocity penalty applied
 - **New Files**:
   - `src/orchestrator/specialist_consultant.py` - Core system implementation
-  - `team_config/07_specialists/ml_specialist.md` - ML expert profile
-  - `team_config/07_specialists/security_specialist.md` - Security expert profile
+  - `team_config/08_specialists/ml_specialist.md` - ML expert profile
+  - `team_config/08_specialists/security_specialist.md` - Security expert profile
   - `tests/unit/test_specialist_consultant.py` - 6 comprehensive tests
 - **Metrics**: `specialist_consultations_total`, `specialist_velocity_penalty` counters
 - **Integration**: Wired into `SprintManager`, ready for automatic detection in daily standups
@@ -168,7 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `team_config/06_process_rules/sprint_planning.md` - Complete planning guide (~450 lines)
 
 **Daily Standups**:
-- Day-based simulation: 20 minutes wall-clock = 10 simulated days (2-week sprint)
+- Day-based simulation: 60 minutes wall-clock = 10 simulated days (2-week sprint)
 - Daily standup every day except Day 1
 - Focus: architectural alignment, cross-pair dependencies, Dev Lead facilitation
 - `src/orchestrator/daily_standup.py` - DailyStandupSession class
@@ -345,10 +345,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2. Role Archetype (`01_role_archetypes/`)
   3. Seniority (`02_seniority/`)
   4. Specializations (`03_specializations/`)
-  5. Domain Knowledge (`04_domain/`)
+  5. Domain Knowledge (`04_domain_knowledge/`)
   6. Individual Personality (`05_individuals/`)
   7. Demographics (from config.yaml)
-  8. Meta-Learnings (`04_meta/meta_learnings.jsonl`)
+  8. Meta-Learnings (`07_meta/meta_learnings.jsonl`)
 
 **Runtime System**:
 - Abstract runtime interface (`src/agents/runtime/base.py`)

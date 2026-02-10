@@ -173,7 +173,7 @@
 - **Learning opportunity**: Specialist pairs with junior/mid developer (knowledge transfer)
 - **1-day consultation**: Unblock issue, teach patterns, document learnings
 
-**Specialist Domains** (`team_config/07_specialists/`):
+**Specialist Domains** (`team_config/08_specialists/`):
 1. **ml**: Machine Learning / AI (training, debugging, deployment, MLOps)
 2. **security**: Authentication, authorization, OWASP Top 10, secure coding
 3. **performance**: Optimization, profiling, benchmarking, bottleneck analysis
@@ -277,7 +277,7 @@ product:
 
 **Overview**: Complete agile ceremony implementation with Product Owner participation.
 
-**Time Simulation**: 20 minutes wall-clock = 10 simulated days (2-week sprint)
+**Time Simulation**: 60 minutes wall-clock = 10 simulated days (2-week sprint)
 
 **Product Owner Role** (`team_config/01_role_archetypes/product_owner.md`):
 - Backlog management and prioritization
@@ -447,10 +447,10 @@ Each agent prompt is composed from:
 2. **Role Archetype** (`01_role_archetypes/`) - Developer/Tester/Leader
 3. **Seniority** (`02_seniority/`) - Junior/Mid/Senior patterns
 4. **Specializations** (`03_specializations/`) - Domain expertise
-5. **Domain Knowledge** (`04_domain/`) - Deep technical content
+5. **Domain Knowledge** (`04_domain_knowledge/`) - Deep technical content
 6. **Individual** (`05_individuals/`) - Personality and communication style
 7. **Demographics** (from config.yaml) - Pronouns, cultural background
-8. **Meta-Learnings** (`04_meta/meta_learnings.jsonl`) - Dynamic retrospective insights
+8. **Meta-Learnings** (`07_meta/meta_learnings.jsonl`) - Dynamic retrospective insights
 
 ### Runtime System
 

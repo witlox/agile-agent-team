@@ -613,19 +613,14 @@ and stakeholder communications for the entire project."""
     ):
         """Development phase with daily standups and pair rotation.
 
-        Wall-clock duration (default from config) = 10 simulated days (2 weeks).
+        Wall-clock duration (default 60 min) = 10 simulated days (2 weeks).
         Each day: standup (except Day 1) + pairing sessions + rotation prep.
-
-        Args:
-            sprint_num: Current sprint number.
-            duration_override: Optional wall-clock minutes override (e.g.
-                Sprint 0 uses half the regular duration).
+        At 60 min each simulated day gets ~6 min of wall-clock, enough for
+        ~160 code-generation LLM calls across up to 4 parallel pairs.
         """
-        duration = duration_override or getattr(
-            self.config, "sprint_duration_minutes", 20
-        )
+        duration = getattr(self.config, "sprint_duration_minutes", 60)
         num_days = 10  # 2-week sprint = 10 working days
-        time_per_day = duration / num_days
+        time_per_day = duration / num_days  # ~6 minutes per day
 
         # Get initial task assignments and pairs
         snapshot = await self.kanban.get_snapshot()

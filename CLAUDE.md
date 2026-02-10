@@ -94,7 +94,7 @@ team_config/                   # Agent prompts (Markdown) — compositional
 ├── 01_role_archetypes/        # Layer 2: Developer/Tester/Leader
 ├── 02_seniority/              # Layer 3: Junior/Mid/Senior patterns
 ├── 03_specializations/        # Layer 4: Domain expertise
-├── 04_domain/                 # Layer 5: Deep technical knowledge
+├── 04_domain_knowledge/       # Layer 5: Deep technical knowledge
 ├── 05_individuals/            # Layer 6: Personalities
 ├── 06_process_rules/          # XP, Kanban, pairing protocols
 └── 07_meta/
@@ -236,10 +236,10 @@ Each agent's prompt is composed from 8 layers, loaded at initialization and relo
 2. **Role Archetype** (`01_role_archetypes/`) - Developer/Tester/Leader traits
 3. **Seniority** (`02_seniority/`) - Junior/Mid/Senior cognitive patterns
 4. **Specializations** (`03_specializations/`) - Domain expertise (networking, backend, etc.)
-5. **Domain Knowledge** (`04_domain/`) - Technical depth in specific areas
+5. **Domain Knowledge** (`04_domain_knowledge/`) - Technical depth in specific areas
 6. **Individual Personality** (`05_individuals/`) - Communication styles, quirks
 7. **Demographics** (from config.yaml) - Pronouns, cultural background
-8. **Meta-Learnings** (`04_meta/meta_learnings.jsonl`) - Dynamic retrospective insights
+8. **Meta-Learnings** (`07_meta/meta_learnings.jsonl`) - Dynamic retrospective insights
 
 Example composition for Alex (Senior Networking Specialist):
 ```
@@ -351,7 +351,7 @@ You CAN:
 
 ## Key Concepts
 
-- **Sprint**: 20-minute wall-clock window simulating a 2-week development sprint
+- **Sprint**: 60-minute wall-clock window simulating a 2-week development sprint
 - **Pairing**: TDD-driven code generation — driver implements, navigator reviews, checkpoints every 25%
 - **BDD/DDD**: User stories with Gherkin scenarios drive implementation
 - **Tool-using agents**: Agents execute file operations, git, bash, tests via runtime

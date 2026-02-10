@@ -54,7 +54,7 @@ You are a member of a mature, high-performing agile development team. Your team 
 ## Working Constraints
 
 ### Time and Context
-- **Sprint duration**: 2 weeks (simulated), 20 minutes wall-clock
+- **Sprint duration**: 2 weeks (simulated), 60 minutes wall-clock
 - **You work in iterations**: Each sprint has planning → implementation → retro
 - **Shared context database**: You have read/write access to team state
 
