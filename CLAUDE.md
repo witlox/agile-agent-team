@@ -46,9 +46,9 @@ MOCK_LLM=true python -m src.orchestrator.main \
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 
-# Tests (324 tests: 318 passing, 3 skipped, 3 pre-existing e2e failures)
+# Tests (368 tests: 360 passing, 5 skipped, 3 pre-existing e2e failures)
 pytest tests/unit/            # Tools, config, backlog, kanban, runtimes, multi-language
-pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git
+pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git, stakeholder
 pytest tests/qualification/   # Agent creation, prompt loading
 pytest                        # all tests
 
@@ -68,12 +68,14 @@ src/
 │   ├── sprint_manager.py      # Planning → Disturbances → Dev → QA → Retro → Meta
 │   ├── config.py              # YAML config loader
 │   ├── backlog.py             # Product backlog management
-│   └── disturbances.py        # Random failure injection
+│   ├── disturbances.py        # Random failure injection
+│   └── stakeholder_notify.py  # Webhook notifications + feedback collection
 ├── agents/
 │   ├── base_agent.py          # BaseAgent + AgentConfig (8-layer composition)
 │   ├── agent_factory.py       # Creates agents from team_config profiles
 │   ├── pairing.py             # Dialogue-based pairing (legacy)
 │   ├── pairing_codegen.py     # BDD-driven code generation pairing ⭐
+│   ├── messaging.py           # Async message bus (pub/sub, channels, direct)
 │   └── runtime/
 │       ├── base.py            # Abstract Runtime interface
 │       ├── vllm_runtime.py    # Local vLLM with XML tool calling
@@ -145,7 +147,9 @@ outputs/                       # Experiment artifacts (gitignored)
 | **Disturbances** | ✅ Complete | 6 types, blast radius controls, **detection wired** |
 | **Profile swapping** | ✅ Complete | Swap/revert/decay, proficiency penalties |
 | **Metrics** | ✅ Complete | Prometheus integration, **custom metrics recording** |
-| **Testing** | ✅ Complete | 324 tests (318 passing, 3 skipped, 3 pre-existing e2e failures) |
+| **Stakeholder webhooks** | ✅ Complete | Webhook notifications, file/callback feedback, timeout actions |
+| **Message bus** | ✅ Complete | Async pub/sub, channels, direct messaging, two backends |
+| **Testing** | ✅ Complete | 368 tests (360 passing, 5 skipped, 3 pre-existing e2e failures) |
 
 ## Code Generation Workflow
 
@@ -441,12 +445,12 @@ ls -la /tmp/agent-workspace/sprint-01/*/
 ## Testing
 
 ```bash
-# All tests (324 collected: 318 pass, 3 skip, 3 pre-existing e2e failures)
+# All tests (368 collected: 360 pass, 5 skip, 3 pre-existing e2e failures)
 pytest
 
 # By category
-pytest tests/unit/              # Tools, config, backlog, kanban, runtimes, multi-language
-pytest tests/integration/       # Pairing, codegen, ceremonies, remote git, sprint workflow
+pytest tests/unit/              # Tools, config, backlog, kanban, runtimes, multi-language, stakeholder
+pytest tests/integration/       # Pairing, codegen, ceremonies, remote git, sprint workflow, stakeholder
 pytest tests/qualification/     # Agent creation, prompts
 
 # Specific test

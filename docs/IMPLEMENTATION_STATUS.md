@@ -2,7 +2,7 @@
 
 **Date**: February 2026
 **Current State**: ✅ **100% Complete and Operational**
-**Tests**: 324 collected (318 passing, 3 skipped, 3 pre-existing e2e failures)
+**Tests**: 368 collected (360 passing, 5 skipped, 3 pre-existing e2e failures)
 
 ---
 
@@ -30,7 +30,7 @@
 - `src/agents/agent_factory.py` - Creates agents with runtimes from config
 - Three deployment modes: offline (vLLM), online (Anthropic), hybrid
 
-**Tests**: Unit + integration + qualification = **324 collected (318 passing, 3 skipped, 3 pre-existing e2e failures)**
+**Tests**: Unit + integration + qualification = **368 collected (360 passing, 5 skipped, 3 pre-existing e2e failures)**
 
 ---
 
@@ -283,7 +283,7 @@ product:
 - Backlog management and prioritization
 - Story refinement facilitation (Phase 1 planning)
 - Sprint review acceptance (accept/reject stories)
-- Stakeholder representation (fast PO loop + slow stakeholder loop every 5 sprints)
+- Stakeholder representation (fast PO loop + slow stakeholder loop every 3 sprints via webhook)
 
 **2-Phase Sprint Planning**:
 
@@ -325,7 +325,7 @@ product:
 - Feedback captured: follow-up stories, improvements
 - **Two-tier stakeholder feedback**:
   - Fast loop (every sprint): PO represents stakeholders
-  - Slow loop (every 5 sprints): Real stakeholders review asynchronously
+  - Slow loop (every 3 sprints): Real stakeholders review via webhook + file/callback feedback
 - Implementation: `src/orchestrator/sprint_review.py`
 - Documentation: `team_config/06_process_rules/sprint_review.md` (350 lines)
 
@@ -342,7 +342,77 @@ product:
 - ✅ Task ownership provides continuity
 - ✅ Daily standups surface dependencies and architectural issues early
 - ✅ Dev Lead facilitation for conflict resolution
-- ✅ Two-tier stakeholder feedback (fast PO loop + slow real stakeholder loop)
+- ✅ Two-tier stakeholder feedback (fast PO loop + slow stakeholder loop via webhook)
+
+---
+
+### Stakeholder Webhook Notifications ✅
+
+**Overview**: External stakeholder feedback collection via webhooks with configurable timeout actions.
+
+**Key Features**:
+- **Webhook delivery**: POST rich sprint summary to Slack/Teams/Matrix/generic webhook
+- **File feedback mode**: Poll output directory for `stakeholder-feedback-sprint-{N}.json`
+- **Callback feedback mode**: Start tiny HTTP server, wait for POST with feedback
+- **Three timeout actions**: `auto_approve`, `po_proxy` (PO generates feedback), `block`
+- **Retry with backoff**: 3 attempts (5s/15s/30s) for webhook delivery
+- **Mock mode**: Skip HTTP, return auto_approve immediately
+- **Default review cadence**: Changed from 5 to 3 sprints
+
+**Implementation** (`src/orchestrator/stakeholder_notify.py`):
+- `StakeholderReviewPayload` (frozen dataclass) — velocity trend, coverage, cycle time, disturbances
+- `StakeholderFeedback` dataclass — decision, priority changes, new stories
+- `StakeholderNotifier` class — build payload, send webhook, wait for feedback
+
+**Persistence** (`src/tools/shared_context.py`):
+- `stakeholder_feedback` table — stores all feedback with sprint, source, decision
+- `store_stakeholder_feedback()` / `get_stakeholder_feedback()` methods
+
+**Integration** (`src/orchestrator/sprint_manager.py`):
+- `stakeholder_review()` builds payload, sends webhook, waits for feedback
+- Applies feedback: reorders backlog, adds new stories
+- Publishes `stakeholder_feedback` event on message bus
+
+**Configuration** (`config.yaml`):
+```yaml
+stakeholder_review:
+  cadence: 3
+  timeout_minutes: 60
+  timeout_action: "auto_approve"
+  webhook:
+    enabled: false
+    url_env: "STAKEHOLDER_WEBHOOK_URL"
+  feedback:
+    mode: "file"
+    callback_port: 8081
+    poll_interval: 30
+```
+
+**Tests**: 14 unit + 4 integration tests
+
+---
+
+### Async Message Bus ✅
+
+**Overview**: In-process async message bus for peer-to-peer agent communication.
+
+**Key Features**:
+- **Direct messaging**: Agent-to-agent via `send_direct()`
+- **Channels**: Named channels for group communication
+- **Pub/sub**: Topic-based publish/subscribe with `publish()` / `subscribe()`
+- **Broadcast**: Send to all connected agents
+- **Request/reply**: Synchronous request pattern with timeout
+- **Two backends**: InProcessBackend (default) + RedisBackend (multi-process)
+
+**Implementation** (`src/agents/messaging.py`):
+- `MessageBus` class with `InProcessBackend` (default) and `RedisBackend`
+- `Message` dataclass with sender, topic, content, timestamp
+- BaseAgent has `agent_id` property + messaging convenience methods
+
+**Events published**:
+- `pair_progress` — pairing checkpoint updates
+- `standup_decisions` — daily standup outcomes
+- `stakeholder_feedback` — stakeholder review decisions
 
 ---
 
@@ -391,6 +461,8 @@ product:
 - ✅ **Daily standups**: Coordination, architectural alignment, Dev Lead facilitation
 - ✅ **QA review**: QA lead approves/rejects
 - ✅ **Sprint review/demo**: PO acceptance, two-tier stakeholder feedback
+- ✅ **Stakeholder webhooks**: External notification + file/callback feedback collection
+- ✅ **Message bus**: Async peer-to-peer agent communication (pub/sub, channels, direct)
 - ✅ **Retrospective**: Keep/Drop/Puzzle
 - ✅ **Meta-learning**: JSONL storage, dynamic loading
 - ✅ **Artifacts**: kanban snapshots, pairing logs, retros, code workspaces
@@ -405,7 +477,7 @@ product:
 - ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ **324 tests collected** (318 passing, 3 skipped, 3 pre-existing e2e failures)
+- ✅ **368 tests collected** (360 passing, 5 skipped, 3 pre-existing e2e failures)
 - ✅ Unit tests — Kanban, tools (base, factory, filesystem, git, bash), config, backlog, runtimes, disturbances, metrics, multi-language (test runner, builder, linter, formatter), specialist, profile swapping, meta-learning
 - ✅ Integration tests — Pairing, codegen, ceremonies, remote git, sprint workflow
 - ✅ Qualification tests — Agent creation, prompt loading
@@ -518,6 +590,8 @@ Meta-Learning (learnings → JSONL)
 - `test_profile_swap.py` - Profile swap/revert/decay mechanics
 - `test_meta_learning.py` - JSONL storage and dynamic loading
 - `test_workspace.py` - Greenfield/brownfield workspace management
+- `test_stakeholder_notify.py` - Payload building, webhook, file/callback feedback, timeouts
+- `test_messaging.py` - Message bus pub/sub, channels, direct, request/reply
 
 **Integration Tests**:
 - `test_agent_codegen.py` - Runtime execution, error handling
@@ -529,11 +603,12 @@ Meta-Learning (learnings → JSONL)
 - `test_sprint_zero_refinement.py` - PO refinement, duration override
 - `test_remote_git.py` - GitHub/GitLab providers, PR lifecycle
 - `test_e2e_sprint_workflow.py` - End-to-end sprint workflow (3 pre-existing failures)
+- `test_stakeholder_review.py` - Webhook disabled fallback, file feedback, DB persistence, bus events
 
 **Qualification Tests**:
 - `test_agent_qualification.py` - Agent creation, prompt loading, conversation
 
-**324 tests collected, 318 pass, 3 skipped (tools not installed), 3 pre-existing e2e failures**
+**368 tests collected, 360 pass, 5 skipped (tools not installed), 3 pre-existing e2e failures**
 
 ---
 
@@ -735,17 +810,19 @@ models:
 **Status**: 100% complete and operational
 
 **Key Achievements**:
-- ✅ 324 tests (318 passing, 3 skipped, 3 pre-existing e2e failures)
-- ✅ Real code generation (BDD → implement → test → commit)
+- ✅ 368 tests (360 passing, 5 skipped, 3 pre-existing e2e failures)
+- ✅ Real code generation (BDD → implement → test → commit → push → PR)
 - ✅ Three deployment modes (offline, online, hybrid)
 - ✅ Full sprint lifecycle (planning → dev → QA → retro → meta)
 - ✅ Team culture modeled (role-based pairing, git workflow, hiring)
 - ✅ 7 disturbance types including merge conflicts
+- ✅ Stakeholder webhook notifications + feedback collection
+- ✅ Async message bus for peer-to-peer agent communication
 - ✅ Comprehensive documentation
 
 **Ready for**:
 - Production experiments
 - Research studies on AI team dynamics
-- Extension with new features (PR creation, real repos, etc.)
+- Extension with new features
 
 The system now models a mature, high-performing agile development team that produces actual, tested, version-controlled software! 🚀

@@ -3,12 +3,12 @@
 IMPORTANT: Stakeholder Feedback Loop
 - Regular sprint reviews (most sprints): Team + PO only
 - PO represents stakeholder interests (fast feedback loop within simulation time)
-- Major stakeholder reviews: Every 5 sprints (see config.sprints_per_stakeholder_review)
-- Real stakeholders review asynchronously (hours/days in human time)
-- Simulation pauses for stakeholder input, then resumes with feedback as backlog items
+- Major stakeholder reviews: Every 3 sprints (configurable via stakeholder_review.cadence)
+- Real stakeholders notified via webhook; feedback collected via file or HTTP callback
+- Configurable timeout action: auto_approve, po_proxy, or block
 
 This module handles the FAST loop (PO feedback). Real stakeholder feedback is handled
-by the experiment runner pausing every 5 sprints for human input.
+by StakeholderNotifier (src/orchestrator/stakeholder_notify.py) every N sprints.
 """
 
 from typing import List, Dict
@@ -268,7 +268,7 @@ Feedback:"""
         """Simulate stakeholder-like feedback from PO perspective.
 
         Note: In regular sprint reviews (most sprints), PO represents stakeholder
-        interests. Real stakeholder feedback happens asynchronously every 5 sprints
+        interests. Real stakeholder feedback happens asynchronously every 3 sprints
         (outside simulation time). This method simulates what stakeholders MIGHT say
         for research/realism purposes, but it's actually PO feedback.
         """

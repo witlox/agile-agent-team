@@ -98,7 +98,7 @@ In mock mode:
 pytest tests/unit/         # Tools, config, backlog, kanban, runtimes, multi-language
 pytest tests/integration/  # Pairing, codegen, ceremonies, remote git, sprint workflow
 pytest tests/qualification/  # Agent creation, prompts
-pytest                     # All 324 tests
+pytest                     # All 368 tests
 ```
 
 ---
@@ -224,7 +224,7 @@ Everything else — runtimes, disturbances, profile swapping, WIP limits, team c
 experiment:
   name: "my-experiment"
   sprint_duration_minutes: 20        # wall-clock time per sprint
-  sprints_per_stakeholder_review: 5  # PO review cadence
+  sprints_per_stakeholder_review: 3  # PO review cadence
 
 team:
   max_engineers: 10                  # Excluding testers

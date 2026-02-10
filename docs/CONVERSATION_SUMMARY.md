@@ -468,8 +468,8 @@ What gets saved for analysis:
 4. Publish initial findings
 
 ### Medium-term (6 Months)
-1. Real code execution (not simulated)
-2. Integration with GitHub
+1. ~~Real code execution (not simulated)~~ ✅ Implemented — BDD-driven code generation with tool use
+2. ~~Integration with GitHub~~ ✅ Implemented — Remote git push, PR/MR creation, QA merge
 3. Multiple team experiments
 4. Comparison with human team data
 

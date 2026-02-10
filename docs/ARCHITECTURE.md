@@ -65,7 +65,7 @@ This experiment tests whether:
 **Sprint Phases:**
 
 ```python
-Phase 1: Planning (pre-sprint, not in 20min)
+Phase 1: Planning (pre-sprint)
   - PO presents prioritized backlog
   - Team estimates stories
   - Decompose into tasks
@@ -484,7 +484,7 @@ Tier 3 (Small): Port 8002
    - Team estimates → Update cards
    - Initial pairs assigned → Pairing table
 
-2. Development Loop (20 min)
+2. Development Loop (60 min, 5 simulated days)
    While time_remaining:
      - Get available pairs
      - Pull tasks from Kanban
@@ -722,7 +722,7 @@ outputs/experiment-001/
 2. Long-running experiments (100+ sprints)
 3. Comparison with human team data
 4. Web UI for experiment monitoring
-5. Redis-based inter-agent coordination
+5. Redis-based inter-agent coordination (InProcessBackend implemented; RedisBackend ready)
 
 **Research Questions:**
 1. Does velocity follow power law or linear growth?

@@ -2,21 +2,22 @@
 
 **When**: Last day of sprint, after QA review, before retrospective
 **Duration**: 1-2 hours
-**Participants**: Team + PO (Stakeholders join every 5 sprints)
+**Participants**: Team + PO (Stakeholders join every 3 sprints via webhook)
 **Purpose**: Demo completed work, get PO acceptance, gather feedback
 
 ## Important: Stakeholder Participation
 
-**Regular Sprint Review** (Sprints 1-4, 6-9, 11-14, etc.):
+**Regular Sprint Review** (most sprints):
 - Team + PO only
 - PO represents stakeholder interests (voice of customer)
 - Fast feedback loop (within simulation time)
 
-**Major Stakeholder Review** (Every 5 sprints):
+**Major Stakeholder Review** (Every 3 sprints, configurable):
 - Team + PO + Real stakeholders (researchers, users)
-- Happens ASYNCHRONOUSLY (breaks simulation flow)
-- Review accumulated work from 5 sprints
-- Stakeholders provide strategic feedback
+- Happens ASYNCHRONOUSLY via webhook notification + feedback collection
+- Review accumulated work from 3 sprints
+- Stakeholders provide strategic feedback (file drop or HTTP callback)
+- Configurable timeout: auto_approve, po_proxy, or block
 - Slow feedback loop (human time scale)
 
 ## Overview
@@ -39,7 +40,7 @@ In regular sprint reviews, **PO represents stakeholder interests**:
 - **Business perspective**: "This doesn't deliver enough value"
 - **Strategic alignment**: "Let's focus on enterprise features next"
 
-This keeps the feedback loop **fast** (within simulation time). Real stakeholders review every 5 sprints asynchronously.
+This keeps the feedback loop **fast** (within simulation time). Real stakeholders review every 3 sprints via webhook notification and file/callback feedback collection.
 
 ## Format
 
@@ -52,14 +53,14 @@ For each completed story:
 4. **PO provides feedback** (2-3 min)
 5. **Capture follow-up items** (as needed)
 
-### Major Stakeholder Review (Every 5 Sprints)
+### Major Stakeholder Review (Every 3 Sprints, Configurable)
 
-After 5 sprints of accumulated work:
-1. **Simulation PAUSES** (human stakeholder time needed)
-2. **Team prepares demo** (highlights from 5 sprints)
-3. **Stakeholders review asynchronously** (hours/days in human time)
-4. **Strategic feedback captured** (roadmap adjustments, priorities)
-5. **Simulation RESUMES** with stakeholder feedback as backlog items
+After 3 sprints of accumulated work:
+1. **Webhook notification sent** (rich sprint summary to Slack/Teams/Matrix/generic)
+2. **Team prepares demo** (highlights from 3 sprints)
+3. **Stakeholders review asynchronously** (file drop or HTTP callback)
+4. **Strategic feedback captured** (roadmap adjustments, priorities, new stories)
+5. **Simulation RESUMES** with stakeholder feedback applied to backlog
 
 ---
 
@@ -194,28 +195,29 @@ When real stakeholders join (researchers, users), the dynamic is different:
 ### Stakeholder Review Purpose
 - **Strategic alignment**: Are we building the right product?
 - **Priority validation**: Should we continue current direction?
-- **Roadmap adjustments**: What should next 5 sprints focus on?
+- **Roadmap adjustments**: What should next sprints focus on?
 - **Research feedback**: How well is the simulated team performing?
 
 ### What Stakeholders Review
-- **Cumulative demos**: Highlights from 5 sprints of work
+- **Cumulative demos**: Highlights from recent sprints of work
 - **Velocity trends**: Story points delivered per sprint
 - **Quality metrics**: Test coverage, acceptance rate, cycle time
 - **Team dynamics**: Pairing patterns, meta-learnings, improvements
 
 ### Stakeholder Feedback Format
-Since stakeholders review asynchronously (human time scale):
-- Written feedback document
-- New backlog items (epics, features)
-- Priority adjustments
-- Process change requests (if simulation needs tuning)
+Stakeholders respond via file drop or HTTP callback:
+- JSON feedback with decision (approved/rejected/approved_with_changes)
+- Priority changes (reorder or deprioritize existing stories)
+- New stories (added directly to backlog)
+- Configurable timeout action: auto_approve, po_proxy, or block
 
 ### Integration Back Into Simulation
-After stakeholder review completes (hours/days later):
-1. PO translates feedback into backlog stories
-2. Simulation resumes with updated backlog
-3. Team works on stakeholder-driven priorities
-4. Next 5 sprints reflect stakeholder input
+After stakeholder feedback is received (or timeout triggers):
+1. Feedback stored in SharedContextDB
+2. Priority changes applied to backlog
+3. New stories added to backlog
+4. `stakeholder_feedback` event published on message bus
+5. Next sprints reflect stakeholder input
 
 ---
 

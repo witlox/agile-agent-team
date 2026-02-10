@@ -45,8 +45,8 @@ cd agile-agent-team
 
 ```bash
 # Create virtual environment
-python3.11 -m venv venv
-source venv/bin/activate
+python3.11 -m venv .venv
+source .venv/bin/activate
 
 # Install dependencies (includes dev tools: pytest, black, mypy, ruff, pre-commit)
 pip install -r requirements.txt
@@ -320,7 +320,7 @@ By contributing, you agree that your contributions will be licensed under the MI
 # Setup
 git clone YOUR_FORK
 cd agile-agent-team
-python -m venv venv && source venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pre-commit install
 
