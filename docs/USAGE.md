@@ -526,6 +526,54 @@ code_generation:
 | `fresh` | Delete and re-clone each time | Testing, clean slate |
 | `incremental` | Reuse workspace, `git pull` latest | Brownfield, continuity |
 
+### Product Context (Mission, Vision, Goals)
+
+The `product:` section in `backlog.yaml` carries stakeholder context that goes beyond individual stories — the "why" behind the product. When present, this context is automatically:
+
+1. **Fed to the PO during Sprint 0** — the PO reads the context and produces a Business Knowledge Brief that informs all subsequent story presentations
+2. **Injected into every story refinement** — the PO grounds story presentations in mission/vision when presenting to the team
+3. **Available in stakeholder reviews** — context anchors periodic stakeholder review sessions
+
+```yaml
+# backlog.yaml
+product:
+  name: "TaskFlow - Collaborative Task Manager"
+  description: >
+    A lightweight task management app for small engineering teams.
+
+  # Stakeholder context — these fields activate the context system.
+  # If mission, vision, or goals are absent, context injection is silently skipped.
+  mission: >
+    Help small engineering teams stay focused on what matters by providing
+    a frictionless, opinionated task management workflow that grows with them.
+  vision: >
+    Become the default task manager for teams of 5-50 engineers who value
+    simplicity over feature bloat, shipping a focused product that
+    integrates tightly with GitHub/GitLab and CI/CD pipelines.
+  goals:
+    - "Launch MVP with core task management within 3 months"
+    - "Achieve 100 active teams within 6 months of launch"
+    - "Maintain <500ms p95 API latency at scale"
+    - "Reach feature parity with basic Trello workflows by v1.0"
+  target_audience: >
+    Small to mid-size software engineering teams (5-50 people) who
+    currently use spreadsheets, sticky notes, or overly complex tools
+    like Jira and want something lightweight and developer-friendly.
+  success_metrics:
+    - "Weekly active teams (WAT)"
+    - "Task completion rate (tasks done / tasks created)"
+    - "Time to first task (onboarding friction)"
+    - "NPS score from team leads"
+
+  # Technical setup (used by Sprint 0)
+  languages: [python, typescript]
+  tech_stack: [docker, github-actions, pytest, jest]
+```
+
+**Activation**: Automatic. If `mission`, `vision`, or `goals` are present under `product:`, the context system is active. No config flag needed. Remove those fields (or leave them empty) to disable.
+
+**How the PO uses it**: During Sprint 0, the PO agent receives the context and produces a Business Knowledge Brief. This brief shapes how the PO presents stories throughout the experiment — grounding acceptance criteria, priorities, and trade-off decisions in the product's purpose.
+
 ### Backlog Format with BDD
 
 ```yaml
@@ -653,15 +701,16 @@ The specialist consultant system allows teams to bring in external experts when 
    - Models time cost of onboarding and consultation
    - Tracked in sprint metrics
 
-### Available specialist domains
+### Available specialist domains (37)
 
-| Domain | Expertise | Example Scenarios |
-|--------|-----------|-------------------|
-| `ml` | Machine Learning / AI | Model training issues, deployment, debugging neural networks |
-| `security` | Auth, OWASP Top 10 | OAuth implementation, password hashing, XSS prevention |
-| `performance` | Optimization, Profiling | API slowness, database query optimization, caching strategies |
-| `cloud` | AWS, GCP, Azure, K8s | Cloud architecture, container orchestration, serverless |
-| `architecture` | System design, Patterns | Scalability decisions, microservices, event-driven design |
+The system ships with curated specialist profiles in `team_config/08_specialists/`. Each profile includes expertise areas, consultation approach, common scenarios, and knowledge transfer focus.
+
+| Category | Domains |
+|----------|---------|
+| **Core** | `ml`, `security`, `performance`, `cloud`, `architecture`, `database`, `frontend`, `distributed`, `data`, `mobile` |
+| **Infrastructure** | `backend`, `devops`, `networking`, `embedded`, `systems`, `observability`, `sre`, `platform`, `admin` |
+| **Development** | `api_design`, `ui_ux`, `test_automation`, `quality`, `accessibility`, `blockchain`, `event_driven`, `search`, `i18n`, `business_processes`, `iam`, `mlops`, `data_science` |
+| **Language** | `python`, `golang`, `rust`, `typescript`, `cpp` |
 
 ### Configuration
 
