@@ -2,7 +2,19 @@
 
 experiment:
   name: "baseline-experiment"
-  sprint_duration_minutes: 20
+  # Wall-clock minutes per 2-week sprint (10 simulated working days).
+  # Budget breakdown (~244 LLM API calls per sprint):
+  #   Story Refinement:    ~48 calls  (serial, PO bottleneck)
+  #   Technical Planning:   ~4 calls  (serial, Dev Lead)
+  #   Daily Standups:      ~11 calls  (serial, 9 days)
+  #   Code Generation:    ~160 calls  (parallel, up to 4 pairs/day, ~8-16 turns each)
+  #   QA Review:             ~3 calls  (serial, QA Lead)
+  #   Sprint Review:         ~7 calls  (partially parallel)
+  #   Retrospective:        ~11 calls  (fully parallel, all agents)
+  # At ~15s/call (Anthropic) with parallelization: ~37 min minimum.
+  # At ~30s/call (vLLM local) with parallelization: ~75 min minimum.
+  # 60 min gives headroom for both modes.
+  sprint_duration_minutes: 60
   sprints_per_stakeholder_review: 5
 
 team:
