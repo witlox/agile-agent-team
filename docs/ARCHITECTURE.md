@@ -364,55 +364,76 @@ Leaders monitor and contain:
 
 ## Infrastructure
 
-### Kubernetes Deployment
+### Docker Compose (Local Development)
+
+The quickest way to run the full stack locally:
+
+```bash
+# Copy and configure environment
+cp .env.example .env  # fill in ANTHROPIC_API_KEY, etc.
+
+# Start all services
+docker compose -f infrastructure/docker-compose.yaml up -d
+```
+
+Services: PostgreSQL (5432), Redis (6379), Prometheus (9090), Grafana (3000), Orchestrator (8080/8081).
+
+**Key Files:**
+- `infrastructure/docker-compose.yaml`
+- `Dockerfile`
+
+### Kubernetes Deployment (Production)
 
 ```yaml
 Namespace: agile-agents
 
 Services:
-  - postgres (StatefulSet) - Team state
-  - redis (Deployment) - Coordination
-  - vllm-server (DaemonSet) - Model serving on GH200
+  - postgres (StatefulSet) - Team state (kanban, pairing, meta-learnings, stakeholder feedback)
+  - redis (Deployment) - Message bus backend (multi-process mode)
+  - vllm-large/medium/small (optional) - Model serving for local_vllm runtime
   - orchestrator (Deployment) - Sprint management
-  - prometheus (Deployment) - Metrics
+  - prometheus (Deployment) - Metrics collection
   - grafana (Deployment) - Visualization
+
+Ports:
+  - 8080 - Orchestrator Prometheus metrics
+  - 8081 - Stakeholder webhook callback (when enabled)
+  - 8000-8002 - vLLM tiers (optional)
+  - 9090 - Prometheus UI
+  - 3000 - Grafana UI
 ```
 
 **Resource Allocation:**
 
+Resource requirements depend on the chosen runtime mode. When using Anthropic API only, no GPU nodes are needed.
+
 ```
-Node 1: Orchestrator + Database
-  - 16 CPU cores
-  - 64GB RAM
+Orchestrator + Database node:
+  - 16 CPU cores, 64GB RAM
 
-Node 2: vLLM (Large models)
-  - 32 CPU cores
-  - 128GB RAM
-  - 2x A100 or 3x A6000 GPUs
-
-Nodes 3-4: vLLM (Mid/Small models)
-  - 24 CPU cores each
-  - 96GB RAM each
-  - 2x RTX 4090 per node
+vLLM nodes (optional, only for local_vllm runtime):
+  - GPU nodes with sufficient VRAM for chosen models
+  - Tier 1 (large models): 2+ GPUs, tensor parallelism
+  - Tier 2-3 (medium/small models): 1 GPU each
 ```
 
 **Key Files:**
 - `infrastructure/k8s/deployment.yaml`
 - `infrastructure/k8s/services.yaml`
 
-### Model Serving (vLLM)
+### Model Serving (Optional — vLLM Runtime Only)
 
-**Strategy: Multi-tier serving**
+When using the `local_vllm` runtime, models are served via vLLM in three tiers. This is **not needed** when running with Anthropic API runtime (`runtimes.anthropic.enabled: true`).
 
 ```python
 Tier 1 (Large): Port 8000
   - Qwen2.5-72B (QA Lead, PO)
   - Qwen2.5-Coder-32B (Dev Lead)
-  
+
 Tier 2 (Medium): Port 8001
   - DeepSeek-V2-Lite-16B (Senior Devs)
   - Qwen2.5-14B (Mid Devs, Testers)
-  
+
 Tier 3 (Small): Port 8002
   - Qwen2.5-Coder-7B (Junior Devs)
 ```

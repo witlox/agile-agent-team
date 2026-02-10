@@ -1,6 +1,6 @@
 # Design Rationale: Why This Approach?
 
-This document captures the key design decisions and the reasoning behind them, based on our in-depth conversation.
+This document captures the key design decisions and the reasoning behind them — the "why" behind the architecture.
 
 ## Core Philosophy: Team Over Swarm
 
@@ -97,32 +97,14 @@ def dialogue_driven_pairing():
 
 ### Why 60-Minute Sprints?
 
-**Original proposal:** 15 minutes
-**Revised to:** 20 minutes
-**Final decision:** 60 minutes (5 simulated days, configurable)
+**Decision:** 60 minutes wall-clock per sprint (5 simulated days, configurable via `sprint_duration_minutes`).
 
 **Reasoning:**
 - Each sprint involves ~244 LLM API calls across all phases
-- LLM calls average ~15s (Anthropic) to ~30s (vLLM local)
 - Story refinement alone is ~48 mostly-serial calls (PO bottleneck)
 - Code generation has ~160 calls (parallelizable up to 4 pairs/day)
-- At 20 min, day budgets of 2 min were too tight for multi-turn
-  tool-using code generation (implement → test → fix → commit)
-- 60 min / 5 days = 12 min/day, enough for code-gen sessions
-
-```
-20 minutes (original):
-  - 2 min per simulated day
-  - Only 1-2 LLM turns per pair before day boundary hit
-  - Sessions cut short, incomplete implementations
-
-60 minutes (revised, 5 simulated days):
-  - 12 min per simulated day
-  - 8-16 LLM turns per pair per day
-  - Full implement → test → fix → commit cycles complete
-  - Room for standup discussions and pair rotation
-  - Agents receive wall-clock deadlines and self-regulate
-```
+- 60 min / 5 days = 12 min/day — enough for full implement → test → fix → commit cycles
+- Agents receive wall-clock deadlines and self-regulate pacing
 
 ---
 
@@ -312,58 +294,37 @@ Disturbances test team resilience, not chaos tolerance.
 
 ---
 
-## Model Selection & Hardware
+## Model Selection & Runtimes
 
-### The Constraint
-> "Assume I have access to GH200 nodes (each node has 4 
-> GH200 modules)."
+### Three Deployment Modes
 
-### The Optimization
+The system supports three runtime modes, chosen per-agent:
 
-**Original concern:** Would 15 min be enough for dialogue?
-**GH200 enables:** Massive parallelism + low latency
+1. **Anthropic API** (online) — Highest quality, native tool use, no infrastructure
+   - Claude Opus 4.6 / Sonnet 4.5 for all roles
+   - Best for: quality-sensitive experiments, quick iteration
+2. **Local vLLM** (offline) — Full privacy, no API costs, air-gapped
+   - Open models (DeepSeek, Qwen, etc.) with XML tool calling
+   - Best for: cost control, privacy, custom models
+3. **Hybrid** — Mix runtimes per agent (e.g. seniors on Anthropic, juniors on vLLM)
+   - Best for: balancing cost/quality, comparing model behaviors
 
-**Model tiers:**
+### Size Differentiation (vLLM mode)
 
-```
-Large (Leadership):
-  - Qwen2.5-72B (QA Lead, PO)
-  - Qwen2.5-Coder-32B (Dev Lead)
-  VRAM: 145GB + 64GB = 209GB
-  Fits on: 1 GH200 module (384GB)
+When using local models, different model sizes per seniority level produce meaningfully different behaviors:
 
-Medium (Seniors, Mid-level):
-  - DeepSeek-V2-Lite-16B (2x Senior)
-  - Qwen2.5-14B (2x Mid + 2x Tester)
-  VRAM: 64GB + 112GB = 176GB
-  Fits on: 1 GH200 module
+- **7B for juniors:** Actually makes different (realistic) mistakes
+- **14-16B for mid-level:** Balance of speed and capability
+- **32-72B for leadership:** Architectural reasoning, mentorship quality
 
-Small (Juniors):
-  - Qwen2.5-Coder-7B (2x Junior)
-  VRAM: 28GB
-  Fits on: Shared module or separate GPU
-```
+**Critical insight:** Different sizes → different behaviors, which is exactly what the experiment needs.
 
-**Total:** Fits on 2 GH200 modules with room for batching
+### Why Per-Agent Runtime Assignment?
 
-### Why These Models?
-
-**Qwen2.5 series:**
-- Strong coding capabilities
-- Good instruction following
-- Open source, self-hostable
-
-**DeepSeek-Coder:**
-- Excellent for senior devs
-- Strong networking/systems knowledge
-- Fast inference
-
-**Size differentiation:**
-- 7B for juniors: Actually makes different mistakes!
-- 14-16B for mid-level: Balance of speed and capability
-- 32B+ for leadership: Architectural reasoning
-
-**Critical:** Different sizes → different behaviors
+Assigning runtimes per agent (not globally) enables:
+- Cost optimization: use expensive models only where quality matters most
+- Behavioral research: compare same role across different models
+- Practical deployment: mix cloud and on-prem as infrastructure allows
 
 ---
 
@@ -627,20 +588,24 @@ Pass criteria:
    - Experimenting with coordination patterns
    - Not just using agents, studying them
 
-**What we borrowed:**
-- vLLM for model serving (best in class)
+**What we leverage:**
+- vLLM for local model serving (best in class)
+- Anthropic API for cloud inference (native tool use)
 - Prometheus for metrics (standard)
-- Kubernetes for deployment (industry norm)
+- Kubernetes for production deployment (industry norm)
 
 **What we built:**
-- Orchestration layer
-- Pairing engine
-- Meta-learning system
-- Qualification framework
+- Sprint orchestration (single-team and multi-team)
+- BDD-driven code generation pairing engine
+- Meta-learning system (JSONL-based prompt evolution)
+- Tool system (filesystem, git, bash, test runner, remote git)
+- Cross-team coordination (borrowing, dependency tracking)
+- Message bus (in-process + Redis backends)
+- Specialist consultant system
 
 ---
 
-## Key Insights from Our Conversation
+## Key Design Insights
 
 ### 1. Dialogue Is The Value
 > "The pairing cycle isn't taking architectural discussion 
@@ -674,36 +639,18 @@ Pass criteria:
 
 ---
 
-## Future Research Questions
+## Research Questions
 
-Based on this design:
+The design decisions above directly enable the research hypotheses documented in [RESEARCH_QUESTIONS.md](RESEARCH_QUESTIONS.md). Key questions this architecture was designed to answer:
 
-1. **Does team velocity follow expected pattern?**
-   - Hypothesis: Exponential early (learning), linear later (maturity)
+- Does team velocity follow the expected forming → storming → norming curve?
+- Do AI juniors ask valuable questions at rates comparable to human juniors (~5-10% hit rate)?
+- Does dialogue-driven pairing improve code quality vs sequential review?
+- What is the optimal junior:senior ratio for learning vs velocity?
+- Does meta-learning produce measurable behavior change over 20+ sprints?
+- How does team size affect coordination overhead?
 
-2. **Do juniors actually ask valuable questions?**
-   - Measure: % of questions leading to changes
-   - Baseline: Human juniors ~5-10% hit rate
-
-3. **Does pairing improve code quality vs solo?**
-   - Control: Compare paired vs solo implementations
-   - Metrics: Coverage, defects, complexity
-
-4. **What's the optimal junior:senior ratio?**
-   - Experiment: Vary from 1:1 to 1:4
-   - Measure: Learning rate vs velocity impact
-
-5. **Does meta-learning actually work?**
-   - Track: Agent behavior changes over 20+ sprints
-   - Evidence: Fewer repeated mistakes
-
-6. **How does team size affect dynamics?**
-   - Scale: 5, 11, 20, 50 agents
-   - Hypothesis: Non-linear coordination overhead
-
-7. **Can we predict team breakdown?**
-   - Leading indicators: Question rate, consensus time, escalations
-   - Intervention: When do you need stakeholder input?
+See [RESEARCH_QUESTIONS.md](RESEARCH_QUESTIONS.md) for the full research framework and measurement approaches.
 
 ---
 

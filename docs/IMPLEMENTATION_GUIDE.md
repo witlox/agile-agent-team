@@ -365,7 +365,7 @@ python -m src.orchestrator.main --config config-free.yaml --sprints 20 --output 
 watch -n 5 'ls -1 outputs/*/sprint-* | wc -l'
 ```
 
-> **Tip:** See [USAGE.md](USAGE.md) for the full configuration reference and artifact format.
+> **Tip:** See [USAGE.md](USAGE.md) for the full configuration reference and [ADVANCED_USAGE.md](ADVANCED_USAGE.md) for artifact format and advanced features.
 
 ---
 

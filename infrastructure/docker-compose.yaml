@@ -1,0 +1,87 @@
+# Local development stack for Agile Agent Team
+#
+# Usage:
+#   cp .env.example .env  # then fill in API keys
+#   docker compose -f infrastructure/docker-compose.yaml up -d
+#
+# Ports:
+#   5432  - PostgreSQL
+#   6379  - Redis
+#   8080  - Orchestrator metrics (Prometheus format)
+#   8081  - Stakeholder webhook callback
+#   9090  - Prometheus UI
+#   3000  - Grafana UI (admin/admin)
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: team_context
+      POSTGRES_USER: ${POSTGRES_USER:-agile}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agile}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "agile"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agile}:${POSTGRES_PASSWORD:-agile}@postgres:5432/team_context
+      MESSAGING_BACKEND: redis
+      REDIS_URL: redis://redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-}
+      MOCK_LLM: ${MOCK_LLM:-false}
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ../config.yaml:/app/config.yaml:ro
+      - ../backlog.yaml:/app/backlog.yaml:ro
+      - ../team_config:/app/team_config:ro
+      - ../outputs:/app/outputs
+
+volumes:
+  postgres-data:

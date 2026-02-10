@@ -59,7 +59,8 @@ Work is defined in `backlog.yaml` as user stories with acceptance criteria and o
 
 | Document | Description |
 |----------|-------------|
-| **[docs/USAGE.md](docs/USAGE.md)** | Complete usage guide: deployment modes, configuration, remote git, disturbances, profile swapping, artifacts |
+| **[docs/USAGE.md](docs/USAGE.md)** | Usage guide: deployment modes, configuration, remote git, code generation |
+| **[docs/ADVANCED_USAGE.md](docs/ADVANCED_USAGE.md)** | Advanced usage: disturbances, profile swapping, metrics, multi-team orchestration |
 | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System architecture: components, agent composition, runtime system, data flow |
 | **[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)** | Implementation status, test breakdown, current capabilities |
 | **[docs/RESEARCH_QUESTIONS.md](docs/RESEARCH_QUESTIONS.md)** | Research hypotheses, measurement approaches, expected patterns |

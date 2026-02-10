@@ -1,0 +1,29 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+
+# Test and development artifacts
+tests/
+docs/
+infrastructure/
+outputs/
+/tmp/
+
+# Tool and IDE configs
+.pre-commit-config.yaml
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.DS_Store
+
+# Documentation (keep config-related files)
+README.md
+CONTRIBUTING.md
+RESEARCH_QUESTIONS.md
+LICENSE
+
+# CI/CD
+.github/

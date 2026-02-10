@@ -386,12 +386,15 @@ You CAN:
 
 ## Infrastructure (Production)
 
-- **vLLM** on Kubernetes GH200 nodes (3-tier by model size) OR **Anthropic API** (online)
-- **PostgreSQL** for shared state (kanban, pairing logs, meta-learnings)
-- **Redis** for coordination (not yet implemented)
-- **Prometheus** metrics on port 8080, Grafana dashboards
+- **Three runtime modes**: Anthropic API (online), vLLM on Kubernetes (offline), or hybrid (mix per agent)
+- **PostgreSQL** for shared state (kanban, pairing logs, meta-learnings, stakeholder feedback)
+- **Redis** for message bus backend (InProcess default for single-process; Redis for multi-process/multi-team)
+- **Prometheus** metrics on port 8080, Grafana dashboards (team-scoped labels in multi-team mode)
+- **Stakeholder webhook callback** on port 8081 (when `stakeholder_review` is enabled in config.yaml)
 - **Code artifacts** written to `/tmp/agent-workspace/sprint-<N>/<story-id>/`
 - **Sprint artifacts** written to `outputs/<experiment-id>/sprint-<N>/`
+- **Local dev**: `docker compose -f infrastructure/docker-compose.yaml up` (postgres, redis, prometheus, grafana, orchestrator)
+- **Production**: Kubernetes manifests in `infrastructure/k8s/` (vLLM tiers optional when using Anthropic-only mode)
 
 ## Common Development Tasks
 
@@ -501,7 +504,8 @@ workspace = Path(tmpdir).resolve()
 ## References
 
 - **Research design**: `README.md`, `RESEARCH_QUESTIONS.md`
-- **Usage guide**: `docs/USAGE.md` (configuration, disturbances, profile swapping)
+- **Usage guide**: `docs/USAGE.md` (configuration, deployment, remote git, code generation)
+- **Advanced usage**: `docs/ADVANCED_USAGE.md` (disturbances, profile swapping, metrics, multi-team)
 - **Example configs**: `examples/` (5 config+backlog pairs for common scenarios)
 - **Implementation summary**: `docs/IMPLEMENTATION_STATUS.md` (code generation architecture)
 - **Contributing**: `CONTRIBUTING.md`

@@ -11,24 +11,44 @@ rule_files: []
 
 scrape_configs:
   # Orchestrator metrics (sprint velocity, pairing sessions, etc.)
+  #
+  # Key metrics exported:
+  #   sprint_velocity{team_id="..."}          - Story points completed per sprint
+  #   sprint_cycle_time{team_id="..."}        - Time from start to done
+  #   test_coverage_percent{team_id="..."}    - Simulated code coverage
+  #   pairing_sessions_total                  - Pairing activity count
+  #   consensus_time_seconds                  - Time to reach agreement
+  #
+  # Custom junior/senior metrics:
+  #   junior_questions_total{category="..."}  - Questions by category/outcome
+  #   senior_pause_before_answer              - Thoughtful response time
+  #   senior_learned_from_junior              - Reverse mentorship events
+  #   question_dismissal_rate                 - Cultural health indicator
+  #
+  # Specialist consultation metrics:
+  #   specialist_consultation_total           - External consultant invocations
+  #   specialist_consultation_duration        - Time spent in consultation
+  #
+  # In multi-team mode, sprint metrics include a team_id label for
+  # per-team filtering (e.g. sprint_velocity{team_id="platform"}).
   - job_name: orchestrator
     static_configs:
       - targets: ["orchestrator:8080"]
     metrics_path: /metrics
 
-  # vLLM Tier 1 — large models
+  # vLLM Tier 1 -- large models (optional: only when using local_vllm runtime)
   - job_name: vllm-large
     static_configs:
       - targets: ["vllm-gh200-module-1:8000"]
     metrics_path: /metrics
 
-  # vLLM Tier 2 — medium models
+  # vLLM Tier 2 -- medium models (optional: only when using local_vllm runtime)
   - job_name: vllm-medium
     static_configs:
       - targets: ["vllm-medium:8001"]
     metrics_path: /metrics
 
-  # vLLM Tier 3 — small models
+  # vLLM Tier 3 -- small models (optional: only when using local_vllm runtime)
   - job_name: vllm-small
     static_configs:
       - targets: ["vllm-small:8002"]

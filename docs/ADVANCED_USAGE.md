@@ -1,23 +1,581 @@
-# Advanced Usage: Team of Teams
+# Advanced Usage
 
-This guide covers multi-team orchestration and cross-team coordination -- running 2-7 autonomous agent teams under a single experiment with shared infrastructure, portfolio backlogs, coordinator agents, and agent borrowing.
+This guide covers advanced features for tuning experiments — disturbance injection, specialist consultants, profile swapping, team culture, metrics — as well as multi-team orchestration and cross-team coordination.
 
 ## Table of Contents
 
-1. [Overview](#1-overview)
-2. [Multi-team configuration](#2-multi-team-configuration)
-3. [Cross-team coordination](#3-cross-team-coordination)
-4. [Agent borrowing](#4-agent-borrowing)
-5. [Cross-team dependencies](#5-cross-team-dependencies)
-6. [Coordinator agents](#6-coordinator-agents)
-7. [Portfolio backlog distribution](#7-portfolio-backlog-distribution)
-8. [Team-scoped infrastructure](#8-team-scoped-infrastructure)
-9. [Running a multi-team experiment](#9-running-a-multi-team-experiment)
-10. [Research applications](#10-research-applications)
+1. [Disturbance injection](#1-disturbance-injection)
+2. [Specialist consultant system](#2-specialist-consultant-system)
+3. [Profile swapping](#3-profile-swapping)
+4. [Team culture features](#4-team-culture-features)
+5. [Test coverage (Hybrid: Real + Process)](#5-test-coverage-hybrid-real--process)
+6. [Sprint artifacts](#6-sprint-artifacts)
+7. [Prometheus metrics](#7-prometheus-metrics)
+8. [Experiment variants](#8-experiment-variants)
+9. [Multi-team overview](#9-multi-team-overview)
+10. [Multi-team configuration](#10-multi-team-configuration)
+11. [Overhead budget (wallclock management)](#11-overhead-budget-wallclock-management)
+12. [Cross-team coordination](#12-cross-team-coordination)
+13. [Agent borrowing](#13-agent-borrowing)
+14. [Cross-team dependencies](#14-cross-team-dependencies)
+15. [Coordinator agents](#15-coordinator-agents)
+16. [Portfolio backlog distribution](#16-portfolio-backlog-distribution)
+17. [Team-scoped infrastructure](#17-team-scoped-infrastructure)
+18. [Running a multi-team experiment](#18-running-a-multi-team-experiment)
+19. [Research applications](#19-research-applications)
 
 ---
 
-## 1. Overview
+## 1. Disturbance injection
+
+Disturbances are controlled-chaos events that fire probabilistically each sprint. They model realistic team stress.
+
+### How it works
+
+After sprint planning, `DisturbanceEngine.roll_for_sprint()` runs a Bernoulli trial for each configured disturbance type. Those that fire are applied **before** development begins.
+
+### Disturbance types
+
+| Type | Effect | Frequency |
+|------|--------|-----------|
+| `dependency_breaks` | A random in-progress card is tagged `[BLOCKED: dependency unavailable]` | 16.6% (1 in 6) |
+| `production_incident` | A `HOTFIX` card injected; all agents receive `[INCIDENT ALERT]` | 12.5% (1 in 8) |
+| `flaky_test` | A random card is tagged `[FLAKY TESTS: intermittent failures detected]` | 25% (1 in 4) |
+| `scope_creep` | A new unplanned card added mid-sprint; PO notified | 20% (1 in 5) |
+| `junior_misunderstanding` | Random junior receives `[CONFUSION]` prompt to re-read | 33% (1 in 3) |
+| `architectural_debt_surfaces` | Random card tagged `[TECH DEBT: refactoring required]` | 16.6% (1 in 6) |
+| **`merge_conflict`** | Card tagged with merge conflict from parallel development; lead dev notified | **30% (1 in 3)** |
+
+### Merge Conflict Disturbance (NEW)
+
+Simulates realistic gitflow scenario:
+
+```
+[MERGE CONFLICT: main branch updated with overlapping changes]
+
+Another pair merged changes to the same files you're working on.
+You'll need to rebase your feature branch on main and resolve conflicts.
+Reach out to the other pair if needed to understand their changes.
+```
+
+**Lead dev is notified** to be available for conflict resolution assistance.
+
+### Blast radius controls
+
+If velocity or coverage drops beyond configured thresholds (`max_velocity_impact`, `max_quality_regression`), the engine caps further injections.
+
+### Disabling disturbances
+
+```yaml
+disturbances:
+  enabled: false
+```
+
+---
+
+## 2. Specialist consultant system
+
+The specialist consultant system allows teams to bring in external experts when they encounter domain-specific blockers beyond their current capabilities. This provides a controlled mechanism for managing knowledge gaps while maintaining research validity.
+
+### Overview
+
+**Purpose**: Model realistic scenarios where teams need expertise they don't have (ML, security, performance optimization, etc.)
+
+**Constraints**:
+- **Max 3 consultations per sprint** (hard limit enforced)
+- **Velocity penalty**: 2.0 story points per consultation (configurable cost)
+- **Knowledge transfer**: Specialist pairs with junior/mid developer (learning opportunity)
+- **Duration**: 1 day consultation (simulated)
+
+### How it works
+
+1. **Expertise Gap Detection**: System automatically detects when a blocker requires domain knowledge the team lacks
+   - Compares blocker keywords against team's specializations
+   - Triggers only when gap is genuine (team doesn't have that expertise)
+
+2. **Specialist Request**: Dev Lead (or system) requests specialist for specific domain
+   - Domain examples: `ml`, `security`, `performance`, `cloud`, `architecture`
+   - System checks if consultations remaining < 3 for current sprint
+
+3. **Temporary Agent Creation**: System creates specialist agent with domain profile
+   - Loads from `team_config/08_specialists/{domain}_specialist.md`
+   - Full domain expertise and teaching approach documented
+
+4. **Knowledge Transfer Session**: Specialist pairs with team member
+   - Prefers junior/mid developers (maximize learning)
+   - 1-day consultation to unblock issue and teach patterns
+   - Learnings recorded for team
+
+5. **Velocity Impact**: 2.0 story points deducted from sprint velocity
+   - Models time cost of onboarding and consultation
+   - Tracked in sprint metrics
+
+### Available specialist domains (37)
+
+The system ships with curated specialist profiles in `team_config/08_specialists/`. Each profile includes expertise areas, consultation approach, common scenarios, and knowledge transfer focus.
+
+| Category | Domains |
+|----------|---------|
+| **Core** | `ml`, `security`, `performance`, `cloud`, `architecture`, `database`, `frontend`, `distributed`, `data`, `mobile` |
+| **Infrastructure** | `backend`, `devops`, `networking`, `embedded`, `systems`, `observability`, `sre`, `platform`, `admin` |
+| **Development** | `api_design`, `ui_ux`, `test_automation`, `quality`, `accessibility`, `blockchain`, `event_driven`, `search`, `i18n`, `business_processes`, `iam`, `mlops`, `data_science` |
+| **Language** | `python`, `golang`, `rust`, `typescript`, `cpp` |
+
+### Configuration
+
+```yaml
+# config.yaml
+specialist_consultants:
+  enabled: true
+  max_per_sprint: 3
+  velocity_penalty: 2.0  # story points
+```
+
+### Manual usage (future enhancement)
+
+In daily standups, if Dev Lead identifies a blocker requiring external expertise:
+
+```python
+from src.orchestrator.specialist_consultant import SpecialistRequest
+
+request = SpecialistRequest(
+    reason="Team stuck on ML model training - accuracy won't improve",
+    domain="ml",
+    requesting_agent_id="ahmed_dev_lead",
+    sprint_num=3,
+    day_num=5,
+)
+
+outcome = await specialist_system.request_specialist(request, team)
+```
+
+### Metrics
+
+Specialist consultations are tracked in Prometheus metrics:
+
+- `specialist_consultations_total` - Counter by domain, sprint, reason category
+- `specialist_velocity_penalty` - Gauge tracking story points lost
+
+### Research impact
+
+This feature enables studying:
+- How teams handle knowledge gaps under constraints
+- Trade-offs between velocity and external help
+- Impact of specialist knowledge transfer on team capabilities
+- Optimal timing for bringing in external experts
+
+**Balance**: Realistic (teams do need external help) but constrained (limited, costly) to maintain research validity
+
+### Disabling specialist consultants
+
+To disable for pure team-only experiments:
+
+```yaml
+specialist_consultants:
+  enabled: false
+```
+
+Or simply don't configure the feature (defaults to disabled).
+
+---
+
+## 3. Profile swapping
+
+Profile swapping lets agents temporarily work outside their specialisation. It models cross-training, incidents, and organizational resilience.
+
+### Modes
+
+| Mode | Behaviour |
+|------|-----------|
+| `none` | Agents never swap. Knowledge silos surface as bottlenecks. |
+| `constrained` | Swaps only when an `allowed_scenario` triggers (e.g. `production_incident`). Penalties applied. |
+| `free` | Any agent may cover any domain. No penalty. AI-optimal baseline. |
+
+### What happens during a swap
+
+1. A `production_incident` disturbance fires.
+2. `SprintManager._check_swap_triggers()` finds the senior DevOps or networking agent.
+3. `agent.swap_to(domain, proficiency)` appends a notice to the agent's prompt:
+
+```
+[PROFILE SWAP ACTIVE]
+You are temporarily covering production incident response tasks. Proficiency: 70%.
+You are less familiar with this domain — ask more questions, verify assumptions,
+and expect to work 20% slower than your usual pace.
+```
+
+4. If the swapped agent is in a pairing session, an **extra checkpoint round** is added (simulating 20% slowdown).
+5. After the sprint, `decay_swap()` reduces proficiency or reverts if `knowledge_decay_sprints` elapsed.
+
+### Swap state
+
+The `BaseAgent.is_swapped` property returns `True` while a swap is active. Swap state in `agent._swap_state`:
+
+```python
+{
+  "role_id": "incident_responder",
+  "domain": "production incident response",
+  "proficiency": 0.70,
+  "sprint": 3,
+}
+```
+
+---
+
+## 4. Team culture features
+
+### Role-Based Pairing
+
+Pairing role assignment follows team culture:
+
+1. **Lead dev always navigates** (90%+ of sessions) - teaching role, team growth focus
+2. **Testers always navigate** when pairing with devs - quality perspective
+3. **Seniors navigate with juniors** - mentorship, knowledge transfer
+4. **Same level pairs** - random assignment
+
+**Example assignments**:
+- Ahmed (lead dev) + Marcus (mid backend) → Marcus drives, Ahmed navigates
+- Yuki (senior tester) + Elena (mid frontend) → Elena drives, Yuki navigates
+- Alex (senior) + Jamie (junior) → Jamie drives, Alex navigates
+
+### Git Workflow (Stable Main + Gitflow)
+
+**Documented in** `team_config/06_process_rules/git_workflow.md`
+
+- **Stable main**: Always deployable, always green, always tested
+- **Feature branches**: Created automatically per story (`feature/<story-id>`)
+- **Merge conflict resolution**: Expected, protocol documented
+- **"You break it, you fix it"**: Build ownership with team support
+- **Blameless post-mortems**: "We fix systems, not people"
+
+### Hiring Protocol
+
+**Documented in** `team_config/06_process_rules/hiring_protocol.md`
+
+- **3 rounds**: Technical → Domain Fit → Pairing Under Pressure
+- **Keyboard switching**: 5min → 3min → 2min → 1min (increasing pressure)
+- **Lead dev observes** behavior in Round 3 (not just code)
+- **A+ candidates only**: Must score A in all rounds
+
+**Note**: In the simulation, agents are static, but this documents the "in-universe" hiring culture.
+
+### Team Constraints
+
+- **Max 10 engineers** (excluding testers)
+- **Turnover simulation** (optional, for experiments >5 months)
+- **Tester pairing** (20% of sessions, always as navigator)
+
+---
+
+## 5. Test coverage (Hybrid: Real + Process)
+
+The system tracks **two types of coverage** to measure both code quality and process adherence:
+
+### Real Coverage (pytest-cov)
+
+**Actual line and branch coverage** from pytest-cov, measuring how much of the generated code is tested:
+
+- Collected automatically during test execution via `--cov=src --cov-branch`
+- Parses `coverage.json` for precise metrics
+- Stored per session: `line_coverage`, `branch_coverage`, `covered_lines`, `total_lines`
+- Sprint-level: story-point-weighted average across sessions
+
+**Example metrics:**
+```json
+{
+  "line_coverage": 87.5,
+  "branch_coverage": 82.3,
+  "covered_lines": 145,
+  "total_lines": 166
+}
+```
+
+### Process Coverage (TDD Protocol Adherence)
+
+**Process-based metric** measuring how thoroughly the TDD pairing protocol was followed:
+
+```
+base_coverage = 70.0        # floor if no TDD checkpoints
+per_checkpoint = 3.5        # each completed checkpoint adds coverage
+consensus_bonus = 5.0       # both agents approve → bonus
+max_coverage = 95.0
+
+process_coverage = min(base + checkpoints_completed * per_checkpoint + bonus, max)
+```
+
+With default 4-checkpoint protocol + consensus:
+- Process coverage ≈ 70 + 4×3.5 + 5 = **89%**
+
+If agent is swapped (extra checkpoint from 20% slowdown):
+- 5 checkpoints → 70 + 5×3.5 + 5 = **92.5%**
+
+### Why Track Both?
+
+| Metric | Measures | Research Value |
+|--------|----------|----------------|
+| **Real coverage** | Code quality | How thoroughly agents test their implementations |
+| **Process coverage** | Team discipline | How well agents follow TDD practices |
+
+**Example insights:**
+- High process, low real → Team follows protocol but writes ineffective tests
+- Low process, high real → Team skips checkpoints but writes good tests anyway
+- High both → Mature team with strong practices
+- Low both → Red flag for team dynamics
+
+### Sprint-Level Aggregation
+
+All coverage metrics are story-point-weighted averages:
+
+```
+sprint_metric = Σ(session_metric × story_points) / Σ(story_points)
+```
+
+Appears in `final_report.json`:
+```json
+{
+  "sprint": 1,
+  "test_coverage": 87.5,      # Real line coverage
+  "branch_coverage": 82.3,    # Real branch coverage
+  "process_coverage": 89.0    # TDD protocol adherence
+}
+```
+
+### Prometheus Metrics
+
+Three gauges exported:
+- `test_coverage_percent` - Real line coverage from pytest-cov
+- `branch_coverage_percent` - Real branch coverage from pytest-cov
+- `process_coverage_percent` - Process-based TDD adherence
+
+### Configuration
+
+```yaml
+code_generation:
+  coverage:
+    enabled: true  # Collect real coverage (default)
+    source: "src"  # Directory to measure
+    min_line_coverage: 85
+    min_branch_coverage: 80
+```
+
+### Disabling Real Coverage
+
+To use only process-based coverage (faster, no pytest-cov overhead):
+
+```yaml
+code_generation:
+  coverage:
+    enabled: false
+```
+
+Agents will still run tests, but won't collect coverage metrics.
+
+---
+
+## 6. Sprint artifacts
+
+### Sprint Metadata (`<output>/sprint-NN/`)
+
+| File | Contents |
+|------|----------|
+| `kanban.json` | Full board snapshot: `ready`, `in_progress`, `review`, `done` (includes PR URLs in card metadata) |
+| `pairing_log.json` | All pairing session records (driver, navigator, outcomes, coverage, PR URLs) |
+| `retro.md` | Keep / Drop / Puzzle retrospective notes |
+
+### Generated Code Workspaces (`/tmp/agent-workspace/sprint-NN/<story-id>/`)
+
+```
+sprint-01/
+├── us-001/
+│   ├── features/
+│   │   └── us-001.feature         # BDD Gherkin scenarios
+│   ├── src/
+│   │   └── registration.py        # Agent-generated implementation
+│   ├── tests/
+│   │   └── test_registration.py   # Agent-generated tests
+│   └── .git/                      # Git repo on feature/us-001 branch
+└── us-002/
+    └── ...
+```
+
+### Final Report (`<output>/final_report.json`)
+
+```json
+{
+  "experiment": "baseline-experiment",
+  "total_sprints": 10,
+  "avg_velocity": 5.2,
+  "total_features": 21,
+  "sprints": [
+    {
+      "sprint": 1,
+      "velocity": 5,
+      "features_completed": 2,
+      "test_coverage": 89.0,
+      "pairing_sessions": 3,
+      "cycle_time_avg": 0.00012,
+      "disturbances": ["merge_conflict", "flaky_test"]
+    },
+    ...
+  ]
+}
+```
+
+### Pairing Session Details (`pairing_log.json`)
+
+```json
+{
+  "sprint": 1,
+  "driver_id": "marcus_mid_backend",
+  "navigator_id": "ahmed_senior_dev_lead",
+  "task_id": 3,
+  "start_time": "2026-02-08T14:05:11.123456",
+  "end_time": "2026-02-08T14:05:11.234567",
+  "outcome": "completed",
+  "coverage_estimate": 89.0,
+  "workspace": "/tmp/agent-workspace/sprint-01/us-001",
+  "feature_file": "/tmp/agent-workspace/sprint-01/us-001/features/us-001.feature",
+  "files_changed": ["src/registration.py", "tests/test_registration.py"],
+  "test_results": {
+    "passed": true,
+    "iterations": 1,
+    "output": "2 passed in 0.05s"
+  },
+  "commit_sha": "committed",
+  "pr_url": "https://github.com/your-org/project/pull/42"
+}
+```
+
+**Note:** `pr_url` is only present when `remote_git.enabled: true` and push/PR creation succeeded.
+
+---
+
+## 7. Prometheus metrics
+
+The metrics server starts automatically on port 8080.
+
+### Standard Sprint Metrics
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `sprint_velocity` | Gauge | Story points completed last sprint |
+| `test_coverage_percent` | Gauge | Weighted coverage estimate last sprint |
+| `pairing_sessions_total` | Counter | Cumulative sessions, labelled `driver`/`navigator` |
+| `consensus_seconds` | Histogram | Time-to-consensus distribution |
+
+These are updated via `update_sprint_metrics()` after each sprint completes.
+
+### Custom Junior/Senior Metrics (NEW)
+
+Research-focused metrics tracking team dynamics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `junior_questions_total` | Counter | `junior_id`, `category`, `resulted_in_change` | Questions asked by juniors during ceremonies |
+| `reverse_mentorship_events` | Counter | `junior_id`, `senior_id`, `topic` | Junior-led pairing sessions (junior drives, senior navigates) |
+| `senior_learned_from_junior` | Counter | `senior_id`, `junior_id`, `learning_type` | Times senior updated knowledge based on junior input |
+| `junior_question_rate_per_sprint` | Gauge | `junior_id` | Number of questions per sprint per junior |
+| `question_dismissal_rate` | Gauge | `senior_id` | Percentage of junior questions dismissed without consideration |
+
+**Recording Points**:
+- `junior_questions_total`: Recorded during story refinement when juniors ask clarifying questions
+- `reverse_mentorship_events`: Recorded at pairing session start when junior is driver
+- Other metrics: Available for future enhancement
+
+**Research Value**: These metrics enable measurement of:
+- Junior engagement and curiosity
+- Reverse knowledge transfer (junior → senior)
+- Team learning culture health
+- Impact of junior developers on team outcomes
+
+**Access raw metrics:**
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+**Grafana dashboards** (if deployed):
+- Sprint Overview: Velocity, quality metrics, cycle time
+- Team Health: Pairing activity, consensus time
+- Agent Performance: Response times, token usage
+
+---
+
+## 8. Experiment variants
+
+### Configuration variants
+
+| Goal | Config change |
+|------|--------------|
+| No disturbances (pure team dynamics) | `disturbances.enabled: false` |
+| No profile swapping (stable roles) | `profile_swapping.mode: none` |
+| Free swapping (AI-optimal baseline) | `profile_swapping.mode: free` |
+| High disturbance rate (stress test) | Increase all `frequencies` values |
+| Shorter sprints (rapid iteration) | `sprint_duration_minutes: 10` |
+| Turnover simulation (long experiments) | `team.turnover.enabled: true` |
+| More tester participation | `team.tester_pairing.frequency: 0.40` |
+
+### Example configurations
+
+The `examples/` directory contains 6 ready-to-use config+backlog pairs:
+
+| Example | Team | Runtime | Language | Key Feature |
+|---------|------|---------|----------|-------------|
+| `01-startup-mvp/` | 5 agents | Anthropic | Python | Small team, no disturbances, 45-min sprints |
+| `02-enterprise-brownfield/` | 11 agents | vLLM | Go+Python | Brownfield, GitHub PRs, full disturbances |
+| `03-oss-rust-library/` | 7 agents | Hybrid | Rust | Seniors on Anthropic, juniors on vLLM, GitLab MRs |
+| `04-chaos-experiment/` | 11 agents | Both | Python+TS | Max disturbances, free swapping, 20 sprints |
+| `05-quick-demo/` | 3 agents | Mock | Python | Minimal setup, 15-min sprints, 3 stories |
+| `06-multi-team/` | 13 agents | Mock | Python | 2 teams, cross-team coordination, overhead budget |
+
+```bash
+# Try the quick demo (no API keys needed)
+MOCK_LLM=true python -m src.orchestrator.main \
+  --config examples/05-quick-demo/config.yaml \
+  --backlog examples/05-quick-demo/backlog.yaml \
+  --sprints 2 \
+  --duration 15 \
+  --output /tmp/quick-demo \
+  --db-url mock://
+```
+
+### Recommended experiment sequence
+
+1. **Baseline**: `disturbances: false`, `swap: none` → 10 sprints
+2. **Disturbances only**: `disturbances: true`, `swap: none` → 10 sprints
+3. **Full chaos**: `disturbances: true`, `swap: constrained` → 20 sprints
+4. **AI-optimal**: `disturbances: true`, `swap: free` → 20 sprints
+5. **Long-term**: Enable turnover, run 30+ sprints
+
+Compare `final_report.json` across runs to measure resilience and learning curves.
+
+### Debugging
+
+**Check agent pairing roles:**
+```bash
+cat /tmp/experiment/sprint-01/pairing_log.json | jq '.[] | {driver: .driver_id, navigator: .navigator_id}'
+```
+
+**Check generated code quality:**
+```bash
+cd /tmp/agent-workspace/sprint-01/us-001/
+git log --oneline
+pytest tests/
+```
+
+**Check disturbance impact:**
+```bash
+cat /tmp/experiment/final_report.json | jq '.sprints[] | {sprint, velocity, disturbances}'
+```
+
+**Check meta-learnings:**
+```bash
+cat team_config/07_meta/meta_learnings.jsonl | jq 'select(.agent_id == "alex_senior_networking")'
+```
+
+---
+
+## 9. Multi-team overview
 
 Real organizations rarely operate as a single team. Products are built by multiple teams with overlapping concerns, shared dependencies, and the need for occasional cross-team collaboration. The "team of teams" model captures this reality.
 
@@ -65,7 +623,7 @@ Real organizations rarely operate as a single team. Products are built by multip
 
 ---
 
-## 2. Multi-team configuration
+## 10. Multi-team configuration
 
 Define teams in the `teams:` section of `config.yaml`. Each team needs an `id`, agent list, and optionally its own backlog, WIP limits, and Team Topology type.
 
@@ -119,7 +677,7 @@ When a team has no `backlog:` path, it receives stories from the portfolio backl
 
 ---
 
-## 2.5. Overhead budget (wallclock management)
+## 11. Overhead budget (wallclock management)
 
 When coordination is enabled, the overhead budget system timeboxes all coordination, distribution, and checkin steps so they don't consume unbounded experiment time.
 
@@ -200,7 +758,7 @@ The final report includes an `overhead_budget` section:
 
 ---
 
-## 3. Cross-team coordination
+## 12. Cross-team coordination
 
 The coordination system adds intelligent cross-team awareness through a `CoordinationLoop` that runs at two cadences:
 
@@ -268,7 +826,7 @@ Or simply omit the `coordination:` section entirely.
 
 ---
 
-## 4. Agent borrowing
+## 13. Agent borrowing
 
 Borrowing temporarily moves an agent from one team to another. It models real-world scenarios where a team with spare capacity helps a struggling team, or where a specialist is needed across team boundaries.
 
@@ -309,7 +867,7 @@ success = await orchestrator.borrow_agent(request)
 
 ---
 
-## 5. Cross-team dependencies
+## 14. Cross-team dependencies
 
 Dependencies between teams are tracked through kanban card metadata. When a card on one team's board depends on work from another team, the metadata signals this to the coordination loop.
 
@@ -356,7 +914,7 @@ During the next coordination loop, the staff engineer coordinator will see this 
 
 ---
 
-## 6. Coordinator agents
+## 15. Coordinator agents
 
 Coordinators are agents that sit outside all teams. They observe cross-team health and make recommendations. The system supports two coordinator archetypes:
 
@@ -437,7 +995,7 @@ coordination:
 
 ---
 
-## 7. Portfolio backlog distribution
+## 16. Portfolio backlog distribution
 
 When running multiple teams, you can use a single **portfolio backlog** that gets distributed across teams, or give each team its own backlog.
 
@@ -475,7 +1033,7 @@ You can combine both approaches: some teams with dedicated backlogs, others draw
 
 ---
 
-## 8. Team-scoped infrastructure
+## 17. Team-scoped infrastructure
 
 Multi-team mode shares infrastructure but scopes queries by team.
 
@@ -539,7 +1097,7 @@ Each team gets a subdirectory under the experiment output:
 
 ---
 
-## 9. Running a multi-team experiment
+## 18. Running a multi-team experiment
 
 ### Quick start (mock mode)
 
@@ -637,7 +1195,7 @@ Multi-team mode composes with all existing features:
 
 ---
 
-## 10. Research applications
+## 19. Research applications
 
 The team-of-teams model enables studying dynamics that single-team experiments cannot capture.
 
@@ -674,4 +1232,4 @@ Compare `final_report.json` across variants to measure coordination impact on ve
 
 ---
 
-**See also:** [USAGE.md](USAGE.md) for single-team configuration, [ARCHITECTURE.md](ARCHITECTURE.md) for system design, [RESEARCH_QUESTIONS.md](RESEARCH_QUESTIONS.md) for the full research framework.
+**See also:** [USAGE.md](USAGE.md) for core configuration, [ARCHITECTURE.md](ARCHITECTURE.md) for system design, [RESEARCH_QUESTIONS.md](RESEARCH_QUESTIONS.md) for the full research framework.

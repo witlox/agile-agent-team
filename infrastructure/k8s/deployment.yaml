@@ -6,6 +6,24 @@ metadata:
   name: agile-agents
 
 ---
+# Secret template for API credentials
+# Apply with: kubectl create secret generic api-credentials \
+#   --from-literal=anthropic-api-key=$ANTHROPIC_API_KEY \
+#   --from-literal=github-token=$GITHUB_TOKEN \
+#   --from-literal=gitlab-token=$GITLAB_TOKEN \
+#   -n agile-agents
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-credentials
+  namespace: agile-agents
+type: Opaque
+stringData:
+  anthropic-api-key: ""   # Required for Anthropic runtime mode
+  github-token: ""         # Optional: for GitHub remote git integration
+  gitlab-token: ""         # Optional: for GitLab remote git integration
+
+---
 # PostgreSQL StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
@@ -61,7 +79,7 @@ spec:
             storage: 100Gi
 
 ---
-# Redis Deployment
+# Redis Deployment (message bus backend for multi-process mode)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -91,7 +109,17 @@ spec:
               memory: "2Gi"
 
 ---
-# vLLM Tier 1 — Large models (Qwen2.5-72B, Qwen2.5-Coder-32B) on port 8000
+# ============================================================================
+# vLLM Model Serving (OPTIONAL)
+#
+# Only needed when using local_vllm runtime mode. If running with Anthropic
+# API only (runtimes.anthropic.enabled: true), you can skip all vLLM tiers.
+#
+# See config.yaml runtimes section for choosing between local_vllm, anthropic,
+# or hybrid mode.
+# ============================================================================
+
+# vLLM Tier 1 -- Large models (Qwen2.5-72B, Qwen2.5-Coder-32B) on port 8000
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -139,7 +167,7 @@ spec:
             path: /mnt/model-cache
 
 ---
-# vLLM Tier 2 — Medium models (DeepSeek-V2-Lite, Qwen2.5-14B) on port 8001
+# vLLM Tier 2 -- Medium models (DeepSeek-V2-Lite, Qwen2.5-14B) on port 8001
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -184,7 +212,7 @@ spec:
             path: /mnt/model-cache
 
 ---
-# vLLM Tier 3 — Small models (Qwen2.5-Coder-7B) on port 8002
+# vLLM Tier 3 -- Small models (Qwen2.5-Coder-7B) on port 8002
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -248,10 +276,12 @@ spec:
       containers:
         - name: orchestrator
           image: agile-agents/orchestrator:latest
-          command: ["python", "src/orchestrator/main.py"]
+          command: ["python", "-m", "src.orchestrator.main"]
           args:
             - "--config"
             - "/app/config.yaml"
+            - "--backlog"
+            - "/app/backlog.yaml"
             - "--sprints"
             - "10"
             - "--output"
@@ -269,9 +299,52 @@ spec:
                 secretKeyRef:
                   name: db-credentials
                   key: password
+            # Anthropic API key (required for anthropic runtime mode)
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: anthropic-api-key
+                  optional: true
+            # GitHub token (optional: for remote git integration)
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: github-token
+                  optional: true
+            # GitLab token (optional: for remote git integration)
+            - name: GITLAB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: gitlab-token
+                  optional: true
+            # Message bus backend: "inprocess" (default) or "redis"
+            - name: MESSAGING_BACKEND
+              value: "redis"
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+            # Set to "true" for mock mode (no LLM calls)
+            # - name: MOCK_LLM
+            #   value: "true"
           ports:
             - containerPort: 8080
               name: metrics
+            - containerPort: 8081
+              name: stakeholder
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             requests:
               cpu: "4"
@@ -283,6 +356,9 @@ spec:
             - name: config
               mountPath: /app/config.yaml
               subPath: config.yaml
+            - name: backlog
+              mountPath: /app/backlog.yaml
+              subPath: backlog.yaml
             - name: outputs
               mountPath: /app/outputs
             - name: team-config
@@ -291,6 +367,9 @@ spec:
         - name: config
           configMap:
             name: experiment-config
+        - name: backlog
+          configMap:
+            name: experiment-backlog
         - name: outputs
           persistentVolumeClaim:
             claimName: outputs-pvc
