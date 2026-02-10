@@ -7,542 +7,113 @@ Any code that is in this repo is AI generated as well, the experiment is thus 2-
 
 ## Overview
 
-This project implements an 11-agent team that operates like a real software development team and **generates real, tested code**:
-- **1 Dev Lead** (Qwen2.5-Coder-32B)
-- **1 QA Lead** (Qwen2.5-72B)
-- **1 Product Owner** (Qwen2.5-72B)
-- **6 Developers** (2 senior, 2 mid-level, 2 junior - DeepSeek/Qwen variants)
-- **2 Testers** (Qwen2.5-14B)
+This project implements an 11-agent team (+ 5 language specialists) that operates like a real software development team and **generates real, tested code**:
 
-### Core Principles
+- **1 Dev Lead** + **1 QA Lead** + **1 Product Owner**
+- **6 Developers** (2 senior, 2 mid-level, 2 junior)
+- **2 Testers** (integration + E2E)
+- **5 Language Specialists** (Python, Go, Rust, TypeScript, C++)
 
-- **Sprint 0**: Infrastructure setup before feature development (CI/CD, linters, Docker, K8s)
-- **60-minute sprints** (simulated 2 weeks)
-- **XP practices**: Pair programming, TDD, continuous integration
-- **Kanban workflow** with WIP limits
-- **Clean house policy**: No technical debt beyond 1 sprint
-- **Definition of Done**: All features must be fully tested and production-ready
-- **BDD/DDD**: Behavior-Driven Development with Gherkin scenarios
-- **Real code generation**: Agents use tools to write, test, and commit actual code
-- **Greenfield & Brownfield**: Start fresh or build on existing codebases
-- **GitHub/GitLab integration**: Push code, create PRs, review, and merge
+Agents follow XP practices (pair programming, TDD, CI), use a Kanban board with WIP limits, and generate BDD-driven code through tool use (filesystem, git, bash, pytest). They can target existing codebases (brownfield) or start fresh (greenfield), and optionally push to GitHub/GitLab with automated PR workflows.
 
 ## Quick Start
 
-### Prerequisites
-
-- Kubernetes cluster with GH200 nodes (4 GH200 superchips)
-- Python 3.11+
-- kubectl configured
-- Docker
-
-### Installation
-
 ```bash
-# Clone repository
+# Clone and set up
 git clone https://github.com/witlox/agile-agent-team
 cd agile-agent-team
-
-# Install dependencies
+python3.11 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+pre-commit install
 
-# Deploy infrastructure
-./scripts/deploy-infrastructure.sh
-
-# Initialize team configuration
-./scripts/init-team.sh
-
-# Run qualification tests
-python -m pytest tests/qualification/
-
-# Start experiment
-python src/orchestrator/main.py --sprints 10
-```
-
-## Architecture
-
-### Technology Stack
-
-- **Model Serving**: vLLM on GH200 nodes (offline) OR Anthropic API (online)
-- **Tool-Using Agents**: File operations, git, bash, pytest execution
-- **Orchestration**: Python asyncio-based
-- **State Management**: PostgreSQL + Redis
-- **Code Generation**: BDD/Gherkin → Implementation → Testing → Git commits
-- **Remote Git Integration**: GitHub (gh CLI) / GitLab (glab CLI) for PRs and merges
-- **Workspace Management**: Greenfield (fresh) and brownfield (incremental) modes
-- **Monitoring**: Prometheus + Grafana
-- **Container Platform**: Kubernetes
-
-### Key Components
-
-1. **Orchestrator** (`src/orchestrator/`): Manages sprint lifecycle, time simulation, process enforcement
-2. **Agents** (`src/agents/`): Tool-using agents with compositional profiles (8 layers)
-3. **Runtimes** (`src/agents/runtime/`): VLLMRuntime (offline) + AnthropicRuntime (online)
-4. **Tool System** (`src/tools/agent_tools/`): Filesystem, git, bash, test execution
-5. **Pairing Engines**:
-   - `CodeGenPairingEngine`: BDD-driven real code generation
-   - `PairingEngine`: Dialogue-based (legacy fallback)
-6. **Code Generation** (`src/codegen/`):
-   - `WorkspaceManager`: Per-sprint/story git workspaces
-   - `BDDGenerator`: User stories → Gherkin features
-7. **Shared Context** (`src/tools/shared_context.py`): Database access layer
-8. **Metrics** (`src/metrics/`): Prometheus instrumentation and custom metrics
-
-### Deployment Modes
-
-**Fully Offline (Local vLLM)**
-- All agents use local models
-- XML-based tool calling
-- No internet required
-- Lower cost, full privacy
-
-**Fully Online (Anthropic API)**
-- All agents use Claude API
-- Native tool use
-- Requires ANTHROPIC_API_KEY
-- Higher quality, faster responses
-
-**Hybrid**
-- Mix local and Anthropic per agent
-- Balance cost/quality/latency
-- Example: Seniors use Anthropic, juniors use local
-
-## Team Configuration
-
-### Compositional Agent Profiles (8 Layers)
-
-Each agent's prompt is composed from 8 layers:
-
-1. **Base** (`00_base/base_agent.md`) - Universal agent behavior
-2. **Role Archetype** (`01_role_archetypes/`) - Developer/Tester/Leader traits
-3. **Seniority** (`02_seniority/`) - Junior/Mid/Senior cognitive patterns
-4. **Specializations** (`03_specializations/`) - Domain expertise (networking, backend, etc.)
-5. **Domain Knowledge** (`04_domain_knowledge/`) - Technical depth in specific areas
-6. **Individual Personality** (`05_individuals/`) - Unique communication styles
-7. **Demographics** (configured in YAML) - Pronouns, cultural background
-8. **Meta-Learnings** (`07_meta/meta_learnings.jsonl`) - Dynamic, per-agent retrospective insights
-
-```
-team_config/
-├── 00_base/
-│   └── base_agent.md                 # Layer 1: Common agent behavior
-├── 01_role_archetypes/
-│   ├── developer.md                  # Layer 2: Base developer traits
-│   ├── tester.md                     # Layer 2: Base tester traits
-│   └── leader.md                     # Layer 2: Leadership overlay
-├── 02_seniority/
-│   ├── junior.md                     # Layer 3: Junior patterns
-│   ├── mid.md                        # Layer 3: Mid-level patterns
-│   └── senior.md                     # Layer 3: Senior patterns
-├── 03_specializations/
-│   ├── networking.md                 # Layer 4: Networking expertise
-│   ├── devops.md                     # Layer 4: DevOps expertise
-│   ├── backend.md                    # Layer 4: Backend expertise
-│   └── ...                           # Other specializations
-├── 04_domain_knowledge/
-│   └── (domain-specific knowledge)   # Layer 5: Deep technical content
-├── 05_individuals/
-│   ├── alex_chen.md                  # Layer 6: Individual personalities
-│   ├── priya_sharma.md
-│   └── ...
-├── 06_process_rules/
-│   ├── xp_practices.md               # TDD, pairing, refactoring
-│   ├── kanban_workflow.md            # Flow management
-│   ├── pairing_protocol.md           # Collaboration mechanics
-│   ├── consensus_protocol.md         # Decision escalation
-│   └── artifact_standards.md         # Sprint deliverables
-└── 07_meta/
-    ├── retro_template.md             # Keep/Drop/Puzzle format
-    ├── meta_learnings.jsonl          # Layer 8: Append-only learning log
-    └── team_evolution.md             # Prompt modification rules
-```
-
-### Runtime and Tool Configuration
-
-In `config.yaml`:
-
-```yaml
-runtimes:
-  anthropic:
-    enabled: true
-    api_key_env: "ANTHROPIC_API_KEY"
-    default_model: "claude-sonnet-4-5"
-
-  local_vllm:
-    enabled: true
-    endpoint: "http://vllm-gh200-module-1:8000"
-    tool_use_protocol: "xml"
-
-  tools:
-    workspace_root: "/tmp/agent-workspace"
-    allowed_commands: ["git", "pytest", "python", "pip", ...]
-
-models:
-  agents:
-    alex_senior_networking:
-      individual: alex_chen
-      seniority: senior
-      specializations: [networking, security]
-      role_archetype: developer+leader
-      runtime: "local_vllm"  # or "anthropic"
-      tools: ["filesystem", "git", "bash"]
-      model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
-```
-
-## Running Experiments
-
-### Quick start (no GPU required)
-
-```bash
-# Mock mode — no vLLM or database needed, agents generate real code
+# Run 3 sprints in mock mode (no LLM/GPU/DB required, agents still generate real code)
 MOCK_LLM=true python -m src.orchestrator.main \
   --sprints 3 \
   --output /tmp/test-run \
   --db-url mock://
 
-# Sprint 0: Infrastructure configs in /tmp/agent-workspace/sprint-0/
-# Sprint 1+: Feature code in /tmp/agent-workspace/sprint-01/, sprint-02/, etc.
-```
-
-**Note**: Sprint 0 runs automatically (configurable) to set up CI/CD, linters, Docker, and other infrastructure before feature development. See [docs/SPRINT_ZERO.md](docs/SPRINT_ZERO.md) for details.
-
-### Basic Experiment (With Code Generation)
-
-```bash
-# Run 10 sprints with agents writing real code
-python -m src.orchestrator.main --sprints 10 --output outputs/experiment-001
-
-# View generated code:
+# View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
-```
 
-### Deployment Modes
-
-**1. Fully Offline (No Internet)**
-```yaml
-# config.yaml
-runtimes:
-  local_vllm:
-    enabled: true
-    endpoint: "http://localhost:8000"
-  anthropic:
-    enabled: false
-
-models:
-  agents:
-    all_agents:
-      runtime: "local_vllm"
-```
-
-**2. Fully Online (Anthropic)**
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# config.yaml - set all agents to runtime: "anthropic"
-python -m src.orchestrator.main --sprints 10
-```
-
-**3. Hybrid (Mix)**
-```yaml
-models:
-  agents:
-    # Seniors use Anthropic for quality
-    alex_senior_networking:
-      runtime: "anthropic"
-
-    # Juniors use local for cost
-    jamie_junior_fullstack:
-      runtime: "local_vllm"
-```
-
-### With Disturbances / Profile Swapping
-
-Disturbances and profile-swapping modes are controlled via `config.yaml` (not CLI flags):
-
-```yaml
-disturbances:
-  enabled: true          # flip to false to disable
-
-profile_swapping:
-  mode: "constrained"    # none | constrained | free
-```
-
-Then run as usual:
-
-```bash
-python -m src.orchestrator.main --sprints 20 --output outputs/experiment-002
-```
-
-See **[docs/USAGE.md](docs/USAGE.md)** for the complete usage guide: configuration reference, disturbance types, profile swapping modes, coverage formula, and artifact format.
-
-## Defining Work: From Backlog to Working Software
-
-### Input: User Stories in `backlog.yaml`
-
-Stakeholders define work using standard user stories:
-
-```yaml
-product:
-  name: "TaskFlow Pro"
-  description: "SaaS project management platform"
-
-stories:
-  - id: "US-001"
-    title: "User can create project"
-    description: "As a user, I want to create a new project so that I can organize tasks"
-    acceptance_criteria:
-      - "User can click 'New Project' button"
-      - "Form validates required fields"
-      - "Project appears in project list"
-    story_points: 3
-    priority: 1
-
-    # Optional: Explicit BDD scenarios
-    scenarios:
-      - name: "Create project with valid data"
-        given: "I am logged in"
-        when: "I create a project named 'Marketing Campaign'"
-        then: "I should see 'Marketing Campaign' in my project list"
-```
-
-### Workflow: Sprint Planning → Implementation → QA
-
-1. **PO Selects Stories**: PO agent reads backlog, selects stories for sprint based on priority and capacity
-2. **BDD Generation**: Stories are converted to Gherkin feature files
-3. **Pairing Sessions**: Dev pairs implement features using real tools (filesystem, git, pytest)
-4. **Test-Driven**: Tests run iteratively, code refined until passing
-5. **Git Commits**: Working code committed to feature branches
-6. **QA Review**: QA lead reviews, approves/rejects
-7. **Optional Push**: If remote git enabled, creates PR and merges
-
-### Output: Working, Tested Code
-
-**Greenfield (New Project):**
-```yaml
-# Default: Fresh git workspace per story
-code_generation:
-  workspace_mode: "per_story"
-  repo_config:
-    url: ""  # Empty = create fresh repos
-```
-
-Result: `/tmp/agent-workspace/sprint-01/us-001/` with fresh git repo
-
-**Brownfield (Existing Project):**
-```yaml
-# Clone and build on existing codebase
-code_generation:
-  workspace_mode: "per_sprint"  # Shared workspace for all stories
-  persist_across_sprints: true  # Continue from previous sprint
-  repo_config:
-    url: "https://github.com/your-org/existing-project.git"
-    branch: "main"
-    clone_mode: "incremental"  # Reuse workspace, pull latest
-```
-
-Result: Agents work on actual codebase, create feature branches, build incrementally
-
-**With Remote Git (GitHub/GitLab):**
-```yaml
-remote_git:
-  enabled: true
-  provider: "github"  # or "gitlab"
-  github:
-    token_env: "GITHUB_TOKEN"
-```
-
-Result: Agents push code, create PRs, QA approves via PR reviews, auto-merge to main
-
-## Monitoring
-
-Access Grafana dashboard:
-```bash
-kubectl port-forward svc/grafana 3000:3000
-# Visit http://localhost:3000
-# Default credentials: admin/admin
-```
-
-Key dashboards:
-- **Sprint Overview**: Velocity, quality metrics, cycle time
-- **Team Health**: Pairing activity, consensus time, process compliance
-- **Agent Performance**: Response times, token usage, error rates
-
-## Artifacts
-
-Each sprint produces:
-
-1. **Kanban Board Snapshot** (JSON) - Card states and transitions
-2. **Pairing Log** (JSONL) - Dialogue, decisions, checkpoints
-3. **Retro Notes** (Markdown) - Keep/Drop/Puzzle retrospective
-4. **Meta-Learning Updates** (JSONL) - New learnings added to prompts
-5. **Test Coverage Report** (JSON) - Process-based coverage metrics
-6. **Generated Code** (Git workspaces):
-   ```
-   /tmp/agent-workspace/sprint-01/us-001/
-   ├── features/us-001.feature      # BDD Gherkin scenarios
-   ├── src/implementation.py        # Agent-generated code
-   ├── tests/test_implementation.py # Agent-generated tests
-   └── .git/                        # Git repo with commits on feature branch
-   ```
-7. **Pull Requests** (if remote git enabled):
-   - Created automatically after successful implementation
-   - Approved by QA lead during review phase
-   - Merged to main when card moves to "done"
-   - PR URLs stored in kanban card metadata
-8. **Architectural Decision Records** (ADRs) - Design choices
-
-Artifacts are stored in:
-- Sprint metadata: `outputs/<experiment-id>/sprint-<N>/`
-- Code workspaces: `/tmp/agent-workspace/sprint-<N>/<story-id>/`
-- Remote repositories: GitHub/GitLab (if configured)
-
-## Qualification System
-
-Before running experiments, qualify models for each role:
-
-```bash
-# Qualify all agents (mock mode, no vLLM required)
-./scripts/qualify-all-agents.sh --mock
-
-# Qualify against a live vLLM endpoint
-./scripts/qualify-all-agents.sh --vllm-endpoint http://<host>:8000
-```
-
-Qualification tests:
-- **Technical depth**: Can the model solve domain-specific problems?
-- **Pairing collaboration**: Can it work with partners effectively?
-- **Role-appropriate behavior**: Does it match expected seniority?
-- **Mistake patterns**: Do juniors make realistic mistakes?
-
-## Configuration
-
-Edit `config.yaml` to customize:
-
-```yaml
-experiment:
-  sprint_duration_minutes: 20
-  sprints_per_stakeholder_review: 5
-
-team:
-  wip_limits:
-    in_progress: 4
-    review: 2
-  quality_gates:
-    min_test_coverage_lines: 85
-    min_test_coverage_branches: 80
-
-disturbances:
-  enabled: true
-  frequencies:
-    dependency_breaks: 0.166  # 1 in 6 sprints
-    production_incident: 0.125  # 1 in 8 sprints
-    flaky_test: 0.25  # 1 in 4 sprints
-
-models:
-  vllm_endpoint: "http://vllm-gh200-module-1:8000"
-  agents:
-    dev_lead:
-      model: "Qwen/Qwen2.5-Coder-32B-Instruct"
-      temperature: 0.7
-      max_tokens: 4096
-```
-
-## Development
-
-### Setup
-
-```bash
-pip install -r requirements.txt
-pre-commit install  # Hooks run black, ruff, mypy on every commit
-```
-
-### Running Tests
-
-```bash
-# Unit tests
-pytest tests/unit/
-
-# Integration tests
-pytest tests/integration/
-
-# Qualification tests
-pytest tests/qualification/
-
-# All tests
+# Run tests
 pytest
 ```
 
-### Adding New Agent Profiles
+For deployment with live LLMs (vLLM offline, Anthropic online, or hybrid), see **[docs/USAGE.md](docs/USAGE.md)**.
 
-1. Create profile file in `team_config/02_individuals/`
-2. Define specialization, cognitive patterns, growth arc
-3. Run qualification tests
+## How It Works
 
-The factory autodiscovers profiles via glob — no code registration needed.
+Each sprint (60 minutes wall-clock, simulating 2 weeks) follows this lifecycle:
 
-### Custom Metrics
+1. **Sprint 0** (first run only) — Infrastructure setup: CI/CD, linters, formatters, Docker
+2. **Planning** — PO selects stories from `backlog.yaml`, team breaks them into tasks
+3. **Development** — Pairs implement features using BDD (Gherkin → code → test → commit)
+4. **QA Review** — QA lead approves/rejects; optional PR creation on GitHub/GitLab
+5. **Retrospective** — Keep/Drop/Puzzle analysis, meta-learnings stored per agent
+6. **Disturbances** — Random failures injected (flaky tests, scope creep, incidents)
 
-Add to `src/metrics/custom_metrics.py`:
+Work is defined in `backlog.yaml` as user stories with acceptance criteria and optional BDD scenarios. See **[docs/USAGE.md](docs/USAGE.md)** for the full configuration reference.
 
-```python
-from prometheus_client import Counter
+## Documentation
 
-my_metric = Counter('my_metric_total', 'Description', ['label1'])
-my_metric.labels(label1='value').inc()
-```
+| Document | Description |
+|----------|-------------|
+| **[docs/USAGE.md](docs/USAGE.md)** | Complete usage guide: deployment modes, configuration, remote git, disturbances, profile swapping, artifacts |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System architecture: components, agent composition, runtime system, data flow |
+| **[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)** | Implementation status, test breakdown, current capabilities |
+| **[docs/RESEARCH_QUESTIONS.md](docs/RESEARCH_QUESTIONS.md)** | Research hypotheses, measurement approaches, expected patterns |
+| **[docs/SPRINT_ZERO.md](docs/SPRINT_ZERO.md)** | Sprint 0 multi-language infrastructure setup |
+| **[docs/AGENT_RUNTIMES.md](docs/AGENT_RUNTIMES.md)** | Runtime system design (vLLM, Anthropic, hybrid) |
+| **[docs/META_LEARNING.md](docs/META_LEARNING.md)** | Meta-learning system: JSONL storage, dynamic prompt evolution |
+| **[docs/TEAM_CULTURE.md](docs/TEAM_CULTURE.md)** | Team culture modeling: pairing, git workflow, hiring protocol |
+| **[docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)** | Design decisions and trade-offs |
+| **[CLAUDE.md](CLAUDE.md)** | Development guide for contributors and AI assistants |
+| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Contribution guidelines |
+| **[CHANGELOG.md](CHANGELOG.md)** | Version history and feature tracking |
 
 ## Research Questions
 
-This experiment is designed to explore:
+This experiment explores whether AI agents can form effective collaborative teams. Key hypotheses:
 
-1. **Can LLMs form effective collaborative teams?**
-   - Hypothesis: Dialogue-driven pairing produces better code than solo agents
-   
-2. **Do agent seniority levels create realistic dynamics?**
-   - Hypothesis: Junior agents learn measurably from pairing with seniors
-   
-3. **How does team maturity affect productivity?**
-   - Hypothesis: Velocity increases over first 10 sprints then stabilizes
-   
-4. **Are disturbances handled realistically?**
-   - Hypothesis: Constrained teams surface real organizational issues
-   
-5. **Does profile-swapping break team dynamics?**
-   - Hypothesis: Free swapping increases velocity but reduces learning
+1. **Dialogue-driven pairing** produces better code than solo agents
+2. **Junior agents learn measurably** from pairing with seniors
+3. **Velocity follows a maturity curve** (growth → stabilization)
+4. **Disturbances are handled realistically** under process constraints
+5. **Profile-swapping** increases velocity but reduces learning
 
-## Troubleshooting
+See **[docs/RESEARCH_QUESTIONS.md](docs/RESEARCH_QUESTIONS.md)** for detailed hypotheses, measurement approaches, and expected patterns.
 
-### Models not responding
-```bash
-# Check vLLM health
-kubectl get pods -l app=vllm
-kubectl logs <vllm-pod-name>
+## Project Structure
 
-# Verify model loading
-curl http://<vllm-endpoint>/health
+```
+src/
+├── orchestrator/       # Sprint lifecycle, planning, standups, reviews
+├── agents/             # Agent system, pairing engines, runtimes
+├── codegen/            # Workspace management, BDD generation
+├── tools/              # Kanban, shared context, agent tools
+└── metrics/            # Prometheus metrics
+
+team_config/            # 8-layer compositional agent profiles
+├── 00_base/            # Universal behavior + coding standards
+├── 01_role_archetypes/ # Developer / Tester / Leader
+├── 02_seniority/       # Junior / Mid / Senior patterns
+├── 03_specializations/ # Domain expertise
+├── 04_domain_knowledge/# Deep technical knowledge
+├── 05_individuals/     # Personalities
+├── 06_process_rules/   # XP, Kanban, pairing, git workflow
+└── 07_meta/            # Meta-learnings (JSONL)
+
+tests/                  # 293 tests (unit / integration / qualification)
+config.yaml             # Experiment + runtime + tool configuration
+backlog.yaml            # Product backlog with BDD scenarios
 ```
 
-### Sprints timing out
-- Reduce `max_exchanges` in pairing protocol
-- Increase `sprint_duration_minutes` in config
-- Check agent response time metrics in Grafana
-
-### Pairing consensus failures
-- Review `outputs/<experiment>/sprint-<N>/pairing_log.jsonl`
-- Check if agents are actually disagreeing or timing out
-- Adjust consensus detection threshold
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and feature tracking.
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full component deep dive.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE)
 
 ## Citation
 
