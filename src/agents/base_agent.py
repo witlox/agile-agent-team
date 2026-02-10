@@ -31,6 +31,9 @@ class AgentConfig:
         default_factory=list
     )  # Combined list (backward compat)
     role_archetype: str = ""  # developer | tester | leader
+    team_type: str = ""  # stream_aligned | platform | enabling | complicated_subsystem
+    team_id: str = ""  # Multi-team: which team this agent belongs to
+    original_team_id: str = ""  # Tracks home team during cross-team borrows
     demographics: Dict[str, str] = field(
         default_factory=dict
     )  # pronouns, cultural_background, etc.
@@ -278,6 +281,7 @@ class BaseAgent:
         Composition order:
         1. 00_base/base_agent.md (universal)
         2. 01_role_archetypes/{developer,tester,leader}.md
+        2b. 00_base/team_types/{stream_aligned,platform,enabling,complicated_subsystem}.md
         3. 02_seniority/{junior,mid,senior}.md
         3b. A-candidate language proficiency baseline
         4. 03_specializations/ (primary at full seniority, aux downclassed)
@@ -314,6 +318,17 @@ class BaseAgent:
                 )
                 if arch_path.exists():
                     parts.append(arch_path.read_text())
+
+        # 2b. Team type (Team Topologies)
+        if self.config.team_type:
+            team_type_path = (
+                team_config_dir
+                / "00_base"
+                / "team_types"
+                / f"{self.config.team_type}.md"
+            )
+            if team_type_path.exists():
+                parts.append(team_type_path.read_text())
 
         # 3. Seniority level
         if self.config.seniority:

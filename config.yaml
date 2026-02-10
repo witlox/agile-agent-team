@@ -39,6 +39,7 @@ stakeholder_review:
 
 team:
   config_dir: "team_config"
+  # team_type: "stream_aligned"  # Optional: stream_aligned | platform | enabling | complicated_subsystem
 
   # Team size constraints
   max_engineers: 10  # Excluding testers - quality over quantity
@@ -206,6 +207,9 @@ code_generation:
 
 # Agent definitions using new compositional structure
 # Each agent = individual personality + seniority + specialization(s) + role archetype
+# Per-agent team_type override (takes precedence over team-level default):
+#   agent_name:
+#     team_type: "platform"
 #
 # Team Structure:
 # - Core Team: 11 agents (permanent team members)

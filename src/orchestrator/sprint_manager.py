@@ -5,7 +5,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..agents.base_agent import BaseAgent
 from ..agents.messaging import MessageBus, create_message_bus
@@ -40,15 +40,21 @@ class SprintManager:
         config: "ExperimentConfig",
         output_dir: Path,
         backlog: Optional[Backlog] = None,
+        team_id: str = "",
+        message_bus: Optional[MessageBus] = None,
+        mid_sprint_callback: Optional[Any] = None,
     ):
         self.agents = agents
         self.db = shared_db
         self.config = config
         self.output_dir = output_dir
         self.backlog = backlog
+        self.team_id = team_id
+        self._mid_sprint_callback = mid_sprint_callback
         self.kanban = KanbanBoard(
             shared_db,
             wip_limits=getattr(config, "wip_limits", {"in_progress": 4, "review": 2}),
+            team_id=team_id,
         )
 
         # Setup workspace manager for code generation
@@ -96,18 +102,21 @@ class SprintManager:
         self.metrics = SprintMetrics()
         self._sprint_results: List[Dict] = []
 
-        # Message bus for peer-to-peer agent communication
-        self.message_bus: MessageBus = create_message_bus(
-            {
-                "backend": getattr(config, "messaging_backend", "asyncio"),
-                "redis_url": getattr(
-                    config, "messaging_redis_url", "redis://localhost:6379"
-                ),
-                "history_size": getattr(config, "messaging_history_size", 1000),
-            }
-        )
-        for agent in agents:
-            agent.attach_message_bus(self.message_bus)
+        # Message bus: use provided bus (multi-team) or create a new one (single-team)
+        if message_bus is not None:
+            self.message_bus: MessageBus = message_bus
+        else:
+            self.message_bus = create_message_bus(
+                {
+                    "backend": getattr(config, "messaging_backend", "asyncio"),
+                    "redis_url": getattr(
+                        config, "messaging_redis_url", "redis://localhost:6379"
+                    ),
+                    "history_size": getattr(config, "messaging_history_size", 1000),
+                }
+            )
+            for agent in agents:
+                agent.attach_message_bus(self.message_bus)
 
         # Agile ceremony managers
         po = self._agent("po")
@@ -163,8 +172,14 @@ class SprintManager:
         )
 
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
-        """Find an agent by role_id."""
-        return next((a for a in self.agents if a.config.role_id == role_id), None)
+        """Find an agent by role_id (exact match first, then suffix match)."""
+        exact = next((a for a in self.agents if a.config.role_id == role_id), None)
+        if exact:
+            return exact
+        return next(
+            (a for a in self.agents if a.config.role_id.endswith(f"_{role_id}")),
+            None,
+        )
 
     def _agents_have_runtimes(self) -> bool:
         """Check if any agent has a runtime configured."""
@@ -234,6 +249,10 @@ class SprintManager:
         print("  Development...")
         await self.run_development(sprint_num)
 
+        # Mid-sprint coordination callback (between dev and QA)
+        if self._mid_sprint_callback is not None:
+            await self._mid_sprint_callback(sprint_num)
+
         print("  QA review...")
         await self.run_qa_review(sprint_num)
 
@@ -259,7 +278,7 @@ class SprintManager:
         self._decay_swaps(sprint_num)
 
         result = await self.metrics.calculate_sprint_results(
-            sprint_num, self.db, self.kanban
+            sprint_num, self.db, self.kanban, team_id=self.team_id
         )
         self._sprint_results.append(
             {
@@ -276,7 +295,9 @@ class SprintManager:
         # Update Prometheus metrics
         try:
             sessions = await self.db.get_pairing_sessions_for_sprint(sprint_num)
-            update_sprint_metrics(result, session_details=sessions)
+            update_sprint_metrics(
+                result, session_details=sessions, team_id=self.team_id
+            )
         except Exception:
             pass  # metrics server may not be running in all environments
 
@@ -337,7 +358,7 @@ class SprintManager:
         await self.generate_sprint_artifacts(sprint_num, sprint_output, retro_data)
 
         result = await self.metrics.calculate_sprint_results(
-            sprint_num, self.db, self.kanban
+            sprint_num, self.db, self.kanban, team_id=self.team_id
         )
 
         # Add CI validation status to result
@@ -359,7 +380,9 @@ class SprintManager:
         # Update Prometheus metrics
         try:
             sessions = await self.db.get_pairing_sessions_for_sprint(sprint_num)
-            update_sprint_metrics(result, session_details=sessions)
+            update_sprint_metrics(
+                result, session_details=sessions, team_id=self.team_id
+            )
         except Exception:
             pass
 

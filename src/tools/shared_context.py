@@ -157,6 +157,25 @@ class SharedContextDB:
             )
             return [dict(r) for r in rows]
 
+    async def get_cards_by_status_for_team(
+        self, status: str, team_id: str
+    ) -> List[Dict]:
+        """Return cards matching status AND team_id."""
+        if self._mock_mode:
+            return [
+                c
+                for c in self._cards
+                if c.get("status") == status and c.get("team_id", "") == team_id
+            ]
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM kanban_cards WHERE status = $1 AND "
+                "COALESCE(team_id, '') = $2 ORDER BY id",
+                status,
+                team_id,
+            )
+            return [dict(r) for r in rows]
+
     async def get_wip_count(self, status: str) -> int:
         """Return the number of cards currently in the given status column."""
         if self._mock_mode:
@@ -164,6 +183,23 @@ class SharedContextDB:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT COUNT(*) AS cnt FROM kanban_cards WHERE status = $1", status
+            )
+            return row["cnt"]
+
+    async def get_wip_count_for_team(self, status: str, team_id: str) -> int:
+        """Return WIP count for a specific team."""
+        if self._mock_mode:
+            return sum(
+                1
+                for c in self._cards
+                if c.get("status") == status and c.get("team_id", "") == team_id
+            )
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) AS cnt FROM kanban_cards WHERE status = $1 AND "
+                "COALESCE(team_id, '') = $2",
+                status,
+                team_id,
             )
             return row["cnt"]
 
@@ -352,6 +388,39 @@ class SharedContextDB:
             else:
                 rows = await conn.fetch(
                     "SELECT * FROM stakeholder_feedback ORDER BY id"
+                )
+            return [dict(r) for r in rows]
+
+    async def get_cards_with_dependency(self, team_id: str = "") -> List[Dict]:
+        """Return cards that have depends_on_team in metadata."""
+        if self._mock_mode:
+            result: List[Dict] = []
+            for c in self._cards:
+                meta = c.get("metadata")
+                if meta is None:
+                    continue
+                if isinstance(meta, str):
+                    try:
+                        meta = json.loads(meta)
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+                if isinstance(meta, dict) and meta.get("depends_on_team"):
+                    if team_id and c.get("team_id", "") != team_id:
+                        continue
+                    result.append(c)
+            return result
+        async with self.pool.acquire() as conn:
+            if team_id:
+                rows = await conn.fetch(
+                    "SELECT * FROM kanban_cards WHERE "
+                    "metadata->>'depends_on_team' IS NOT NULL AND "
+                    "COALESCE(team_id, '') = $1 ORDER BY id",
+                    team_id,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT * FROM kanban_cards WHERE "
+                    "metadata->>'depends_on_team' IS NOT NULL ORDER BY id"
                 )
             return [dict(r) for r in rows]
 

@@ -8,6 +8,31 @@ from typing import Any, Dict, List, Optional
 
 
 @dataclass
+class TeamConfig:
+    """Per-team configuration within a multi-team experiment."""
+
+    id: str
+    name: str = ""
+    team_type: str = ""
+    agent_ids: List[str] = field(default_factory=list)
+    backlog_path: str = ""
+    wip_limits: Optional[Dict[str, int]] = None
+
+
+@dataclass
+class CoordinationConfig:
+    """Cross-team coordination settings."""
+
+    enabled: bool = False
+    full_loop_cadence: int = 1  # Every N sprints
+    mid_sprint_checkin: bool = True
+    max_borrows_per_sprint: int = 2
+    borrow_duration_sprints: int = 1
+    dependency_tracking: bool = True
+    coordinator_agent_ids: List[str] = field(default_factory=list)
+
+
+@dataclass
 class ExperimentConfig:
     name: str = ""
     sprint_duration_minutes: int = 60  # Wall-clock minutes per sprint (recommended: 60)
@@ -67,11 +92,17 @@ class ExperimentConfig:
     # Domain research configuration (PO reads context docs + web search)
     domain_research_enabled: bool = False
     domain_research_config: Dict[str, Any] = field(default_factory=dict)
+    # Team Topologies
+    team_type: str = ""  # stream_aligned | platform | enabling | complicated_subsystem
     # Messaging / message bus configuration
     messaging_backend: str = "asyncio"  # "asyncio" or "redis"
     messaging_redis_url: str = "redis://localhost:6379"
     messaging_history_size: int = 1000
     messaging_log_messages: bool = False
+    # Multi-team configuration
+    teams: List[TeamConfig] = field(default_factory=list)
+    # Cross-team coordination
+    coordination: CoordinationConfig = field(default_factory=CoordinationConfig)
 
 
 def load_config(
@@ -201,6 +232,11 @@ def load_config(
             tester_pairing_enabled = tester_pairing.get("enabled", True)
             tester_pairing_frequency = tester_pairing.get("frequency", 0.20)
 
+    # Team Topologies
+    team_type = ""
+    if "team" in data:
+        team_type = data["team"].get("team_type", "")
+
     # Remote git configuration
     remote_git_enabled = False
     remote_git_provider = "github"
@@ -256,6 +292,83 @@ def load_config(
             **domain_research_config,
         }
 
+    # Multi-team configuration
+    teams: List[TeamConfig] = []
+    if "teams" in data:
+        for td in data["teams"]:
+            teams.append(
+                TeamConfig(
+                    id=td["id"],
+                    name=td.get("name", td["id"]),
+                    team_type=td.get("team_type", team_type),
+                    agent_ids=list(td.get("agents", [])),
+                    backlog_path=td.get("backlog", ""),
+                    wip_limits=td.get("wip_limits"),
+                )
+            )
+
+        # Validation: all agent_ids must exist in models.agents
+        for tc in teams:
+            for aid in tc.agent_ids:
+                if aid not in agent_configs:
+                    raise ValueError(
+                        f"Team '{tc.id}' references unknown agent '{aid}'. "
+                        f"Available agents: {sorted(agent_configs.keys())}"
+                    )
+
+        # Validation: no agent in more than one team
+        seen_agents: Dict[str, str] = {}
+        for tc in teams:
+            for aid in tc.agent_ids:
+                if aid in seen_agents:
+                    raise ValueError(
+                        f"Agent '{aid}' is assigned to both team "
+                        f"'{seen_agents[aid]}' and '{tc.id}'. "
+                        "Each agent can belong to at most one team."
+                    )
+                seen_agents[aid] = tc.id
+
+        # Validation: 2-7 teams
+        if len(teams) < 2:
+            raise ValueError(f"Multi-team mode requires 2-7 teams, got {len(teams)}.")
+        if len(teams) > 7:
+            raise ValueError(
+                f"Multi-team mode supports at most 7 teams, got {len(teams)}."
+            )
+
+    # Cross-team coordination configuration
+    coordination = CoordinationConfig()
+    if "coordination" in data:
+        cc = data["coordination"]
+        coordination = CoordinationConfig(
+            enabled=cc.get("enabled", False),
+            full_loop_cadence=int(cc.get("full_loop_cadence", 1)),
+            mid_sprint_checkin=cc.get("mid_sprint_checkin", True),
+            max_borrows_per_sprint=int(cc.get("max_borrows_per_sprint", 2)),
+            borrow_duration_sprints=int(cc.get("borrow_duration_sprints", 1)),
+            dependency_tracking=cc.get("dependency_tracking", True),
+            coordinator_agent_ids=list(cc.get("coordinators", [])),
+        )
+
+        # Validation: all coordinator agent_ids must exist in models.agents
+        for cid in coordination.coordinator_agent_ids:
+            if cid not in agent_configs:
+                raise ValueError(
+                    f"Coordinator '{cid}' not found in models.agents. "
+                    f"Available agents: {sorted(agent_configs.keys())}"
+                )
+
+        # Validation: coordinators must NOT be assigned to any team
+        team_agent_ids: set = set()
+        for tc in teams:
+            team_agent_ids.update(tc.agent_ids)
+        for cid in coordination.coordinator_agent_ids:
+            if cid in team_agent_ids:
+                raise ValueError(
+                    f"Coordinator '{cid}' is assigned to a team. "
+                    "Coordinators must not belong to any team."
+                )
+
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
     resolved_db_url = (
         database_url or os.environ.get("DATABASE_URL") or data["database"]["url"]
@@ -306,8 +419,11 @@ def load_config(
         sprint_zero_enabled=sprint_zero_enabled,
         domain_research_enabled=domain_research_enabled,
         domain_research_config=domain_research_config,
+        team_type=team_type,
         messaging_backend=messaging_backend,
         messaging_redis_url=messaging_redis_url,
         messaging_history_size=messaging_history_size,
         messaging_log_messages=messaging_log_messages,
+        teams=teams,
+        coordination=coordination,
     )

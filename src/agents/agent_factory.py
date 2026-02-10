@@ -22,12 +22,14 @@ class AgentFactory:
         agent_model_configs: Optional[Dict[str, Dict]] = None,
         runtime_configs: Optional[Dict[str, Dict]] = None,
         runtime_mode_override: Optional[str] = None,
+        team_type: str = "",
     ):
         self.config_dir = config_dir
         self.vllm_endpoint = vllm_endpoint
         self.agent_model_configs: Dict[str, Dict] = agent_model_configs or {}
         self.runtime_configs: Dict[str, Dict] = runtime_configs or {}
         self.runtime_mode_override = runtime_mode_override
+        self.default_team_type = team_type
 
     async def create_all_agents(self) -> List[BaseAgent]:
         """Load all agent configurations and create instances with runtimes."""
@@ -163,6 +165,8 @@ class AgentFactory:
             auxiliary_specializations=aux_specs,
             specializations=all_specs,
             role_archetype=agent_cfg.get("role_archetype", "developer"),
+            team_type=agent_cfg.get("team_type", self.default_team_type),
+            team_id=agent_cfg.get("team_id", ""),
             demographics=agent_cfg.get("demographics", {}),
             model=agent_cfg.get("model", _DEFAULT_MODEL),
             temperature=float(agent_cfg.get("temperature", _DEFAULT_TEMPERATURE)),

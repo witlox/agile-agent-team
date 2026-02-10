@@ -1,0 +1,68 @@
+# Portfolio Backlog — shared across teams
+# Stories are distributed round-robin to teams without own backlogs.
+
+product:
+  name: "Multi-Team Demo App"
+  description: "A demonstration of multi-team orchestration with stream-aligned and platform teams."
+  languages: ["python"]
+  tech_stack: ["flask", "pytest"]
+  mission: "Demonstrate concurrent team execution with portfolio backlog distribution."
+  vision: "Multiple autonomous teams collaborating on a shared product."
+  goals:
+    - "Validate concurrent sprint execution"
+    - "Test portfolio story distribution"
+    - "Verify team-scoped kanban boards"
+
+stories:
+  - id: "US-001"
+    title: "User registration API"
+    description: "Implement user registration endpoint with email validation."
+    priority: 1
+    story_points: 5
+    acceptance_criteria:
+      - "POST /api/register accepts email and password"
+      - "Returns 201 on success"
+      - "Returns 400 on invalid email"
+
+  - id: "US-002"
+    title: "User login API"
+    description: "Implement user login endpoint with JWT tokens."
+    priority: 2
+    story_points: 5
+    acceptance_criteria:
+      - "POST /api/login returns JWT token"
+      - "Returns 401 on invalid credentials"
+
+  - id: "US-003"
+    title: "Health check endpoint"
+    description: "Add /health endpoint for monitoring."
+    priority: 3
+    story_points: 2
+    acceptance_criteria:
+      - "GET /health returns 200 with status"
+
+  - id: "US-004"
+    title: "Logging middleware"
+    description: "Add structured logging to all API endpoints."
+    priority: 4
+    story_points: 3
+    acceptance_criteria:
+      - "All requests are logged with timestamp and status"
+
+  - id: "US-005"
+    title: "Rate limiting"
+    description: "Implement rate limiting for API endpoints."
+    priority: 5
+    story_points: 5
+    acceptance_criteria:
+      - "Configurable rate limits per endpoint"
+      - "Returns 429 when limit exceeded"
+
+  - id: "US-006"
+    title: "Database connection pooling"
+    description: "Implement connection pool for PostgreSQL."
+    priority: 6
+    story_points: 3
+    acceptance_criteria:
+      - "Connection pool with configurable size"
+      - "Graceful handling of pool exhaustion"

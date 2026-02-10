@@ -43,6 +43,23 @@ class Backlog:
         self.data: Dict = {}  # Store full data for metadata access
         self._load()
 
+    @classmethod
+    def from_stories(
+        cls,
+        stories: List[Dict],
+        product_name: str = "",
+        product_description: str = "",
+    ) -> "Backlog":
+        """Create a Backlog from a list of story dicts (no file needed)."""
+        instance = cls.__new__(cls)
+        instance.product_name = product_name
+        instance.product_description = product_description
+        instance._stories = list(stories)
+        instance._selected_ids = set()
+        instance.data = {}
+        instance.backlog_path = Path("")
+        return instance
+
     def _load(self):
         """Parse backlog YAML file."""
         with open(self.backlog_path) as f:

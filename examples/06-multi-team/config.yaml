@@ -1,0 +1,202 @@
+# Multi-Team Experiment — 2 teams (stream-aligned + platform)
+# Run: MOCK_LLM=true python -m src.orchestrator.main \
+#        --config examples/06-multi-team/config.yaml \
+#        --backlog examples/06-multi-team/backlog.yaml \
+#        --sprints 2 --output /tmp/multi-team-test --db-url mock://
+
+experiment:
+  name: "multi-team-demo"
+  sprint_duration_minutes: 30
+  num_simulated_days: 3
+
+team:
+  config_dir: "team_config"
+
+  wip_limits:
+    in_progress: 4
+    review: 2
+
+# ---------------------------------------------------------------------------
+# Multi-team configuration
+# ---------------------------------------------------------------------------
+teams:
+  - id: "checkout-stream"
+    name: "Checkout Stream Team"
+    team_type: "stream_aligned"
+    agents:
+      - alex_senior_networking
+      - marcus_mid_backend
+      - jamie_junior_fullstack
+      - sophie_senior_qa_lead
+      - ahmed_senior_dev_lead
+      - alex_senior_po
+    wip_limits:
+      in_progress: 3
+      review: 1
+
+  - id: "platform-team"
+    name: "Platform Team"
+    team_type: "platform"
+    agents:
+      - priya_senior_devops
+      - elena_mid_frontend
+      - jordan_junior_backend
+      - yuki_senior_tester_integration
+      - maria_mid_tester_e2e
+
+models:
+  vllm_endpoint: "mock://"
+
+  agents:
+    # --- Checkout Stream Team ---
+    alex_senior_networking:
+      name: "Alex Chen (Senior Networking)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: networking
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+
+    marcus_mid_backend:
+      name: "Marcus Okafor (Mid Backend)"
+      individual: marcus_okafor
+      seniority: mid
+      primary_specialization: backend
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+
+    jamie_junior_fullstack:
+      name: "Jamie Rodriguez (Junior Fullstack)"
+      individual: jamie_rodriguez
+      seniority: junior
+      primary_specialization: backend
+      role_archetype: developer
+      demographics:
+        pronouns: "they/them"
+
+    sophie_senior_qa_lead:
+      name: "Sophie Dubois (QA Lead)"
+      individual: sophie_dubois
+      seniority: senior
+      primary_specialization: quality_engineering
+      role_archetype: tester+leader
+      demographics:
+        pronouns: "she/her"
+
+    ahmed_senior_dev_lead:
+      name: "Ahmed Hassan (Dev Lead)"
+      individual: ahmed_hassan
+      seniority: senior
+      primary_specialization: backend
+      role_archetype: developer+leader
+      demographics:
+        pronouns: "he/him"
+
+    alex_senior_po:
+      name: "Alex Chen (Product Owner)"
+      individual: alex_chen
+      seniority: senior
+      primary_specialization: api_design
+      role_archetype: leader
+      demographics:
+        pronouns: "he/him"
+
+    # --- Platform Team ---
+    priya_senior_devops:
+      name: "Priya Sharma (Senior DevOps)"
+      individual: priya_sharma
+      seniority: senior
+      primary_specialization: devops
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+
+    elena_mid_frontend:
+      name: "Elena Volkov (Mid Frontend)"
+      individual: elena_volkov
+      seniority: mid
+      primary_specialization: frontend
+      role_archetype: developer
+      demographics:
+        pronouns: "she/her"
+
+    jordan_junior_backend:
+      name: "Jordan Kim (Junior Backend)"
+      individual: jordan_kim
+      seniority: junior
+      primary_specialization: backend
+      role_archetype: developer
+      demographics:
+        pronouns: "he/him"
+
+    yuki_senior_tester_integration:
+      name: "Yuki Tanaka (Senior Integration Tester)"
+      individual: yuki_tanaka
+      seniority: senior
+      primary_specialization: test_automation
+      role_archetype: tester
+      demographics:
+        pronouns: "they/them"
+
+    maria_mid_tester_e2e:
+      name: "Maria Santos (Mid E2E Tester)"
+      individual: maria_santos
+      seniority: mid
+      primary_specialization: test_automation
+      role_archetype: tester
+      demographics:
+        pronouns: "she/her"
+
+    # --- Coordinators (NOT assigned to any team) ---
+    staff_engineer_01:
+      name: "Staff Engineer Coordinator"
+      individual: coordinator_staff_engineer
+      seniority: senior
+      primary_specialization: backend
+      role_archetype: staff_engineer
+      demographics:
+        pronouns: "they/them"
+
+    enablement_lead_01:
+      name: "Enablement Lead Coordinator"
+      individual: coordinator_enablement_lead
+      seniority: senior
+      primary_specialization: backend
+      role_archetype: enablement_lead
+      demographics:
+        pronouns: "they/them"
+
+# ---------------------------------------------------------------------------
+# Cross-team coordination
+# ---------------------------------------------------------------------------
+coordination:
+  enabled: true
+  full_loop_cadence: 1
+  mid_sprint_checkin: true
+  max_borrows_per_sprint: 2
+  borrow_duration_sprints: 1
+  dependency_tracking: true
+  coordinators:
+    - staff_engineer_01
+    - enablement_lead_01
+
+database:
+  url: "mock://"
+
+stakeholder_review:
+  cadence: 3
+  timeout_minutes: 60
+  timeout_action: "auto_approve"
+  webhook:
+    enabled: false
+
+sprint_zero:
+  enabled: false
+
+disturbances:
+  enabled: false
+
+profile_swapping:
+  mode: "none"

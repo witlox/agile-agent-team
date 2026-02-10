@@ -6,9 +6,11 @@ from datetime import datetime
 from pathlib import Path
 
 from .sprint_manager import SprintManager
+from .multi_team import MultiTeamOrchestrator
 from .config import load_config
 from .backlog import Backlog
 from ..agents.agent_factory import AgentFactory
+from ..agents.messaging import create_message_bus
 from ..tools.shared_context import SharedContextDB
 from ..metrics.prometheus_exporter import start_metrics_server
 
@@ -39,6 +41,7 @@ async def run_experiment(
         config.vllm_endpoint,
         agent_model_configs=config.agent_configs,
         runtime_configs=config.runtime_configs,
+        team_type=config.team_type,
     )
     agents = await factory.create_all_agents()
 
@@ -55,50 +58,133 @@ async def run_experiment(
     else:
         print(f"No backlog file found at {bp}; using generated tasks")
 
-    sprint_mgr = SprintManager(
-        agents=agents,
-        shared_db=db,
-        config=config,
-        output_dir=Path(output_dir),
-        backlog=backlog,
-    )
+    if config.teams:
+        # ------------------------------------------------------------------
+        # Multi-team mode
+        # ------------------------------------------------------------------
+        print(f"\nMulti-team mode: {len(config.teams)} teams")
+        for tc in config.teams:
+            print(f"  - {tc.id}: {tc.name} ({len(tc.agent_ids)} agents)")
 
-    # Determine sprint range based on sprint_zero_enabled
-    start_sprint = 0 if config.sprint_zero_enabled else 1
-    end_sprint = num_sprints if config.sprint_zero_enabled else num_sprints
-
-    for sprint_num in range(start_sprint, end_sprint + 1):
-        sprint_label = (
-            "SPRINT 0 (Infrastructure)" if sprint_num == 0 else f"SPRINT {sprint_num}"
+        message_bus = create_message_bus(
+            {
+                "backend": getattr(config, "messaging_backend", "asyncio"),
+                "redis_url": getattr(
+                    config, "messaging_redis_url", "redis://localhost:6379"
+                ),
+                "history_size": getattr(config, "messaging_history_size", 1000),
+            }
         )
-        print(f"\n{'='*60}")
-        print(f"{sprint_label}  [{datetime.now().strftime('%H:%M:%S')}]")
-        print(f"{'='*60}")
 
-        result = await sprint_mgr.run_sprint(sprint_num)
-
-        # Sprint 0 specific reporting
-        if sprint_num == 0:
-            ci_validated = getattr(result, "ci_validated", True)
-            if ci_validated:
-                print("  ✓ Sprint 0 complete: Infrastructure validated")
-            else:
-                print("  ✗ Sprint 0 incomplete: CI validation failed")
+        # Separate coordinator agents from team agents when coordination enabled
+        coordinator_ids = set(config.coordination.coordinator_agent_ids)
+        if coordinator_ids:
+            team_agents = [a for a in agents if a.agent_id not in coordinator_ids]
+            coordinators = [a for a in agents if a.agent_id in coordinator_ids]
+            print(f"  Coordinators: {[c.agent_id for c in coordinators]}")
         else:
-            print(
-                f"  velocity={result.velocity}pts  "
-                f"done={result.features_completed}  "
-                f"sessions={result.pairing_sessions}"
-            )
+            team_agents = agents
+            coordinators = []
 
-        review_cadence = (
-            config.stakeholder_review_cadence or config.sprints_per_stakeholder_review
+        for agent in agents:
+            agent.attach_message_bus(message_bus)
+
+        orchestrator = MultiTeamOrchestrator(
+            team_configs=config.teams,
+            all_agents=team_agents,
+            shared_db=db,
+            experiment_config=config,
+            portfolio_backlog=backlog,
+            message_bus=message_bus,
+            output_dir=Path(output_dir),
         )
-        if sprint_num > 0 and sprint_num % review_cadence == 0:
-            await sprint_mgr.stakeholder_review(sprint_num)
+        await orchestrator.setup_teams()
 
-    await sprint_mgr.generate_final_report()
-    print(f"\nExperiment complete. Output: {output_dir}")
+        # Set up cross-team coordination if configured
+        if config.coordination.enabled and coordinators:
+            await orchestrator.setup_coordination(coordinators, config.coordination)
+
+        start_sprint = 0 if config.sprint_zero_enabled else 1
+        end_sprint = num_sprints if config.sprint_zero_enabled else num_sprints
+
+        for sprint_num in range(start_sprint, end_sprint + 1):
+            sprint_label = (
+                "SPRINT 0 (Infrastructure)"
+                if sprint_num == 0
+                else f"SPRINT {sprint_num}"
+            )
+            print(f"\n{'='*60}")
+            print(f"{sprint_label}  [{datetime.now().strftime('%H:%M:%S')}]")
+            print(f"{'='*60}")
+
+            team_results = await orchestrator.run_sprint(sprint_num)
+            for team_id, result in team_results.items():
+                print(
+                    f"  [{team_id}] velocity={result.velocity}pts "
+                    f"done={result.features_completed}"
+                )
+
+            review_cadence = (
+                config.stakeholder_review_cadence
+                or config.sprints_per_stakeholder_review
+            )
+            if sprint_num > 0 and sprint_num % review_cadence == 0:
+                await orchestrator.stakeholder_review(sprint_num)
+
+        await orchestrator.generate_final_report()
+        print(f"\nExperiment complete (multi-team). Output: {output_dir}")
+
+    else:
+        # ------------------------------------------------------------------
+        # Single-team mode (existing behavior, unchanged)
+        # ------------------------------------------------------------------
+        sprint_mgr = SprintManager(
+            agents=agents,
+            shared_db=db,
+            config=config,
+            output_dir=Path(output_dir),
+            backlog=backlog,
+        )
+
+        # Determine sprint range based on sprint_zero_enabled
+        start_sprint = 0 if config.sprint_zero_enabled else 1
+        end_sprint = num_sprints if config.sprint_zero_enabled else num_sprints
+
+        for sprint_num in range(start_sprint, end_sprint + 1):
+            sprint_label = (
+                "SPRINT 0 (Infrastructure)"
+                if sprint_num == 0
+                else f"SPRINT {sprint_num}"
+            )
+            print(f"\n{'='*60}")
+            print(f"{sprint_label}  [{datetime.now().strftime('%H:%M:%S')}]")
+            print(f"{'='*60}")
+
+            result = await sprint_mgr.run_sprint(sprint_num)
+
+            # Sprint 0 specific reporting
+            if sprint_num == 0:
+                ci_validated = getattr(result, "ci_validated", True)
+                if ci_validated:
+                    print("  ✓ Sprint 0 complete: Infrastructure validated")
+                else:
+                    print("  ✗ Sprint 0 incomplete: CI validation failed")
+            else:
+                print(
+                    f"  velocity={result.velocity}pts  "
+                    f"done={result.features_completed}  "
+                    f"sessions={result.pairing_sessions}"
+                )
+
+            review_cadence = (
+                config.stakeholder_review_cadence
+                or config.sprints_per_stakeholder_review
+            )
+            if sprint_num > 0 and sprint_num % review_cadence == 0:
+                await sprint_mgr.stakeholder_review(sprint_num)
+
+        await sprint_mgr.generate_final_report()
+        print(f"\nExperiment complete. Output: {output_dir}")
 
 
 def main() -> None:

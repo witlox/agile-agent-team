@@ -23,15 +23,22 @@ class SprintMetrics:
     """Calculates per-sprint metrics from the shared database."""
 
     async def calculate_sprint_results(
-        self, sprint_num: int, db: "SharedContextDB", kanban: "KanbanBoard"
+        self,
+        sprint_num: int,
+        db: "SharedContextDB",
+        kanban: "KanbanBoard",
+        team_id: str = "",
     ) -> SprintResult:
         """Calculate all metrics for a sprint.
 
         Queries the database for completed cards (velocity),
         pairing session count, and average cycle time.
         """
-        # Completed cards this sprint
-        all_done = await db.get_cards_by_status("done")
+        # Completed cards this sprint (team-scoped when applicable)
+        if team_id:
+            all_done = await db.get_cards_by_status_for_team("done", team_id)
+        else:
+            all_done = await db.get_cards_by_status("done")
         sprint_done = [c for c in all_done if c.get("sprint") == sprint_num]
         velocity = sum(c.get("story_points", 1) for c in sprint_done)
         features_completed = len(sprint_done)
