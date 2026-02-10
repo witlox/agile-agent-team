@@ -299,8 +299,8 @@ models:
       name: "Sophie Dubois (QA Lead)"
       individual: sophie_dubois
       seniority: senior
-      primary_specialization: test_automation
-      auxiliary_specializations: [performance_optimization]
+      primary_specialization: quality_engineering
+      auxiliary_specializations: [test_automation]
       role_archetype: tester+leader
       demographics:
         pronouns: "she/her"
