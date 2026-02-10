@@ -9,6 +9,7 @@ from .sprint_manager import SprintManager
 from .multi_team import MultiTeamOrchestrator
 from .config import load_config
 from .backlog import Backlog
+from .overhead_budget import OverheadBudgetTracker
 from ..agents.agent_factory import AgentFactory
 from ..agents.messaging import create_message_bus
 from ..tools.shared_context import SharedContextDB
@@ -103,6 +104,32 @@ async def run_experiment(
         # Set up cross-team coordination if configured
         if config.coordination.enabled and coordinators:
             await orchestrator.setup_coordination(coordinators, config.coordination)
+
+            # Create overhead budget tracker and run iteration 0
+            ob = config.coordination.overhead_budget
+            total_budget_minutes = (
+                config.sprint_duration_minutes * num_sprints * ob.overhead_budget_pct
+            )
+            tracker = OverheadBudgetTracker(
+                total_budget_minutes=total_budget_minutes,
+                iteration_zero_share=ob.iteration_zero_share,
+                step_weights={
+                    "coordination": ob.coordination_step_weight,
+                    "distribution": ob.distribution_step_weight,
+                    "checkin": ob.checkin_step_weight,
+                },
+                num_sprints=num_sprints,
+                min_step_timeout_seconds=ob.min_step_timeout_seconds,
+            )
+            orchestrator.set_budget_tracker(tracker)
+
+            print(
+                f"\n  Overhead budget: {total_budget_minutes:.1f} min "
+                f"({ob.overhead_budget_pct:.0%} of "
+                f"{config.sprint_duration_minutes * num_sprints} min)"
+            )
+            print("  Running iteration 0 (initial portfolio setup)...")
+            await orchestrator.run_iteration_zero()
 
         start_sprint = 0 if config.sprint_zero_enabled else 1
         end_sprint = num_sprints if config.sprint_zero_enabled else num_sprints

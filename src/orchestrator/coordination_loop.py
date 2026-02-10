@@ -1,6 +1,7 @@
 """Cross-team coordination loop — evaluates health, dependencies, borrows."""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -102,22 +103,24 @@ class CoordinationLoop:
         self,
         sprint_num: int,
         team_results: Dict[str, "SprintResult"],
+        deadline: Optional[datetime] = None,
     ) -> CoordinationOutcome:
         """Between-sprint coordination: evaluate → reflect → plan."""
         snapshots = await self._gather_team_health(sprint_num, team_results)
         deps = await self._detect_dependencies(sprint_num)
-        evaluation = await self._evaluate(snapshots, deps, team_results)
-        outcome = await self._plan(evaluation, snapshots)
+        evaluation = await self._evaluate(snapshots, deps, team_results, deadline)
+        outcome = await self._plan(evaluation, snapshots, deadline)
         await self._broadcast_outcome(outcome, sprint_num)
         return outcome
 
     async def run_mid_sprint_checkin(
         self,
         sprint_num: int,
+        deadline: Optional[datetime] = None,
     ) -> List[str]:
         """Mid-sprint: lightweight health check, returns recommendations."""
         snapshots = await self._gather_team_health(sprint_num)
-        return await self._checkin(snapshots)
+        return await self._checkin(snapshots, deadline)
 
     # ------------------------------------------------------------------
     # Internal: gather data
@@ -212,6 +215,7 @@ class CoordinationLoop:
         snapshots: List[TeamHealthSnapshot],
         deps: List[CrossTeamDependency],
         team_results: Dict[str, "SprintResult"],
+        deadline: Optional[datetime] = None,
     ) -> str:
         """Use first coordinator (staff engineer) to analyze cross-team state."""
         if not self.coordinators:
@@ -243,10 +247,15 @@ class CoordinationLoop:
                 f"features_completed={res.features_completed}"
             )
 
+        time_context = self._build_time_context(deadline)
+
         prompt = (
             "You are the cross-team coordination analyst. Evaluate the state "
             "of all teams and identify issues.\n\n"
-            "## Team Health\n" + "\n".join(team_lines) + "\n\n"
+            + time_context
+            + "## Team Health\n"
+            + "\n".join(team_lines)
+            + "\n\n"
             "## Cross-Team Dependencies\n"
             + ("\n".join(dep_lines) if dep_lines else "None detected")
             + "\n\n"
@@ -267,6 +276,7 @@ class CoordinationLoop:
         self,
         evaluation: str,
         snapshots: List[TeamHealthSnapshot],
+        deadline: Optional[datetime] = None,
     ) -> CoordinationOutcome:
         """Use second coordinator (enablement lead) to create action plan."""
         outcome = CoordinationOutcome(raw_evaluation=evaluation)
@@ -284,9 +294,12 @@ class CoordinationLoop:
             for s in snapshots
         )
 
+        time_context = self._build_time_context(deadline)
+
         prompt = (
             "Based on the following cross-team evaluation, create an action plan.\n\n"
-            f"## Evaluation\n{evaluation}\n\n"
+            + time_context
+            + f"## Evaluation\n{evaluation}\n\n"
             f"## Team Summary\n{team_summary}\n\n"
             "List concrete actions:\n"
             "- BORROW: <agent_id> from <team> to <team> because <reason>\n"
@@ -317,6 +330,7 @@ class CoordinationLoop:
     async def _checkin(
         self,
         snapshots: List[TeamHealthSnapshot],
+        deadline: Optional[datetime] = None,
     ) -> List[str]:
         """Lightweight mid-sprint check using first coordinator."""
         if not self.coordinators:
@@ -329,9 +343,12 @@ class CoordinationLoop:
             for s in snapshots
         )
 
+        time_context = self._build_time_context(deadline)
+
         prompt = (
             "Mid-sprint health check. Brief status:\n\n"
-            f"{team_lines}\n\n"
+            + time_context
+            + f"{team_lines}\n\n"
             "Any urgent issues? Reply with brief recommendations (one per line)."
         )
 
@@ -361,6 +378,19 @@ class CoordinationLoop:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_time_context(deadline: Optional[datetime]) -> str:
+        """Build a ``## Time Context`` prompt section when a deadline exists."""
+        if deadline is None:
+            return ""
+        remaining = (deadline - datetime.now()).total_seconds()
+        remaining_min = max(remaining / 60.0, 0.0)
+        return (
+            f"## Time Context\n"
+            f"- Remaining overhead budget: ~{remaining_min:.1f} minutes\n"
+            f"- Be concise. Focus on the most critical issues.\n\n"
+        )
 
     def _parse_borrow_line(self, line: str) -> Optional[BorrowRequest]:
         """Parse a BORROW: line into a BorrowRequest.

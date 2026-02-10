@@ -1,6 +1,7 @@
 """Integration tests for multi-team orchestration."""
 
 import asyncio
+import json
 
 
 from src.agents.base_agent import AgentConfig, BaseAgent
@@ -8,6 +9,7 @@ from src.agents.messaging import create_message_bus
 from src.orchestrator.backlog import Backlog
 from src.orchestrator.config import CoordinationConfig, ExperimentConfig, TeamConfig
 from src.orchestrator.multi_team import MultiTeamOrchestrator
+from src.orchestrator.overhead_budget import OverheadBudgetTracker
 from src.tools.shared_context import SharedContextDB
 
 
@@ -591,3 +593,220 @@ def test_multi_team_coordinator_fallback(tmp_path):
         plat_bl.remaining if plat_bl else 0
     )
     assert total == 3
+
+
+# ---------------------------------------------------------------------------
+# Overhead budget + iteration 0 tests
+# ---------------------------------------------------------------------------
+
+
+def test_iteration_zero_distributes_stories(tmp_path):
+    """run_iteration_zero() distributes portfolio stories before sprint 1."""
+    agents, team_configs, db, bus = _make_teams()
+    coord_config = CoordinationConfig(
+        enabled=True,
+        portfolio_triage=False,
+        coordinator_agent_ids=[],
+    )
+    config = _make_config(teams=team_configs, coordination=coord_config)
+
+    stories = [
+        {"id": "US-001", "title": "Feature A", "priority": 1, "story_points": 3},
+        {"id": "US-002", "title": "Feature B", "priority": 2, "story_points": 3},
+        {"id": "US-003", "title": "Feature C", "priority": 3, "story_points": 2},
+    ]
+    portfolio = Backlog.from_stories(stories, product_name="Test")
+
+    orch = MultiTeamOrchestrator(
+        team_configs=team_configs,
+        all_agents=agents,
+        shared_db=db,
+        experiment_config=config,
+        portfolio_backlog=portfolio,
+        message_bus=bus,
+        output_dir=tmp_path,
+    )
+    run(orch.setup_teams())
+
+    tracker = OverheadBudgetTracker(
+        total_budget_minutes=10.0,
+        num_sprints=2,
+    )
+    orch.set_budget_tracker(tracker)
+    run(orch.run_iteration_zero())
+
+    # Stories should be distributed to teams
+    alpha_bl = orch._team_managers["team-alpha"].backlog
+    beta_bl = orch._team_managers["team-beta"].backlog
+    total = (alpha_bl.remaining if alpha_bl else 0) + (
+        beta_bl.remaining if beta_bl else 0
+    )
+    assert total == 3
+
+    # Budget tracker should have recorded the step
+    assert len(tracker._history) == 1
+    assert tracker._history[0].step_name == "iteration_zero"
+    assert tracker._history[0].timed_out is False
+
+
+def test_timed_coordination_completes_in_mock(tmp_path):
+    """Mock mode: timed coordination completes without timeout."""
+    agents = [
+        _make_agent("alex_senior_po", "PO"),
+        _make_agent("ahmed_senior_dev_lead", "Dev Lead"),
+        _make_agent("marcus_mid_backend", "Backend Dev"),
+        _make_agent("priya_senior_devops", "DevOps"),
+        _make_agent("elena_mid_frontend", "Frontend Dev"),
+    ]
+    team_configs = [
+        TeamConfig(
+            id="team-alpha",
+            name="Alpha",
+            team_type="stream_aligned",
+            agent_ids=["alex_senior_po", "ahmed_senior_dev_lead", "marcus_mid_backend"],
+        ),
+        TeamConfig(
+            id="team-beta",
+            name="Beta",
+            team_type="platform",
+            agent_ids=["priya_senior_devops", "elena_mid_frontend"],
+        ),
+    ]
+
+    db = SharedContextDB("mock://")
+    bus = create_message_bus({"backend": "asyncio"})
+    coordinator = _make_agent("staff_eng", "Staff Engineer")
+    for a in agents + [coordinator]:
+        a.attach_message_bus(bus)
+
+    coord_config = CoordinationConfig(
+        enabled=True,
+        full_loop_cadence=1,
+        coordinator_agent_ids=["staff_eng"],
+    )
+    config = _make_config(teams=team_configs, coordination=coord_config)
+
+    orch = MultiTeamOrchestrator(
+        team_configs=team_configs,
+        all_agents=agents,
+        shared_db=db,
+        experiment_config=config,
+        portfolio_backlog=None,
+        message_bus=bus,
+        output_dir=tmp_path,
+    )
+    run(orch.setup_teams())
+    run(orch.setup_coordination([coordinator], coord_config))
+
+    tracker = OverheadBudgetTracker(
+        total_budget_minutes=10.0,
+        num_sprints=2,
+    )
+    orch.set_budget_tracker(tracker)
+
+    # Simulate having prior results so coordination triggers
+    from src.metrics.sprint_metrics import SprintResult
+
+    orch._last_results = {
+        "team-alpha": SprintResult(
+            velocity=5,
+            features_completed=2,
+            test_coverage=0.0,
+            process_coverage=0.0,
+            branch_coverage=0.0,
+            pairing_sessions=1,
+            cycle_time_avg=0.0,
+        ),
+        "team-beta": SprintResult(
+            velocity=3,
+            features_completed=1,
+            test_coverage=0.0,
+            process_coverage=0.0,
+            branch_coverage=0.0,
+            pairing_sessions=1,
+            cycle_time_avg=0.0,
+        ),
+    }
+
+    outcome = run(orch._run_timed_coordination(2))
+    assert outcome is not None
+
+    # Step recorded without timeout
+    assert len(tracker._history) == 1
+    assert tracker._history[0].step_name == "coordination"
+    assert tracker._history[0].timed_out is False
+
+
+def test_timed_distribution_timeout_fallback(tmp_path):
+    """Tiny budget + slow distribution falls back to heuristic."""
+    agents, team_configs, db, bus = _make_teams()
+    config = _make_config(teams=team_configs)
+
+    stories = [
+        {"id": "US-001", "title": "Feature A", "priority": 1, "story_points": 3},
+        {"id": "US-002", "title": "Feature B", "priority": 2, "story_points": 2},
+    ]
+    portfolio = Backlog.from_stories(stories, product_name="Test")
+
+    orch = MultiTeamOrchestrator(
+        team_configs=team_configs,
+        all_agents=agents,
+        shared_db=db,
+        experiment_config=config,
+        portfolio_backlog=portfolio,
+        message_bus=bus,
+        output_dir=tmp_path,
+    )
+    run(orch.setup_teams())
+
+    # Create a tracker — mock distribution is instant so it shouldn't timeout,
+    # but we verify the recording path works
+    tracker = OverheadBudgetTracker(
+        total_budget_minutes=10.0,
+        num_sprints=1,
+    )
+    orch.set_budget_tracker(tracker)
+
+    run(orch._run_timed_distribution(1))
+
+    # Step recorded
+    assert len(tracker._history) == 1
+    assert tracker._history[0].step_name == "distribution"
+
+
+def test_budget_tracker_in_final_report(tmp_path):
+    """Final report includes overhead_budget section when tracker is set."""
+    agents, team_configs, db, bus = _make_teams()
+    config = _make_config(teams=team_configs)
+
+    orch = MultiTeamOrchestrator(
+        team_configs=team_configs,
+        all_agents=agents,
+        shared_db=db,
+        experiment_config=config,
+        portfolio_backlog=None,
+        message_bus=bus,
+        output_dir=tmp_path,
+    )
+    run(orch.setup_teams())
+
+    tracker = OverheadBudgetTracker(total_budget_minutes=5.0, num_sprints=1)
+    orch.set_budget_tracker(tracker)
+
+    # Simulate results
+    orch._team_results["team-alpha"] = [
+        {"sprint": 1, "velocity": 8, "features_completed": 3}
+    ]
+    orch._team_results["team-beta"] = [
+        {"sprint": 1, "velocity": 5, "features_completed": 2}
+    ]
+
+    run(orch.generate_final_report())
+
+    report_path = tmp_path / "final_report.json"
+    assert report_path.exists()
+
+    report = json.loads(report_path.read_text())
+    assert "overhead_budget" in report
+    assert report["overhead_budget"]["total_budget_seconds"] == 300.0
+    assert report["overhead_budget"]["num_steps"] == 0

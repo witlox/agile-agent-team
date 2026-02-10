@@ -9,6 +9,7 @@ from src.agents.base_agent import AgentConfig
 from src.orchestrator.config import (
     CoordinationConfig,
     ExperimentConfig,
+    OverheadBudgetConfig,
     load_config,
 )
 
@@ -195,6 +196,40 @@ def test_coordination_validates_coordinators_not_in_teams(tmp_path):
 # ---------------------------------------------------------------------------
 # AgentConfig.original_team_id
 # ---------------------------------------------------------------------------
+
+
+def test_coordination_config_has_overhead_budget_default():
+    """CoordinationConfig.overhead_budget defaults to OverheadBudgetConfig."""
+    cc = CoordinationConfig()
+    assert isinstance(cc.overhead_budget, OverheadBudgetConfig)
+    assert cc.overhead_budget.overhead_budget_pct == 0.20
+    assert cc.overhead_budget.iteration_zero_share == 0.40
+
+
+def test_load_config_parses_overhead_budget(tmp_path):
+    """overhead_budget: subsection is parsed from YAML."""
+    data = {
+        **MINIMAL_CONFIG,
+        "teams": [
+            {"id": "t1", "agents": ["agent_a", "agent_b"]},
+            {"id": "t2", "agents": ["agent_c", "agent_d"]},
+        ],
+        "coordination": {
+            "enabled": True,
+            "coordinators": ["coord_se"],
+            "overhead_budget": {
+                "overhead_budget_pct": 0.30,
+                "iteration_zero_share": 0.50,
+                "min_step_timeout_seconds": 5.0,
+            },
+        },
+    }
+    path = _write_config(tmp_path, data)
+    cfg = load_config(path)
+
+    assert cfg.coordination.overhead_budget.overhead_budget_pct == 0.30
+    assert cfg.coordination.overhead_budget.iteration_zero_share == 0.50
+    assert cfg.coordination.overhead_budget.min_step_timeout_seconds == 5.0
 
 
 def test_agent_config_original_team_id_default():

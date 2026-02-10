@@ -182,6 +182,9 @@ coordination:
   coordinators:
     - staff_engineer_01
     - enablement_lead_01
+  overhead_budget:
+    overhead_budget_pct: 0.20
+    iteration_zero_share: 0.40
 
 database:
   url: "mock://"

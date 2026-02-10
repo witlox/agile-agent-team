@@ -21,6 +21,18 @@ class TeamConfig:
 
 
 @dataclass
+class OverheadBudgetConfig:
+    """Time-budget settings for multi-team overhead steps."""
+
+    overhead_budget_pct: float = 0.20
+    iteration_zero_share: float = 0.40
+    coordination_step_weight: float = 0.50
+    distribution_step_weight: float = 0.30
+    checkin_step_weight: float = 0.20
+    min_step_timeout_seconds: float = 10.0
+
+
+@dataclass
 class CoordinationConfig:
     """Cross-team coordination settings."""
 
@@ -32,6 +44,7 @@ class CoordinationConfig:
     dependency_tracking: bool = True
     portfolio_triage: bool = True
     coordinator_agent_ids: List[str] = field(default_factory=list)
+    overhead_budget: OverheadBudgetConfig = field(default_factory=OverheadBudgetConfig)
 
 
 @dataclass
@@ -354,6 +367,25 @@ def load_config(
     coordination = CoordinationConfig()
     if "coordination" in data:
         cc = data["coordination"]
+        # Overhead budget sub-config
+        ob_cfg = OverheadBudgetConfig()
+        if "overhead_budget" in cc:
+            ob = cc["overhead_budget"]
+            ob_cfg = OverheadBudgetConfig(
+                overhead_budget_pct=float(ob.get("overhead_budget_pct", 0.20)),
+                iteration_zero_share=float(ob.get("iteration_zero_share", 0.40)),
+                coordination_step_weight=float(
+                    ob.get("coordination_step_weight", 0.50)
+                ),
+                distribution_step_weight=float(
+                    ob.get("distribution_step_weight", 0.30)
+                ),
+                checkin_step_weight=float(ob.get("checkin_step_weight", 0.20)),
+                min_step_timeout_seconds=float(
+                    ob.get("min_step_timeout_seconds", 10.0)
+                ),
+            )
+
         coordination = CoordinationConfig(
             enabled=cc.get("enabled", False),
             full_loop_cadence=int(cc.get("full_loop_cadence", 1)),
@@ -363,6 +395,7 @@ def load_config(
             dependency_tracking=cc.get("dependency_tracking", True),
             portfolio_triage=cc.get("portfolio_triage", True),
             coordinator_agent_ids=list(cc.get("coordinators", [])),
+            overhead_budget=ob_cfg,
         )
 
         # Validation: all coordinator agent_ids must exist in models.agents

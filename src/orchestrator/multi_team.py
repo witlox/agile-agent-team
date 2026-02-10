@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -11,7 +12,8 @@ from ..tools.shared_context import SharedContextDB
 from ..metrics.sprint_metrics import SprintResult
 from .backlog import Backlog
 from .config import CoordinationConfig, ExperimentConfig, TeamConfig
-from .coordination_loop import BorrowRequest, CoordinationLoop
+from .coordination_loop import BorrowRequest, CoordinationLoop, CoordinationOutcome
+from .overhead_budget import OverheadBudgetTracker, StepTiming
 from .sprint_manager import SprintManager
 from .story_distributor import (
     build_team_profiles,
@@ -52,6 +54,9 @@ class MultiTeamOrchestrator:
         self._coordination_loop: Optional[CoordinationLoop] = None
         self._coordination_config: Optional[CoordinationConfig] = None
         self._last_results: Optional[Dict[str, SprintResult]] = None
+
+        # Overhead budget (populated by set_budget_tracker)
+        self._budget_tracker: Optional[OverheadBudgetTracker] = None
 
     async def setup_teams(self) -> None:
         """Partition agents into teams, create per-team SprintManagers + channels."""
@@ -114,6 +119,85 @@ class MultiTeamOrchestrator:
         except ValueError:
             pass  # channel already exists
 
+    def set_budget_tracker(self, tracker: OverheadBudgetTracker) -> None:
+        """Attach an overhead budget tracker for timebox enforcement."""
+        self._budget_tracker = tracker
+
+    async def run_iteration_zero(self) -> None:
+        """Pre-sprint portfolio setup with timebox.
+
+        Distributes the full portfolio to teams using coordinator triage
+        (if available) or heuristic fallback.  On timeout, falls back to
+        instant heuristic distribution.
+        """
+        tracker = self._budget_tracker
+        if tracker is None:
+            # No budget tracker — run unbounded
+            await self.distribute_portfolio_stories(1)
+            return
+
+        timeout = tracker.get_iteration_zero_timeout()
+        deadline = tracker.get_deadline(timeout)
+        started = datetime.now()
+        timed_out = False
+
+        try:
+            await asyncio.wait_for(
+                self.distribute_portfolio_stories(1, deadline=deadline),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            timed_out = True
+            print("  [BUDGET] Iteration 0 timed out — falling back to heuristic")
+            self._heuristic_distribute_all()
+
+        timing = StepTiming(
+            step_name="iteration_zero",
+            sprint_num=0,
+            started=started,
+            ended=datetime.now(),
+            timeout_seconds=timeout,
+            timed_out=timed_out,
+        )
+        tracker.record_step(timing)
+
+    def _heuristic_distribute_all(self) -> None:
+        """Emergency fallback: distribute all remaining portfolio stories via heuristic."""
+        if not self.portfolio_backlog or self.portfolio_backlog.remaining == 0:
+            return
+
+        stories_per_team = {
+            tc.id: max(2, min(5, len(self._team_agents.get(tc.id, []))))
+            for tc in self.team_configs
+        }
+        total_needed = sum(stories_per_team.values())
+        stories = self.portfolio_backlog.next_stories(total_needed)
+        if not stories:
+            return
+
+        profiles = build_team_profiles(self.team_configs, self._team_agents)
+        is_brownfield = bool(
+            self.config.repo_config and self.config.repo_config.get("url")
+        )
+        team_stories = heuristic_distribute(stories, profiles, is_brownfield)
+
+        for tid, assigned_stories in team_stories.items():
+            if assigned_stories:
+                team_backlog = Backlog.from_stories(
+                    assigned_stories,
+                    product_name=(
+                        self.portfolio_backlog.product_name
+                        if self.portfolio_backlog
+                        else ""
+                    ),
+                    product_description=(
+                        self.portfolio_backlog.product_description
+                        if self.portfolio_backlog
+                        else ""
+                    ),
+                )
+                self._team_managers[tid].backlog = team_backlog
+
     async def run_sprint(self, sprint_num: int) -> Dict[str, SprintResult]:
         """Run one sprint concurrently across all teams via asyncio.gather."""
         # Return borrowed agents from previous sprint
@@ -131,25 +215,24 @@ class MultiTeamOrchestrator:
             and sprint_num % self._coordination_config.full_loop_cadence == 0
         ):
             print("  Running cross-team coordination loop...")
-            outcome = await self._coordination_loop.run_full_loop(
-                sprint_num, self._last_results or {}
-            )
-            # Process borrows (respect max_borrows_per_sprint)
-            for borrow in outcome.borrows[
-                : self._coordination_config.max_borrows_per_sprint
-            ]:
-                success = await self.borrow_agent(borrow)
-                if success:
-                    print(
-                        f"  [BORROW] {borrow.agent_id}: "
-                        f"{borrow.from_team} → {borrow.to_team}"
-                    )
-            if outcome.recommendations:
-                for rec in outcome.recommendations[:3]:
-                    print(f"  [COORD] {rec}")
+            outcome = await self._run_timed_coordination(sprint_num)
+            if outcome is not None:
+                # Process borrows (respect max_borrows_per_sprint)
+                for borrow in outcome.borrows[
+                    : self._coordination_config.max_borrows_per_sprint
+                ]:
+                    success = await self.borrow_agent(borrow)
+                    if success:
+                        print(
+                            f"  [BORROW] {borrow.agent_id}: "
+                            f"{borrow.from_team} → {borrow.to_team}"
+                        )
+                if outcome.recommendations:
+                    for rec in outcome.recommendations[:3]:
+                        print(f"  [COORD] {rec}")
 
         # Distribute portfolio stories before the sprint
-        await self.distribute_portfolio_stories(sprint_num)
+        await self._run_timed_distribution(sprint_num)
 
         # Run all teams concurrently
         team_ids = list(self._team_managers.keys())
@@ -183,7 +266,11 @@ class MultiTeamOrchestrator:
         self._last_results = team_results
         return team_results
 
-    async def distribute_portfolio_stories(self, sprint_num: int) -> None:
+    async def distribute_portfolio_stories(
+        self,
+        sprint_num: int,
+        deadline: Optional[datetime] = None,
+    ) -> None:
         """Distribute stories from portfolio backlog to all teams.
 
         Uses intelligent heuristic scoring by default.  When coordination is
@@ -230,7 +317,9 @@ class MultiTeamOrchestrator:
             and self._coordination_loop is not None
             and self._coordination_loop.coordinators
         ):
-            team_stories = await self._coordinator_distribute(stories, profiles)
+            team_stories = await self._coordinator_distribute(
+                stories, profiles, deadline=deadline
+            )
             if team_stories:
                 method = "coordinator"
 
@@ -259,6 +348,7 @@ class MultiTeamOrchestrator:
         self,
         stories: List[Dict],
         profiles: Dict[str, Any],
+        deadline: Optional[datetime] = None,
     ) -> Optional[Dict[str, List[Dict]]]:
         """Use coordinator agent for portfolio triage.
 
@@ -277,6 +367,16 @@ class MultiTeamOrchestrator:
             }
 
         prompt = build_triage_prompt(stories, profiles, product_metadata)
+
+        # Inject time context when deadline is set
+        if deadline is not None:
+            remaining = (deadline - datetime.now()).total_seconds()
+            remaining_min = max(remaining / 60.0, 0.0)
+            prompt += (
+                f"\n## Time Context\n"
+                f"- Remaining overhead budget: ~{remaining_min:.1f} minutes\n"
+                f"- Be concise. Assign quickly.\n"
+            )
 
         try:
             response = await coordinator.generate(prompt)
@@ -302,6 +402,86 @@ class MultiTeamOrchestrator:
                 assignments[tid].extend(extra)
 
         return assignments
+
+    # ------------------------------------------------------------------
+    # Timed wrappers (use budget tracker when available)
+    # ------------------------------------------------------------------
+
+    async def _run_timed_coordination(
+        self, sprint_num: int
+    ) -> Optional[CoordinationOutcome]:
+        """Run coordination loop with optional timebox."""
+        if self._coordination_loop is None:
+            return None
+
+        tracker = self._budget_tracker
+        if tracker is None:
+            # No budget tracker — run unbounded
+            return await self._coordination_loop.run_full_loop(
+                sprint_num, self._last_results or {}
+            )
+
+        timeout = tracker.get_step_timeout("coordination", sprint_num)
+        deadline = tracker.get_deadline(timeout)
+        started = datetime.now()
+        timed_out = False
+        result: Optional[CoordinationOutcome] = None
+
+        try:
+            result = await asyncio.wait_for(
+                self._coordination_loop.run_full_loop(
+                    sprint_num, self._last_results or {}, deadline=deadline
+                ),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            timed_out = True
+            print("  [BUDGET] Coordination loop timed out — skipping borrows")
+
+        tracker.record_step(
+            StepTiming(
+                step_name="coordination",
+                sprint_num=sprint_num,
+                started=started,
+                ended=datetime.now(),
+                timeout_seconds=timeout,
+                timed_out=timed_out,
+            )
+        )
+        return result
+
+    async def _run_timed_distribution(self, sprint_num: int) -> None:
+        """Run portfolio distribution with optional timebox."""
+        tracker = self._budget_tracker
+        if tracker is None:
+            await self.distribute_portfolio_stories(sprint_num)
+            return
+
+        timeout = tracker.get_step_timeout("distribution", sprint_num)
+        deadline = tracker.get_deadline(timeout)
+        started = datetime.now()
+        timed_out = False
+
+        try:
+            await asyncio.wait_for(
+                self.distribute_portfolio_stories(sprint_num, deadline=deadline),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            timed_out = True
+            print("  [BUDGET] Distribution timed out — falling back to heuristic")
+            self._heuristic_distribute_all()
+
+        tracker.record_step(
+            StepTiming(
+                step_name="distribution",
+                sprint_num=sprint_num,
+                started=started,
+                ended=datetime.now(),
+                timeout_seconds=timeout,
+                timed_out=timed_out,
+            )
+        )
 
     # ------------------------------------------------------------------
     # Coordination setup + agent borrowing
@@ -339,7 +519,42 @@ class MultiTeamOrchestrator:
         """Called by SprintManager mid-sprint for lightweight coordination."""
         if self._coordination_loop is None:
             return
-        recs = await self._coordination_loop.run_mid_sprint_checkin(sprint_num)
+
+        tracker = self._budget_tracker
+        if tracker is None:
+            recs = await self._coordination_loop.run_mid_sprint_checkin(sprint_num)
+            for rec in recs[:3]:
+                print(f"  [MID-SPRINT] {rec}")
+            return
+
+        timeout = tracker.get_step_timeout("checkin", sprint_num)
+        deadline = tracker.get_deadline(timeout)
+        started = datetime.now()
+        timed_out = False
+        recs: List[str] = []
+
+        try:
+            recs = await asyncio.wait_for(
+                self._coordination_loop.run_mid_sprint_checkin(
+                    sprint_num, deadline=deadline
+                ),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            timed_out = True
+            print("  [BUDGET] Mid-sprint checkin timed out — skipping")
+
+        tracker.record_step(
+            StepTiming(
+                step_name="checkin",
+                sprint_num=sprint_num,
+                started=started,
+                ended=datetime.now(),
+                timeout_seconds=timeout,
+                timed_out=timed_out,
+            )
+        )
+
         for rec in recs[:3]:
             print(f"  [MID-SPRINT] {rec}")
 
@@ -486,6 +701,10 @@ class MultiTeamOrchestrator:
             "total_features": total_features,
             "num_teams": len(self._team_managers),
         }
+
+        # Overhead budget report
+        if self._budget_tracker is not None:
+            report["overhead_budget"] = self._budget_tracker.to_report()
 
         report_path = self.output_dir / "final_report.json"
         report_path.parent.mkdir(parents=True, exist_ok=True)
