@@ -39,10 +39,10 @@ MOCK_LLM=true python -m src.orchestrator.main \
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 
-# Tests (24 tests, all passing)
-pytest tests/unit/            # Kanban, tools, runtimes
-pytest tests/integration/     # Pairing, codegen, sprint workflow
-pytest tests/qualification/   # Agent prompt loading
+# Tests (293 tests: 287 passing, 3 skipped, 3 pre-existing e2e failures)
+pytest tests/unit/            # Tools, config, backlog, kanban, runtimes, multi-language
+pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git
+pytest tests/qualification/   # Agent creation, prompt loading
 pytest                        # all tests
 
 # Code quality (runs automatically on commit via pre-commit hooks)
@@ -130,7 +130,7 @@ outputs/                       # Experiment artifacts (gitignored)
 | **Disturbances** | ✅ Complete | 6 types, blast radius controls, **detection wired** |
 | **Profile swapping** | ✅ Complete | Swap/revert/decay, proficiency penalties |
 | **Metrics** | ✅ Complete | Prometheus integration, **custom metrics recording** |
-| **Testing** | ✅ Complete | 138/138 tests passing (unit/integration/qualification) |
+| **Testing** | ✅ Complete | 293 tests (287 passing, 3 skipped, 3 pre-existing e2e failures) |
 
 ## Code Generation Workflow
 
@@ -426,13 +426,13 @@ ls -la /tmp/agent-workspace/sprint-01/*/
 ## Testing
 
 ```bash
-# All tests (24/24 passing)
+# All tests (293 collected: 287 pass, 3 skip, 3 pre-existing e2e failures)
 pytest
 
 # By category
-pytest tests/unit/              # Kanban, tools, runtimes (10 tests)
-pytest tests/integration/       # Pairing, codegen, sprint (8 tests)
-pytest tests/qualification/     # Agent creation, prompts (6 tests)
+pytest tests/unit/              # Tools, config, backlog, kanban, runtimes, multi-language
+pytest tests/integration/       # Pairing, codegen, ceremonies, remote git, sprint workflow
+pytest tests/qualification/     # Agent creation, prompts
 
 # Specific test
 pytest tests/integration/test_sprint_codegen.py -v

@@ -2,7 +2,7 @@
 
 **Date**: February 2026
 **Current State**: ✅ **100% Complete and Operational**
-**Tests**: 168/171 passing (3 skipped - tools not installed)
+**Tests**: 293 collected (287 passing, 3 skipped, 3 pre-existing e2e failures)
 
 ---
 
@@ -30,7 +30,7 @@
 - `src/agents/agent_factory.py` - Creates agents with runtimes from config
 - Three deployment modes: offline (vLLM), online (Anthropic), hybrid
 
-**Tests**: 10 unit tests + 8 integration tests + 6 qualification tests = **24/24 passing**
+**Tests**: Unit + integration + qualification = **293 collected (287 passing, 3 skipped, 3 pre-existing e2e failures)**
 
 ---
 
@@ -405,10 +405,10 @@ product:
 - ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ **168/171 tests passing** (3 skipped - tools not installed)
-- ✅ Unit tests (114 tests - Kanban, tools, runtimes, disturbances, metrics, multi-language, specialist, profile swapping, meta-learning)
-- ✅ Integration tests (51 tests - pairing, codegen, ceremonies, remote git, sprint workflow)
-- ✅ Qualification tests (6 tests - agent creation, prompt loading)
+- ✅ **293 tests collected** (287 passing, 3 skipped, 3 pre-existing e2e failures)
+- ✅ Unit tests — Kanban, tools (base, factory, filesystem, git, bash), config, backlog, runtimes, disturbances, metrics, multi-language (test runner, builder, linter, formatter), specialist, profile swapping, meta-learning
+- ✅ Integration tests — Pairing, codegen, ceremonies, remote git, sprint workflow
+- ✅ Qualification tests — Agent creation, prompt loading
 - ✅ Mock mode works for all components
 - ✅ Multi-language tests with real tool execution (skip if tools not installed)
 - ✅ **Research-critical tests**: Profile swapping (13 tests), Meta-learning (11 tests)
@@ -497,19 +497,43 @@ Meta-Learning (learnings → JSONL)
 
 ### Test Breakdown
 
-**Unit Tests (10)**:
-- `test_kanban.py` - 5 tests (WIP limits, card operations, snapshots)
-- `test_runtime.py` - 5 tests (tool execution, security, mock mode, factory, schemas)
+**Unit Tests**:
+- `test_kanban.py` - WIP limits, card operations, snapshots
+- `test_runtime.py` - Tool execution, security, mock mode, factory, schemas
+- `test_tool_base.py` - `_resolve_path()` security (traversal, absolute, normal), `ToolResult` defaults
+- `test_tool_factory.py` - `create_tools()`, set expansion, deduplication, registry queries
+- `test_bash_tool.py` - `_is_safe_command()`, `_get_safe_env()`, real subprocess execution
+- `test_filesystem_tools.py` - Read, write, edit, list, search tools with real tmp_path I/O
+- `test_git_tools.py` - Status, add, commit, diff, remote with real tmp git repos
+- `test_config.py` - `load_config()` minimal/full YAML, disturbances, runtimes, DB override
+- `test_backlog.py` - `next_stories()`, exhaustion, mark_returned, remaining, metadata, project context
+- `test_multi_language_test_runner.py` - LanguageDetector (8 tests), `_parse_test_output()` (7 parsers), `_parse_jest_coverage()`
+- `test_multi_language_builder.py` - Python/Go/Rust builds with subprocess mocking, auto-detect
+- `test_multi_language_linter.py` - `_parse_lint_output()` (5 linters), edge cases, real ruff execution
+- `test_multi_language_formatter.py` - Real formatter execution with skipif guards
+- `test_convention_analyzer.py` - Convention detection for multiple languages
+- `test_disturbances.py` - Disturbance injection and detection
+- `test_sprint_zero.py` - Sprint 0 infrastructure generation
+- `test_specialist_consultant.py` - Specialist system lifecycle
+- `test_profile_swap.py` - Profile swap/revert/decay mechanics
+- `test_meta_learning.py` - JSONL storage and dynamic loading
+- `test_workspace.py` - Greenfield/brownfield workspace management
 
-**Integration Tests (8)**:
-- `test_agent_codegen.py` - 2 tests (runtime execution, error handling)
-- `test_pairing.py` - 4 tests (session completion, busy tracking, escalation)
-- `test_sprint_codegen.py` - 2 tests (CodeGenPairingEngine selection, fallback)
+**Integration Tests**:
+- `test_agent_codegen.py` - Runtime execution, error handling
+- `test_pairing.py` - Session completion, busy tracking, escalation
+- `test_sprint_codegen.py` - CodeGenPairingEngine selection, fallback
+- `test_daily_standup.py` - Standup coordination, blockers, dependencies
+- `test_sprint_review.py` - PO acceptance/rejection
+- `test_sprint_zero_integration.py` - Sprint 0 greenfield, planning
+- `test_sprint_zero_refinement.py` - PO refinement, duration override
+- `test_remote_git.py` - GitHub/GitLab providers, PR lifecycle
+- `test_e2e_sprint_workflow.py` - End-to-end sprint workflow (3 pre-existing failures)
 
-**Qualification Tests (6)**:
+**Qualification Tests**:
 - `test_agent_qualification.py` - Agent creation, prompt loading, conversation
 
-**All 24 tests pass in < 0.1s**
+**293 tests collected, 287 pass, 3 skipped (tools not installed), 3 pre-existing e2e failures**
 
 ---
 
@@ -711,7 +735,7 @@ models:
 **Status**: 100% complete and operational
 
 **Key Achievements**:
-- ✅ 24/24 tests passing
+- ✅ 293 tests (287 passing, 3 skipped, 3 pre-existing e2e failures)
 - ✅ Real code generation (BDD → implement → test → commit)
 - ✅ Three deployment modes (offline, online, hybrid)
 - ✅ Full sprint lifecycle (planning → dev → QA → retro → meta)

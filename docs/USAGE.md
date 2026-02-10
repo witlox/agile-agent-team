@@ -95,10 +95,10 @@ In mock mode:
 ### Running the tests
 
 ```bash
-pytest tests/unit/         # Kanban, tools, runtimes (10 tests)
-pytest tests/integration/  # Pairing, codegen, sprint (8 tests)
-pytest tests/qualification/  # Agent creation, prompts (6 tests)
-pytest                     # All 24 tests
+pytest tests/unit/         # Tools, config, backlog, kanban, runtimes, multi-language
+pytest tests/integration/  # Pairing, codegen, ceremonies, remote git, sprint workflow
+pytest tests/qualification/  # Agent creation, prompts
+pytest                     # All 293 tests
 ```
 
 ---
