@@ -91,13 +91,47 @@ class AgentFactory:
             return None
 
     def _create_agent_config(self, agent_id: str, agent_cfg: Dict) -> AgentConfig:
-        """Create AgentConfig from compositional structure (individual + seniority + specializations)."""
+        """Create AgentConfig from compositional structure.
+
+        Supports both new (primary_specialization + auxiliary_specializations)
+        and old (flat specializations list) config formats. When using the old
+        format, the first item becomes the primary and the rest become auxiliary.
+        """
+        seniority = agent_cfg.get("seniority", "")
+
+        # Parse specializations (supports old and new format)
+        primary_spec = agent_cfg.get("primary_specialization", "")
+        aux_specs = list(agent_cfg.get("auxiliary_specializations", []))
+
+        if not primary_spec and "specializations" in agent_cfg:
+            # Backward compat: first item = primary, rest = auxiliary
+            old_specs = agent_cfg["specializations"]
+            if old_specs:
+                primary_spec = old_specs[0]
+                aux_specs = old_specs[1:]
+
+        # Validation: junior max 1 auxiliary
+        if seniority == "junior" and len(aux_specs) > 1:
+            aux_specs = aux_specs[:1]
+
+        # Validation: max 2 auxiliary for everyone
+        if len(aux_specs) > 2:
+            aux_specs = aux_specs[:2]
+
+        # Compute combined list for backward compatibility
+        all_specs: list[str] = []
+        if primary_spec:
+            all_specs.append(primary_spec)
+        all_specs.extend(aux_specs)
+
         return AgentConfig(
             role_id=agent_id,
             name=agent_cfg.get("name", agent_id),
             individual=agent_cfg.get("individual", ""),
-            seniority=agent_cfg.get("seniority", ""),
-            specializations=agent_cfg.get("specializations", []),
+            seniority=seniority,
+            primary_specialization=primary_spec,
+            auxiliary_specializations=aux_specs,
+            specializations=all_specs,
             role_archetype=agent_cfg.get("role_archetype", "developer"),
             demographics=agent_cfg.get("demographics", {}),
             model=agent_cfg.get("model", _DEFAULT_MODEL),

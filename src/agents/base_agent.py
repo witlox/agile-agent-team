@@ -21,9 +21,13 @@ class AgentConfig:
     max_tokens: int
     individual: str = ""  # Personality file (e.g., "jamie_rodriguez")
     seniority: str = ""  # junior | mid | senior
+    primary_specialization: str = ""  # Primary expertise at full seniority
+    auxiliary_specializations: List[str] = field(
+        default_factory=list
+    )  # Up to 2 aux specs, downclassed by one level
     specializations: List[str] = field(
         default_factory=list
-    )  # List of specialization files
+    )  # Combined list (backward compat)
     role_archetype: str = ""  # developer | tester | leader
     demographics: Dict[str, str] = field(
         default_factory=dict
@@ -116,6 +120,88 @@ class BaseAgent:
         """Return True if this agent is currently profile-swapped."""
         return self._swap_state is not None
 
+    @staticmethod
+    def _downclass_seniority(seniority: str) -> str:
+        """Downclass seniority by one level. Junior is the floor."""
+        return {"senior": "mid", "mid": "junior", "junior": "junior"}.get(
+            seniority, "junior"
+        )
+
+    @staticmethod
+    def _get_a_candidate_descriptor(seniority: str) -> str:
+        """Return A-candidate language proficiency annotation."""
+        descriptors = {
+            "senior": (
+                "[LANGUAGE PROFICIENCY -- A-Candidate Baseline]\n"
+                "You are an A-candidate hire with 8+ years of professional "
+                "development experience.\n"
+                "Language mastery: Expert -- deep knowledge of language internals, "
+                "idioms, performance characteristics, and ecosystem.\n"
+                "You write idiomatic, well-tested code and mentor others in "
+                "language best practices."
+            ),
+            "mid": (
+                "[LANGUAGE PROFICIENCY -- A-Candidate Baseline]\n"
+                "You are an A-candidate hire with 4+ years of professional "
+                "development experience.\n"
+                "Language mastery: Proficient -- strong command of the language, "
+                "good practices, comfortable with advanced features.\n"
+                "You write clean, well-tested code confidently in your team's "
+                "primary language(s)."
+            ),
+            "junior": (
+                "[LANGUAGE PROFICIENCY -- A-Candidate Baseline]\n"
+                "You are an A-candidate hire with 1+ years of professional "
+                "development experience.\n"
+                "Language mastery: Competent -- solid fundamentals, can write "
+                "clean code independently for routine tasks.\n"
+                "You are ahead of typical junior developers in language fluency."
+            ),
+        }
+        return descriptors.get(seniority, "")
+
+    def _load_specializations_with_proficiency(
+        self, team_config_dir: Path
+    ) -> List[str]:
+        """Load specialization files with proficiency annotations."""
+        parts: List[str] = []
+        seniority = self.config.seniority or "junior"
+
+        # Primary specialization at full seniority level
+        if self.config.primary_specialization:
+            spec_path = (
+                team_config_dir
+                / "03_specializations"
+                / f"{self.config.primary_specialization}.md"
+            )
+            if spec_path.exists():
+                content = spec_path.read_text()
+                parts.append(
+                    f"[PRIMARY SPECIALIZATION -- "
+                    f"{seniority.title()}-Level Proficiency]\n\n"
+                    f"{content}\n\n"
+                    f"[This is your primary area of expertise. "
+                    f"You operate at full {seniority} level in this domain.]"
+                )
+
+        # Auxiliary specializations at downclassed level
+        downclassed = self._downclass_seniority(seniority)
+        for spec in self.config.auxiliary_specializations:
+            spec_path = team_config_dir / "03_specializations" / f"{spec}.md"
+            if spec_path.exists():
+                content = spec_path.read_text()
+                parts.append(
+                    f"[AUXILIARY SPECIALIZATION -- "
+                    f"{downclassed.title()}-Level Proficiency]\n\n"
+                    f"{content}\n\n"
+                    f"[You have {downclassed}-level experience in this domain. "
+                    f"You are competent but not an expert.\n"
+                    f"Defer to primary specialists for advanced architectural "
+                    f"decisions in this domain.]"
+                )
+
+        return parts
+
     def _load_prompt(self) -> str:
         """Load and compose agent prompt from layered config files.
 
@@ -123,10 +209,12 @@ class BaseAgent:
         1. 00_base/base_agent.md (universal)
         2. 01_role_archetypes/{developer,tester,leader}.md
         3. 02_seniority/{junior,mid,senior}.md
-        4. 03_specializations/{spec1,spec2,...}.md (multiple)
+        3b. A-candidate language proficiency baseline
+        4. 03_specializations/ (primary at full seniority, aux downclassed)
         5. 04_domain_knowledge/ (layered by seniority)
         6. 05_individuals/{name}.md
         7. Demographic modifiers (applied as text)
+        8. Meta-learnings (dynamic, from JSONL)
         """
         # Determine team_config directory
         # Try to find it from environment or default location
@@ -165,11 +253,22 @@ class BaseAgent:
             if seniority_path.exists():
                 parts.append(seniority_path.read_text())
 
-        # 4. Specializations (multiple allowed)
-        for spec in self.config.specializations:
-            spec_path = team_config_dir / "03_specializations" / f"{spec}.md"
-            if spec_path.exists():
-                parts.append(spec_path.read_text())
+        # 3b. A-candidate language proficiency baseline
+        if self.config.seniority:
+            a_candidate = self._get_a_candidate_descriptor(self.config.seniority)
+            if a_candidate:
+                parts.append(a_candidate)
+
+        # 4. Specializations (with proficiency annotations if primary/aux configured)
+        if self.config.primary_specialization:
+            spec_parts = self._load_specializations_with_proficiency(team_config_dir)
+            parts.extend(spec_parts)
+        else:
+            # Backward compat: load all specializations without annotation
+            for spec in self.config.specializations:
+                spec_path = team_config_dir / "03_specializations" / f"{spec}.md"
+                if spec_path.exists():
+                    parts.append(spec_path.read_text())
 
         # 5. Domain knowledge (layered by seniority)
         domain_dir = team_config_dir / "04_domain_knowledge"

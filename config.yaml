@@ -168,7 +168,8 @@ models:
       name: "Alex Chen (Senior Networking Specialist)"
       individual: alex_chen
       seniority: senior
-      specializations: [networking, security]
+      primary_specialization: networking
+      auxiliary_specializations: [security]
       role_archetype: developer+leader
       demographics:
         pronouns: "he/him"
@@ -183,7 +184,8 @@ models:
       name: "Priya Sharma (Senior DevOps Specialist)"
       individual: priya_sharma
       seniority: senior
-      specializations: [devops, cloud_architecture]
+      primary_specialization: devops
+      auxiliary_specializations: [cloud_architecture]
       role_archetype: developer
       demographics:
         pronouns: "she/her"
@@ -199,7 +201,8 @@ models:
       name: "Marcus Okafor (Mid-Level Backend Developer)"
       individual: marcus_okafor
       seniority: mid
-      specializations: [backend, api_design]
+      primary_specialization: backend
+      auxiliary_specializations: [api_design]
       role_archetype: developer
       demographics:
         pronouns: "he/him"
@@ -214,7 +217,8 @@ models:
       name: "Elena Volkov (Mid-Level Frontend Developer)"
       individual: elena_volkov
       seniority: mid
-      specializations: [frontend, ui_ux]
+      primary_specialization: frontend
+      auxiliary_specializations: [ui_ux]
       role_archetype: developer
       demographics:
         pronouns: "she/her"
@@ -230,7 +234,8 @@ models:
       name: "Jamie Rodriguez (Junior Full-Stack Developer)"
       individual: jamie_rodriguez
       seniority: junior
-      specializations: [backend, frontend]
+      primary_specialization: backend
+      auxiliary_specializations: [frontend]
       role_archetype: developer
       demographics:
         pronouns: "they/them"
@@ -245,7 +250,8 @@ models:
       name: "Jordan Kim (Junior Backend Developer)"
       individual: jordan_kim
       seniority: junior
-      specializations: [backend, database]
+      primary_specialization: backend
+      auxiliary_specializations: [database]
       role_archetype: developer
       demographics:
         pronouns: "he/him"
@@ -261,7 +267,8 @@ models:
       name: "Yuki Tanaka (Senior Integration Tester)"
       individual: yuki_tanaka
       seniority: senior
-      specializations: [test_automation, backend]
+      primary_specialization: test_automation
+      auxiliary_specializations: [backend]
       role_archetype: tester
       demographics:
         pronouns: "they/them"
@@ -276,7 +283,8 @@ models:
       name: "Maria Santos (Mid-Level E2E Tester)"
       individual: maria_santos
       seniority: mid
-      specializations: [test_automation, frontend]
+      primary_specialization: test_automation
+      auxiliary_specializations: [frontend]
       role_archetype: tester
       demographics:
         pronouns: "she/her"
@@ -291,7 +299,8 @@ models:
       name: "Sophie Dubois (QA Lead)"
       individual: sophie_dubois
       seniority: senior
-      specializations: [test_automation, performance_optimization]
+      primary_specialization: test_automation
+      auxiliary_specializations: [performance_optimization]
       role_archetype: tester+leader
       demographics:
         pronouns: "she/her"
@@ -307,7 +316,8 @@ models:
       name: "Ahmed Hassan (Development Lead)"
       individual: ahmed_hassan
       seniority: senior
-      specializations: [backend, distributed_systems]
+      primary_specialization: backend
+      auxiliary_specializations: [distributed_systems]
       role_archetype: developer+leader
       demographics:
         pronouns: "he/him"
@@ -322,7 +332,7 @@ models:
       name: "Alex Chen (Product Owner)"
       individual: alex_chen  # Reusing personality (allowed)
       seniority: senior
-      specializations: [api_design]
+      primary_specialization: api_design
       role_archetype: leader
       demographics:
         pronouns: "he/him"
@@ -345,7 +355,8 @@ models:
       name: "Liam O'Brien (Senior Python Specialist)"
       individual: liam_obrien
       seniority: senior
-      specializations: [python_specialist, backend]
+      primary_specialization: python_specialist
+      auxiliary_specializations: [backend]
       role_archetype: developer
       demographics:
         pronouns: "he/him"
@@ -360,7 +371,8 @@ models:
       name: "Maya Patel (Senior Go Specialist)"
       individual: maya_patel
       seniority: senior
-      specializations: [golang_specialist, backend]
+      primary_specialization: golang_specialist
+      auxiliary_specializations: [backend]
       role_archetype: developer
       demographics:
         pronouns: "she/her"
@@ -375,7 +387,8 @@ models:
       name: "Kai Anderson (Senior Rust Specialist)"
       individual: kai_anderson
       seniority: senior
-      specializations: [rust_specialist, systems_programming]
+      primary_specialization: rust_specialist
+      auxiliary_specializations: [systems_programming]
       role_archetype: developer
       demographics:
         pronouns: "they/them"
@@ -390,7 +403,8 @@ models:
       name: "Aria Cohen (Senior TypeScript Specialist)"
       individual: aria_cohen
       seniority: senior
-      specializations: [typescript_specialist, frontend]
+      primary_specialization: typescript_specialist
+      auxiliary_specializations: [frontend]
       role_archetype: developer
       demographics:
         pronouns: "she/her"
@@ -405,7 +419,8 @@ models:
       name: "Dmitri Volkov (Senior C++ Specialist)"
       individual: dmitri_volkov
       seniority: senior
-      specializations: [cpp_specialist, systems_programming]
+      primary_specialization: cpp_specialist
+      auxiliary_specializations: [systems_programming]
       role_archetype: developer
       demographics:
         pronouns: "he/him"
