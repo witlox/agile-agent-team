@@ -242,9 +242,8 @@ Fixes #123
 ### Low Priority (Nice to Have)
 
 1. **Web UI** - Monitor experiments visually
-2. **Multi-team experiments** - Test coordination
-3. **Historical data analysis** - Compare with human teams
-4. **Alternative models** - Test Llama, Mistral, etc.
+2. **Historical data analysis** - Compare with human teams
+3. **Alternative models** - Test Llama, Mistral, etc.
 
 ## Experiment Results Contributions
 

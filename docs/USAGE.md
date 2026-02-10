@@ -98,7 +98,7 @@ In mock mode:
 pytest tests/unit/         # Tools, config, backlog, kanban, runtimes, multi-language
 pytest tests/integration/  # Pairing, codegen, ceremonies, remote git, sprint workflow
 pytest tests/qualification/  # Agent creation, prompts
-pytest                     # All 368 tests
+pytest                     # All tests
 ```
 
 ---
@@ -1183,7 +1183,7 @@ curl http://localhost:8080/metrics
 
 ### Example Configurations
 
-The `examples/` directory contains 5 ready-to-use config+backlog pairs:
+The `examples/` directory contains 6 ready-to-use config+backlog pairs:
 
 | Example | Team | Runtime | Language | Key Feature |
 |---------|------|---------|----------|-------------|
@@ -1192,6 +1192,7 @@ The `examples/` directory contains 5 ready-to-use config+backlog pairs:
 | `03-oss-rust-library/` | 7 agents | Hybrid | Rust | Seniors on Anthropic, juniors on vLLM, GitLab MRs |
 | `04-chaos-experiment/` | 11 agents | Both | Python+TS | Max disturbances, free swapping, 20 sprints |
 | `05-quick-demo/` | 3 agents | Mock | Python | Minimal setup, 15-min sprints, 3 stories |
+| `06-multi-team/` | 13 agents | Mock | Python | 2 teams, cross-team coordination, overhead budget |
 
 ```bash
 # Try the quick demo (no API keys needed)

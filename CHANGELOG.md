@@ -9,6 +9,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Overhead Budget: Outer-Loop Wallclock Management (2026-02-10)
+
+**Multi-team overhead steps are now timeboxed to prevent unbounded experiment time**:
+- **OverheadBudgetTracker** (`src/orchestrator/overhead_budget.py`): New module for wallclock budget management
+  - `StepTiming` dataclass: records step name, sprint number, start/end times, timeout status
+  - `OverheadBudgetTracker` class: budget calculation, per-step timeouts, deadline generation, budget reporting
+  - Budget math: total budget = sprints x duration x overhead_pct; split into iteration-0 share + per-sprint budget
+  - Default step weights: coordination (50%), distribution (30%), checkin (20%)
+  - Minimum timeout floor (default 10s) ensures no step gets zero time
+- **Config**: New `OverheadBudgetConfig` dataclass + `overhead_budget:` YAML subsection under `coordination:`
+  - Fields: `overhead_budget_pct` (0.20), `iteration_zero_share` (0.40), step weights, `min_step_timeout_seconds`
+- **Iteration 0**: Pre-sprint portfolio setup with timebox
+  - Coordinator orientation + full portfolio distribution
+  - On timeout: falls back to heuristic distribution (no LLM calls, instant)
+- **Timebox enforcement** (`src/orchestrator/multi_team.py`):
+  - `_run_timed_coordination()`: wraps coordination loop with `asyncio.wait_for()`
+  - `_run_timed_distribution()`: wraps distribution with `asyncio.wait_for()`
+  - Mid-sprint checkin: timeboxed with skip-on-timeout fallback
+- **Deadline propagation** (`src/orchestrator/coordination_loop.py`):
+  - `deadline: Optional[datetime]` added to `run_full_loop()`, `run_mid_sprint_checkin()`, `_evaluate()`, `_plan()`, `_checkin()`
+  - `## Time Context` section injected into coordinator prompts with remaining budget minutes
+  - Also threaded through `distribute_portfolio_stories()` → coordinator triage prompt
+- **Graceful degradation**: All timeout fallbacks are instant (no LLM calls)
+  - Iteration 0 timeout → heuristic distribution
+  - Coordination timeout → skip borrows
+  - Distribution timeout → heuristic distribution
+  - Checkin timeout → skip, return message
+- **Budget reporting**: `overhead_budget` section in `generate_final_report()` with per-step timing
+- **18 new tests**: 12 unit (`test_overhead_budget.py`) + 2 config (`test_coordination_config.py`) + 4 integration (`test_multi_team.py`)
+- **Test count**: 469 → 487 collected (479 passing, 5 skipped, 3 pre-existing e2e failures)
+
+**Files changed**:
+- `src/orchestrator/overhead_budget.py` — **NEW**: OverheadBudgetTracker, StepTiming, DEFAULT_STEP_WEIGHTS
+- `tests/unit/test_overhead_budget.py` — **NEW**: 12 unit tests
+- `src/orchestrator/config.py` — OverheadBudgetConfig dataclass, field on CoordinationConfig, YAML parsing
+- `src/orchestrator/coordination_loop.py` — deadline param on all public methods, `_build_time_context()` helper
+- `src/orchestrator/multi_team.py` — iteration 0, timebox wrappers, budget tracker, heuristic fallback, report
+- `src/orchestrator/main.py` — Budget tracker creation, iteration 0 invocation
+- `examples/06-multi-team/config.yaml` — `overhead_budget:` YAML section
+- `tests/unit/test_coordination_config.py` — 2 new tests for overhead budget config
+- `tests/integration/test_multi_team.py` — 4 new tests for iteration 0, timed coordination, budget reporting
+
+### Added - Intelligent Portfolio Story Distribution (2026-02-10)
+
+**Stories are now distributed to teams based on intelligent scoring instead of round-robin**:
+- **StoryDistributor** (`src/orchestrator/story_distributor.py`): Heuristic scoring + optional coordinator triage
+  - Team type match (+10), specialization overlap (+3/agent), load balancing (-1/story), brownfield bonus (+5)
+  - Coordinator triage via `ASSIGN:` line protocol when `portfolio_triage: true`
+  - Stories support optional `tags`, `domain`, `team_type_hint` fields
+- **Backlog**: `from_stories()` classmethod for programmatic backlog creation
+
+### Added - Multi-Team Orchestration with Cross-Team Coordination (2026-02-10)
+
+**Concurrent sprint execution across 2-7 teams with coordinator agents and agent borrowing**:
+- **MultiTeamOrchestrator** (`src/orchestrator/multi_team.py`): Manages concurrent sprints via `asyncio.gather()`
+  - `TeamConfig` dataclass with id, name, team_type, agent_ids, optional backlog/WIP overrides
+  - Team-scoped KanbanBoard and SharedContextDB queries
+  - Portfolio backlog distribution (round-robin or team-specific)
+  - Agent borrowing: `borrow_agent()` / `return_borrowed_agents()`
+  - Per-team Prometheus metrics
+  - Portfolio-level final report aggregation
+- **CoordinationLoop** (`src/orchestrator/coordination_loop.py`): Cross-team intelligence
+  - Full loop (between sprints): gather health → detect dependencies → evaluate → plan → broadcast
+  - Mid-sprint checkin: lightweight health check
+  - Agent borrowing recommendations via `BORROW:` / `RECOMMEND:` protocol
+  - Mock mode: deterministic evaluation and checkin responses
+- **Config**: `teams:` YAML section, `coordination:` YAML section, `CoordinationConfig` dataclass
+  - Validation: coordinator agent IDs must exist, coordinators must not be in any team
+- **Coordinator agents**: Staff engineer (evaluator) + enablement lead (planner) archetypes
+  - Personality profiles in `team_config/05_individuals/`
+  - Role archetypes in `team_config/01_role_archetypes/`
+- **Example**: `examples/06-multi-team/` — 2-team config + portfolio backlog
+
 ### Added - External Stakeholder Feedback via Webhooks (2026-02-10)
 
 **Stakeholder review now supports external notification and feedback collection**:
@@ -576,6 +649,7 @@ This project enables research into:
 
 ## Version History Summary
 
+- **Unreleased**: Multi-team orchestration, cross-team coordination, overhead budget, intelligent story distribution, stakeholder webhooks, async message bus
 - **v1.3.0** (2026-02-09): Agile ceremonies (2-phase planning, standups, sprint review, pair rotation)
 - **v1.2.0** (2026-02-08): Sprint 0 multi-language infrastructure, language specialists
 - **v1.1.0** (2026-02-07): Remote git integration, brownfield support

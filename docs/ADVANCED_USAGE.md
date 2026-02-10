@@ -119,6 +119,87 @@ When a team has no `backlog:` path, it receives stories from the portfolio backl
 
 ---
 
+## 2.5. Overhead budget (wallclock management)
+
+When coordination is enabled, the overhead budget system timeboxes all coordination, distribution, and checkin steps so they don't consume unbounded experiment time.
+
+### Configuration
+
+```yaml
+coordination:
+  enabled: true
+  coordinators: [staff_engineer_01, enablement_lead_01]
+  overhead_budget:
+    overhead_budget_pct: 0.20          # 20% of total sprint time
+    iteration_zero_share: 0.40         # 40% of overhead for initial setup
+    coordination_step_weight: 0.50     # Per-sprint step weights (must sum to 1.0)
+    distribution_step_weight: 0.30
+    checkin_step_weight: 0.20
+    min_step_timeout_seconds: 10.0     # Floor for any step timeout
+```
+
+### Budget math
+
+For 3 sprints x 60 min with 20% overhead:
+
+| Component | Calculation | Result |
+|-----------|-------------|--------|
+| Total overhead | 3 x 60 x 0.20 | 36 min |
+| Iteration 0 | 36 x 0.40 | 14.4 min |
+| Per-sprint budget | 36 x 0.60 / 3 | 7.2 min |
+| Coordination step | 7.2 x 0.50 | 3.6 min |
+| Distribution step | 7.2 x 0.30 | 2.16 min |
+| Checkin step | 7.2 x 0.20 | 1.44 min |
+
+### Iteration 0
+
+Before sprint 1, an iteration 0 step runs portfolio setup:
+1. Coordinator orientation (best-effort LLM call with time context)
+2. Full portfolio distribution across all teams
+
+If iteration 0 times out, the system falls back to heuristic distribution (no LLM calls, instant).
+
+### Deadline propagation
+
+When a step has a deadline, coordinator agents receive a `## Time Context` section in their prompts:
+
+```
+## Time Context
+- Remaining overhead budget: ~3.2 minutes
+- Be concise. Focus on the most critical issues.
+```
+
+### Graceful fallbacks
+
+| Step | On Timeout | Fallback |
+|------|-----------|----------|
+| Iteration 0 | `TimeoutError` | Heuristic distribution (no LLM) |
+| Coordination loop | `TimeoutError` | Skip borrows, return None |
+| Distribution | `TimeoutError` | Heuristic distribution (no LLM) |
+| Mid-sprint checkin | `TimeoutError` | Skip, return message |
+
+### Budget reporting
+
+The final report includes an `overhead_budget` section:
+
+```json
+{
+  "overhead_budget": {
+    "total_budget_seconds": 2160.0,
+    "spent_seconds": 45.3,
+    "remaining_seconds": 2114.7,
+    "num_steps": 6,
+    "timeouts": 0,
+    "steps": [
+      {"step": "coordination", "sprint": 1, "elapsed": 12.5, "timed_out": false},
+      {"step": "distribution", "sprint": 1, "elapsed": 8.2, "timed_out": false}
+    ]
+  }
+}
+```
+
+---
+
 ## 3. Cross-team coordination
 
 The coordination system adds intelligent cross-team awareness through a `CoordinationLoop` that runs at two cadences:
@@ -152,6 +233,9 @@ coordination:
 | `borrow_duration_sprints` | `1` | Borrowed agents return home after N sprints |
 | `dependency_tracking` | `true` | Scan kanban cards for `depends_on_team` metadata |
 | `coordinators` | `[]` | Agent IDs that serve as coordinators (must not be in any team) |
+| `overhead_budget.overhead_budget_pct` | `0.20` | Fraction of total sprint time allocated to overhead |
+| `overhead_budget.iteration_zero_share` | `0.40` | Fraction of overhead budget for iteration 0 setup |
+| `overhead_budget.min_step_timeout_seconds` | `10.0` | Minimum timeout floor for any step |
 
 ### Full loop flow
 
@@ -525,6 +609,14 @@ The final report includes per-team breakdown and portfolio aggregation:
     "total_velocity": 34,
     "total_features": 13,
     "num_teams": 2
+  },
+  "overhead_budget": {
+    "total_budget_seconds": 2160.0,
+    "spent_seconds": 45.3,
+    "remaining_seconds": 2114.7,
+    "num_steps": 6,
+    "timeouts": 0,
+    "steps": [...]
   }
 }
 ```

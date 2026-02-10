@@ -717,12 +717,14 @@ outputs/experiment-001/
 1. ~~Real code execution~~ ✅ BDD-driven code generation with tool use
 2. ~~Integration with GitHub/GitLab~~ ✅ Remote git push, PR/MR creation, QA merge
 
+**Completed (previously planned):**
+3. ~~Multi-team coordination experiments~~ ✅ 2-7 teams with coordination loop, agent borrowing, overhead budget
+
 **Planned Enhancements:**
-1. Multi-team coordination experiments
-2. Long-running experiments (100+ sprints)
-3. Comparison with human team data
-4. Web UI for experiment monitoring
-5. Redis-based inter-agent coordination (InProcessBackend implemented; RedisBackend ready)
+1. Long-running experiments (100+ sprints)
+2. Comparison with human team data
+3. Web UI for experiment monitoring
+4. Redis-based inter-agent coordination (InProcessBackend implemented; RedisBackend ready)
 
 **Research Questions:**
 1. Does velocity follow power law or linear growth?

@@ -46,7 +46,7 @@ MOCK_LLM=true python -m src.orchestrator.main \
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 
-# Tests (368 tests: 360 passing, 5 skipped, 3 pre-existing e2e failures)
+# Tests (487 tests: 479 passing, 5 skipped, 3 pre-existing e2e failures)
 pytest tests/unit/            # Tools, config, backlog, kanban, runtimes, multi-language
 pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git, stakeholder
 pytest tests/qualification/   # Agent creation, prompt loading
@@ -112,7 +112,7 @@ team_config/                   # Agent prompts (Markdown) — compositional
 │   └── ...
 └── 08_specialists/            # External consultant profiles (10 domains)
 
-examples/                      # 5 example config+backlog pairs
+examples/                      # 6 example config+backlog pairs
 ├── 01-startup-mvp/            # Small Anthropic team, Python SaaS
 ├── 02-enterprise-brownfield/  # Full vLLM team, Go+Python, GitHub PRs
 ├── 03-oss-rust-library/       # Hybrid team, Rust, GitLab MRs
@@ -149,7 +149,7 @@ outputs/                       # Experiment artifacts (gitignored)
 | **Metrics** | ✅ Complete | Prometheus integration, **custom metrics recording** |
 | **Stakeholder webhooks** | ✅ Complete | Webhook notifications, file/callback feedback, timeout actions |
 | **Message bus** | ✅ Complete | Async pub/sub, channels, direct messaging, two backends |
-| **Testing** | ✅ Complete | 368 tests (360 passing, 5 skipped, 3 pre-existing e2e failures) |
+| **Testing** | ✅ Complete | 487 tests (479 passing, 5 skipped, 3 pre-existing e2e failures) |
 
 ## Code Generation Workflow
 
@@ -445,7 +445,7 @@ ls -la /tmp/agent-workspace/sprint-01/*/
 ## Testing
 
 ```bash
-# All tests (368 collected: 360 pass, 5 skip, 3 pre-existing e2e failures)
+# All tests (487 collected: 479 pass, 5 skip, 3 pre-existing e2e failures)
 pytest
 
 # By category

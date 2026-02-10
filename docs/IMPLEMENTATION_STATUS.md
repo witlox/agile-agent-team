@@ -2,7 +2,7 @@
 
 **Date**: February 2026
 **Current State**: ✅ **100% Complete and Operational**
-**Tests**: 368 collected (360 passing, 5 skipped, 3 pre-existing e2e failures)
+**Tests**: 487 collected (479 passing, 5 skipped, 3 pre-existing e2e failures)
 
 ---
 
@@ -30,7 +30,7 @@
 - `src/agents/agent_factory.py` - Creates agents with runtimes from config
 - Three deployment modes: offline (vLLM), online (Anthropic), hybrid
 
-**Tests**: Unit + integration + qualification = **368 collected (360 passing, 5 skipped, 3 pre-existing e2e failures)**
+**Tests**: Unit + integration + qualification = **487 collected (479 passing, 5 skipped, 3 pre-existing e2e failures)**
 
 ---
 
@@ -416,6 +416,85 @@ stakeholder_review:
 
 ---
 
+### Multi-Team Orchestration & Cross-Team Coordination ✅
+
+**Overview**: Concurrent sprint execution across 2-7 teams with shared infrastructure, portfolio backlog distribution, coordinator agents, and agent borrowing.
+
+**Key Features**:
+- **Multi-team mode**: 2-7 teams run sprints concurrently via `asyncio.gather()`
+- **Team-scoped infrastructure**: Isolated kanban boards, shared database/message bus
+- **Portfolio backlog distribution**: Intelligent story distribution (heuristic scoring + coordinator triage)
+- **Cross-team coordination**: Full loop (between sprints) + mid-sprint checkin
+- **Agent borrowing**: Temporary agent movement between teams
+- **Coordinator agents**: Staff engineer (evaluator) + enablement lead (planner)
+- **Cross-team dependency tracking**: Card metadata signals dependencies between teams
+
+**Implementation**:
+- `src/orchestrator/multi_team.py` — `MultiTeamOrchestrator` with concurrent sprint execution
+- `src/orchestrator/coordination_loop.py` — `CoordinationLoop` with evaluate → plan → broadcast cycle
+- `src/orchestrator/story_distributor.py` — Heuristic scoring + coordinator triage via `ASSIGN:` protocol
+- `src/orchestrator/config.py` — `TeamConfig`, `CoordinationConfig`, `OverheadBudgetConfig` dataclasses
+
+**Configuration**:
+```yaml
+teams:
+  - id: "checkout-stream"
+    team_type: "stream_aligned"
+    agents: [alex_senior_networking, marcus_mid_backend, ...]
+  - id: "platform-team"
+    team_type: "platform"
+    agents: [priya_senior_devops, jordan_junior_backend, ...]
+
+coordination:
+  enabled: true
+  coordinators: [staff_engineer_01, enablement_lead_01]
+  max_borrows_per_sprint: 2
+  overhead_budget:
+    overhead_budget_pct: 0.20
+    iteration_zero_share: 0.40
+```
+
+---
+
+### Overhead Budget (Outer-Loop Wallclock Management) ✅
+
+**Overview**: Timeboxes coordination, distribution, and checkin steps so multi-team overhead doesn't consume unbounded experiment time.
+
+**Key Features**:
+- **Budget calculation**: Total overhead = sprints x duration x overhead_pct (default 20%)
+- **Iteration 0**: Pre-sprint portfolio setup gets a larger share of the budget (default 40%)
+- **Per-step timeboxes**: Coordination (50%), distribution (30%), checkin (20%)
+- **Deadline propagation**: Coordinator agents receive `## Time Context` in prompts with remaining minutes
+- **Graceful fallbacks**: Heuristic distribution on timeout, skip coordination on timeout
+- **Budget tracking**: Full report with per-step timing and timeout counts
+
+**Budget math** (3 sprints x 60 min, 20% overhead):
+- Total overhead = 36 min
+- Iteration 0 = 36 x 0.40 = 14.4 min
+- Per sprint = 36 x 0.60 / 3 = 7.2 min
+- Coordination = 7.2 x 0.50 = 3.6 min
+- Distribution = 7.2 x 0.30 = 2.16 min
+- Checkin = 7.2 x 0.20 = 1.44 min
+
+**Implementation**:
+- `src/orchestrator/overhead_budget.py` — `OverheadBudgetTracker`, `StepTiming` dataclass
+- `src/orchestrator/multi_team.py` — Iteration 0, timebox wrappers, budget reporting
+- `src/orchestrator/coordination_loop.py` — Deadline propagation, `## Time Context` injection
+- `src/orchestrator/main.py` — Budget tracker creation and iteration 0 invocation
+
+**Graceful degradation**:
+
+| Step | On Timeout | Fallback |
+|------|-----------|----------|
+| Iteration 0 | `TimeoutError` | Heuristic distribution (no LLM) |
+| Coordination loop | `TimeoutError` | Skip borrows, return None |
+| Distribution | `TimeoutError` | Heuristic distribution (no LLM) |
+| Mid-sprint checkin | `TimeoutError` | Skip, return message |
+
+**Tests**: 12 unit tests (`test_overhead_budget.py`) + 4 integration tests (`test_multi_team.py`)
+
+---
+
 ## 🎯 Current Capabilities
 
 ### What Works Now ✅
@@ -463,6 +542,9 @@ stakeholder_review:
 - ✅ **Sprint review/demo**: PO acceptance, two-tier stakeholder feedback
 - ✅ **Stakeholder webhooks**: External notification + file/callback feedback collection
 - ✅ **Message bus**: Async peer-to-peer agent communication (pub/sub, channels, direct)
+- ✅ **Multi-team orchestration**: 2-7 teams with concurrent sprint execution, portfolio backlog distribution
+- ✅ **Cross-team coordination**: Full loop + mid-sprint checkin, agent borrowing, coordinator agents
+- ✅ **Overhead budget**: Wallclock management for multi-team overhead (timeboxing, iteration 0, deadline propagation)
 - ✅ **Retrospective**: Keep/Drop/Puzzle
 - ✅ **Meta-learning**: JSONL storage, dynamic loading
 - ✅ **Artifacts**: kanban snapshots, pairing logs, retros, code workspaces
@@ -477,7 +559,7 @@ stakeholder_review:
 - ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ **368 tests collected** (360 passing, 5 skipped, 3 pre-existing e2e failures)
+- ✅ **487 tests collected** (479 passing, 5 skipped, 3 pre-existing e2e failures)
 - ✅ Unit tests — Kanban, tools (base, factory, filesystem, git, bash), config, backlog, runtimes, disturbances, metrics, multi-language (test runner, builder, linter, formatter), specialist, profile swapping, meta-learning
 - ✅ Integration tests — Pairing, codegen, ceremonies, remote git, sprint workflow
 - ✅ Qualification tests — Agent creation, prompt loading
@@ -592,6 +674,8 @@ Meta-Learning (learnings → JSONL)
 - `test_workspace.py` - Greenfield/brownfield workspace management
 - `test_stakeholder_notify.py` - Payload building, webhook, file/callback feedback, timeouts
 - `test_messaging.py` - Message bus pub/sub, channels, direct, request/reply
+- `test_overhead_budget.py` - Budget tracker calculation, step timeouts, clamping, min floor, reporting
+- `test_coordination_config.py` - CoordinationConfig defaults, YAML parsing, overhead budget config
 
 **Integration Tests**:
 - `test_agent_codegen.py` - Runtime execution, error handling
@@ -604,11 +688,12 @@ Meta-Learning (learnings → JSONL)
 - `test_remote_git.py` - GitHub/GitLab providers, PR lifecycle
 - `test_e2e_sprint_workflow.py` - End-to-end sprint workflow (3 pre-existing failures)
 - `test_stakeholder_review.py` - Webhook disabled fallback, file feedback, DB persistence, bus events
+- `test_multi_team.py` - Multi-team orchestration, story distribution, coordination, overhead budget
 
 **Qualification Tests**:
 - `test_agent_qualification.py` - Agent creation, prompt loading, conversation
 
-**368 tests collected, 360 pass, 5 skipped (tools not installed), 3 pre-existing e2e failures**
+**487 tests collected, 479 pass, 5 skipped (tools not installed), 3 pre-existing e2e failures**
 
 ---
 
@@ -810,7 +895,7 @@ models:
 **Status**: 100% complete and operational
 
 **Key Achievements**:
-- ✅ 368 tests (360 passing, 5 skipped, 3 pre-existing e2e failures)
+- ✅ 487 tests (479 passing, 5 skipped, 3 pre-existing e2e failures)
 - ✅ Real code generation (BDD → implement → test → commit → push → PR)
 - ✅ Three deployment modes (offline, online, hybrid)
 - ✅ Full sprint lifecycle (planning → dev → QA → retro → meta)
