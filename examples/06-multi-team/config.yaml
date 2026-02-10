@@ -178,6 +178,7 @@ coordination:
   max_borrows_per_sprint: 2
   borrow_duration_sprints: 1
   dependency_tracking: true
+  portfolio_triage: true
   coordinators:
     - staff_engineer_01
     - enablement_lead_01

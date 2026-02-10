@@ -13,6 +13,12 @@ from .backlog import Backlog
 from .config import CoordinationConfig, ExperimentConfig, TeamConfig
 from .coordination_loop import BorrowRequest, CoordinationLoop
 from .sprint_manager import SprintManager
+from .story_distributor import (
+    build_team_profiles,
+    build_triage_prompt,
+    heuristic_distribute,
+    parse_assignments,
+)
 
 
 class MultiTeamOrchestrator:
@@ -178,33 +184,60 @@ class MultiTeamOrchestrator:
         return team_results
 
     async def distribute_portfolio_stories(self, sprint_num: int) -> None:
-        """Round-robin allocate stories from portfolio backlog to teams without own backlogs."""
+        """Distribute stories from portfolio backlog to all teams.
+
+        Uses intelligent heuristic scoring by default.  When coordination is
+        enabled with ``portfolio_triage``, the coordinator agent is called
+        first and the heuristic is used as a fallback for any unassigned
+        stories.
+        """
         if not self.portfolio_backlog or self.portfolio_backlog.remaining == 0:
             return
 
-        # Find teams that don't have their own backlog
-        teams_needing_stories = [
-            tc.id for tc in self.team_configs if self._team_backlogs.get(tc.id) is None
-        ]
+        # In multi-team mode ALL teams participate (portfolio is the source)
+        participating_teams = [tc for tc in self.team_configs]
 
-        if not teams_needing_stories:
+        if not participating_teams:
             return
 
-        # Estimate stories per team (3 per team is a reasonable default)
-        stories_per_team = 3
-        total_needed = stories_per_team * len(teams_needing_stories)
+        # Velocity-aware: max(2, min(5, agent_count)) stories per team
+        stories_per_team = {
+            tc.id: max(2, min(5, len(self._team_agents.get(tc.id, []))))
+            for tc in participating_teams
+        }
+        total_needed = sum(stories_per_team.values())
         stories = self.portfolio_backlog.next_stories(total_needed)
 
         if not stories:
             return
 
-        # Round-robin distribution
-        team_stories: Dict[str, List[Dict]] = {tid: [] for tid in teams_needing_stories}
-        for i, story in enumerate(stories):
-            tid = teams_needing_stories[i % len(teams_needing_stories)]
-            team_stories[tid].append(story)
+        # Build team capability profiles
+        profiles = build_team_profiles(participating_teams, self._team_agents)
 
-        # Create in-memory Backlog for each team and assign to SprintManager
+        # Determine brownfield
+        is_brownfield = bool(
+            self.config.repo_config and self.config.repo_config.get("url")
+        )
+
+        # Try coordinator triage first, fall back to heuristic
+        team_stories: Optional[Dict[str, List[Dict]]] = None
+        method = "heuristic"
+
+        if (
+            self._coordination_config is not None
+            and self._coordination_config.enabled
+            and self._coordination_config.portfolio_triage
+            and self._coordination_loop is not None
+            and self._coordination_loop.coordinators
+        ):
+            team_stories = await self._coordinator_distribute(stories, profiles)
+            if team_stories:
+                method = "coordinator"
+
+        if team_stories is None:
+            team_stories = heuristic_distribute(stories, profiles, is_brownfield)
+
+        # Assign stories to team SprintManagers
         for tid, assigned_stories in team_stories.items():
             if assigned_stories:
                 team_backlog = Backlog.from_stories(
@@ -213,6 +246,62 @@ class MultiTeamOrchestrator:
                     product_description=self.portfolio_backlog.product_description,
                 )
                 self._team_managers[tid].backlog = team_backlog
+
+        # Log distribution summary
+        total_assigned = sum(len(s) for s in team_stories.values())
+        print(
+            f"  Portfolio distribution ({method}): "
+            + ", ".join(f"{tid}={len(s)}" for tid, s in team_stories.items() if s)
+            + f" ({total_assigned} total)"
+        )
+
+    async def _coordinator_distribute(
+        self,
+        stories: List[Dict],
+        profiles: Dict[str, Any],
+    ) -> Optional[Dict[str, List[Dict]]]:
+        """Use coordinator agent for portfolio triage.
+
+        Returns None if the coordinator fails or returns unusable output,
+        so the caller can fall back to heuristic distribution.
+        """
+        if self._coordination_loop is None or not self._coordination_loop.coordinators:
+            return None
+
+        coordinator = self._coordination_loop.coordinators[0]
+        product_metadata: Optional[Dict] = None
+        if self.portfolio_backlog:
+            product_metadata = {
+                "name": self.portfolio_backlog.product_name,
+                "description": self.portfolio_backlog.product_description,
+            }
+
+        prompt = build_triage_prompt(stories, profiles, product_metadata)
+
+        try:
+            response = await coordinator.generate(prompt)
+        except Exception:
+            return None
+
+        valid_team_ids = list(profiles.keys())
+        assignments = parse_assignments(response, stories, valid_team_ids)
+
+        # Check that at least some stories were assigned
+        total_assigned = sum(len(s) for s in assignments.values())
+        if total_assigned == 0:
+            return None
+
+        # For any unassigned stories, fall back to heuristic
+        assigned_ids = {
+            s["id"] for stories_list in assignments.values() for s in stories_list
+        }
+        unassigned = [s for s in stories if s.get("id") not in assigned_ids]
+        if unassigned:
+            fallback = heuristic_distribute(unassigned, profiles)
+            for tid, extra in fallback.items():
+                assignments[tid].extend(extra)
+
+        return assignments
 
     # ------------------------------------------------------------------
     # Coordination setup + agent borrowing

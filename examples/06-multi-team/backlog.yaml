@@ -1,5 +1,6 @@
 # Portfolio Backlog — shared across teams
-# Stories are distributed round-robin to teams without own backlogs.
+# Stories are distributed intelligently based on team type and agent
+# specializations.  Optional fields: tags, domain, team_type_hint.
 
 product:
   name: "Multi-Team Demo App"
@@ -38,6 +39,8 @@ stories:
     description: "Add /health endpoint for monitoring."
     priority: 3
     story_points: 2
+    tags: ["monitoring", "infrastructure"]
+    domain: "devops"
     acceptance_criteria:
       - "GET /health returns 200 with status"
 
@@ -46,6 +49,7 @@ stories:
     description: "Add structured logging to all API endpoints."
     priority: 4
     story_points: 3
+    tags: ["logging", "infrastructure"]
     acceptance_criteria:
       - "All requests are logged with timestamp and status"
 
@@ -54,6 +58,7 @@ stories:
     description: "Implement rate limiting for API endpoints."
     priority: 5
     story_points: 5
+    tags: ["networking"]
     acceptance_criteria:
       - "Configurable rate limits per endpoint"
       - "Returns 429 when limit exceeded"
@@ -63,6 +68,8 @@ stories:
     description: "Implement connection pool for PostgreSQL."
     priority: 6
     story_points: 3
+    tags: ["database", "infrastructure"]
+    domain: "database"
     acceptance_criteria:
       - "Connection pool with configurable size"
       - "Graceful handling of pool exhaustion"

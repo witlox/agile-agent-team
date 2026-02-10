@@ -1,6 +1,7 @@
 """Configuration loading and management."""
 
 import os
+import warnings
 
 import yaml
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ class CoordinationConfig:
     max_borrows_per_sprint: int = 2
     borrow_duration_sprints: int = 1
     dependency_tracking: bool = True
+    portfolio_triage: bool = True
     coordinator_agent_ids: List[str] = field(default_factory=list)
 
 
@@ -307,6 +309,18 @@ def load_config(
                 )
             )
 
+        # Deprecation warning: backlog_path in multi-team mode
+        for tc in teams:
+            if tc.backlog_path:
+                warnings.warn(
+                    f"Team '{tc.id}' has backlog_path set. In multi-team mode, "
+                    "portfolio stories are distributed intelligently from the "
+                    "shared backlog. Per-team backlog_path is deprecated and "
+                    "will be removed in a future version.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
         # Validation: all agent_ids must exist in models.agents
         for tc in teams:
             for aid in tc.agent_ids:
@@ -347,6 +361,7 @@ def load_config(
             max_borrows_per_sprint=int(cc.get("max_borrows_per_sprint", 2)),
             borrow_duration_sprints=int(cc.get("borrow_duration_sprints", 1)),
             dependency_tracking=cc.get("dependency_tracking", True),
+            portfolio_triage=cc.get("portfolio_triage", True),
             coordinator_agent_ids=list(cc.get("coordinators", [])),
         )
 

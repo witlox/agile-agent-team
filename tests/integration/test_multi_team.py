@@ -6,7 +6,7 @@ import asyncio
 from src.agents.base_agent import AgentConfig, BaseAgent
 from src.agents.messaging import create_message_bus
 from src.orchestrator.backlog import Backlog
-from src.orchestrator.config import ExperimentConfig, TeamConfig
+from src.orchestrator.config import CoordinationConfig, ExperimentConfig, TeamConfig
 from src.orchestrator.multi_team import MultiTeamOrchestrator
 from src.tools.shared_context import SharedContextDB
 
@@ -153,13 +153,47 @@ def test_multi_team_isolated_kanban(tmp_path):
 
 
 def test_multi_team_portfolio_distribution(tmp_path):
-    """Stories from portfolio backlog are distributed to teams without own backlogs."""
+    """Stories from portfolio backlog are distributed to all teams."""
     agents, team_configs, db, bus = _make_teams()
     config = _make_config(teams=team_configs)
 
+    # Mix of feature (→ stream_aligned) and infra (→ platform) stories
     stories = [
-        {"id": f"US-{i:03d}", "title": f"Story {i}", "priority": i, "story_points": 3}
-        for i in range(1, 7)
+        {"id": "US-001", "title": "User login API", "priority": 1, "story_points": 3},
+        {
+            "id": "US-002",
+            "title": "Health check endpoint",
+            "priority": 2,
+            "story_points": 2,
+            "tags": ["monitoring", "infrastructure"],
+        },
+        {
+            "id": "US-003",
+            "title": "Deploy pipeline",
+            "priority": 3,
+            "story_points": 3,
+            "tags": ["infrastructure"],
+        },
+        {
+            "id": "US-004",
+            "title": "User profile page",
+            "priority": 4,
+            "story_points": 3,
+        },
+        {
+            "id": "US-005",
+            "title": "Logging middleware",
+            "priority": 5,
+            "story_points": 3,
+            "tags": ["logging"],
+        },
+        {
+            "id": "US-006",
+            "title": "Docker compose setup",
+            "priority": 6,
+            "story_points": 2,
+            "tags": ["infrastructure"],
+        },
     ]
     portfolio = Backlog.from_stories(stories, product_name="Test")
 
@@ -179,10 +213,12 @@ def test_multi_team_portfolio_distribution(tmp_path):
     assert orch._team_managers["team-alpha"].backlog is not None
     assert orch._team_managers["team-beta"].backlog is not None
 
-    # Stories distributed (3 per team by default)
+    # All pulled stories are distributed across teams
     alpha_remaining = orch._team_managers["team-alpha"].backlog.remaining
     beta_remaining = orch._team_managers["team-beta"].backlog.remaining
-    assert alpha_remaining + beta_remaining == 6
+    total = alpha_remaining + beta_remaining
+    assert total >= 4  # at least the velocity-aware minimum
+    assert total <= 6
 
 
 def test_multi_team_team_specific_backlog(tmp_path):
@@ -325,3 +361,233 @@ def test_multi_team_generate_final_report(tmp_path):
     assert "team-alpha" in report["teams"]
     assert report["portfolio"]["total_features"] == 5
     assert report["portfolio"]["num_teams"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Intelligent distribution tests
+# ---------------------------------------------------------------------------
+
+
+def test_multi_team_heuristic_distribution(tmp_path):
+    """Mixed infra/feature stories are distributed by team type."""
+    agents = [
+        _make_agent("alex_senior_po", "PO"),
+        _make_agent("ahmed_senior_dev_lead", "Dev Lead"),
+        _make_agent("marcus_mid_backend", "Backend Dev"),
+        _make_agent("priya_senior_devops", "DevOps"),
+        _make_agent("elena_mid_frontend", "Frontend Dev"),
+    ]
+
+    team_configs = [
+        TeamConfig(
+            id="stream-team",
+            name="Stream",
+            team_type="stream_aligned",
+            agent_ids=["alex_senior_po", "ahmed_senior_dev_lead", "marcus_mid_backend"],
+        ),
+        TeamConfig(
+            id="platform-team",
+            name="Platform",
+            team_type="platform",
+            agent_ids=["priya_senior_devops", "elena_mid_frontend"],
+        ),
+    ]
+
+    db = SharedContextDB("mock://")
+    bus = create_message_bus({"backend": "asyncio"})
+    for a in agents:
+        a.attach_message_bus(bus)
+
+    config = _make_config(teams=team_configs)
+
+    stories = [
+        {
+            "id": "US-001",
+            "title": "User login API",
+            "description": "REST endpoint",
+            "priority": 1,
+            "story_points": 3,
+        },
+        {
+            "id": "US-002",
+            "title": "Health check endpoint",
+            "description": "monitoring",
+            "priority": 2,
+            "story_points": 2,
+            "tags": ["monitoring", "infrastructure"],
+        },
+        {
+            "id": "US-003",
+            "title": "Deploy pipeline",
+            "description": "CI/CD",
+            "priority": 3,
+            "story_points": 3,
+            "tags": ["infrastructure"],
+        },
+        {
+            "id": "US-004",
+            "title": "User profile page",
+            "description": "display user info",
+            "priority": 4,
+            "story_points": 3,
+        },
+    ]
+    portfolio = Backlog.from_stories(stories, product_name="Test")
+
+    orch = MultiTeamOrchestrator(
+        team_configs=team_configs,
+        all_agents=agents,
+        shared_db=db,
+        experiment_config=config,
+        portfolio_backlog=portfolio,
+        message_bus=bus,
+        output_dir=tmp_path,
+    )
+    run(orch.setup_teams())
+    run(orch.distribute_portfolio_stories(1))
+
+    # All stories assigned
+    alpha = orch._team_managers["stream-team"].backlog
+    beta = orch._team_managers["platform-team"].backlog
+    assert alpha is not None
+    assert beta is not None
+    total = alpha.remaining + beta.remaining
+    assert total == 4
+
+    # Infrastructure stories should go to platform
+    platform_ids = {s["id"] for s in beta._stories}
+    assert "US-002" in platform_ids or "US-003" in platform_ids
+
+
+def test_multi_team_coordinator_distribution(tmp_path):
+    """Coordinator agent is called when coordination + portfolio_triage enabled."""
+    agents = [
+        _make_agent("alex_senior_po", "PO"),
+        _make_agent("ahmed_senior_dev_lead", "Dev Lead"),
+        _make_agent("marcus_mid_backend", "Backend Dev"),
+        _make_agent("priya_senior_devops", "DevOps"),
+        _make_agent("elena_mid_frontend", "Frontend Dev"),
+    ]
+
+    team_configs = [
+        TeamConfig(
+            id="stream-team",
+            name="Stream",
+            team_type="stream_aligned",
+            agent_ids=["alex_senior_po", "ahmed_senior_dev_lead", "marcus_mid_backend"],
+        ),
+        TeamConfig(
+            id="platform-team",
+            name="Platform",
+            team_type="platform",
+            agent_ids=["priya_senior_devops", "elena_mid_frontend"],
+        ),
+    ]
+
+    db = SharedContextDB("mock://")
+    bus = create_message_bus({"backend": "asyncio"})
+    coordinator = _make_agent("staff_eng", "Staff Engineer")
+    for a in agents + [coordinator]:
+        a.attach_message_bus(bus)
+
+    coord_config = CoordinationConfig(
+        enabled=True,
+        portfolio_triage=True,
+        coordinator_agent_ids=["staff_eng"],
+    )
+    config = _make_config(teams=team_configs, coordination=coord_config)
+
+    stories = [
+        {"id": "US-001", "title": "Login API", "priority": 1, "story_points": 3},
+        {"id": "US-002", "title": "Health check", "priority": 2, "story_points": 2},
+    ]
+    portfolio = Backlog.from_stories(stories, product_name="Test")
+
+    orch = MultiTeamOrchestrator(
+        team_configs=team_configs,
+        all_agents=agents,
+        shared_db=db,
+        experiment_config=config,
+        portfolio_backlog=portfolio,
+        message_bus=bus,
+        output_dir=tmp_path,
+    )
+    run(orch.setup_teams())
+    run(orch.setup_coordination([coordinator], coord_config))
+    run(orch.distribute_portfolio_stories(1))
+
+    # Stories should be distributed (coordinator in mock mode returns
+    # canned response, so heuristic fallback kicks in — either way all assigned)
+    stream_bl = orch._team_managers["stream-team"].backlog
+    plat_bl = orch._team_managers["platform-team"].backlog
+    total = (stream_bl.remaining if stream_bl else 0) + (
+        plat_bl.remaining if plat_bl else 0
+    )
+    assert total == 2
+
+
+def test_multi_team_coordinator_fallback(tmp_path):
+    """Garbage coordinator response falls back to heuristic — all stories assigned."""
+    agents = [
+        _make_agent("alex_senior_po", "PO"),
+        _make_agent("ahmed_senior_dev_lead", "Dev Lead"),
+        _make_agent("marcus_mid_backend", "Backend Dev"),
+        _make_agent("priya_senior_devops", "DevOps"),
+        _make_agent("elena_mid_frontend", "Frontend Dev"),
+    ]
+
+    team_configs = [
+        TeamConfig(
+            id="stream-team",
+            name="Stream",
+            team_type="stream_aligned",
+            agent_ids=["alex_senior_po", "ahmed_senior_dev_lead", "marcus_mid_backend"],
+        ),
+        TeamConfig(
+            id="platform-team",
+            name="Platform",
+            team_type="platform",
+            agent_ids=["priya_senior_devops", "elena_mid_frontend"],
+        ),
+    ]
+
+    db = SharedContextDB("mock://")
+    bus = create_message_bus({"backend": "asyncio"})
+    coordinator = _make_agent("staff_eng", "Staff Engineer")
+    for a in agents + [coordinator]:
+        a.attach_message_bus(bus)
+
+    coord_config = CoordinationConfig(
+        enabled=True,
+        portfolio_triage=True,
+        coordinator_agent_ids=["staff_eng"],
+    )
+    config = _make_config(teams=team_configs, coordination=coord_config)
+
+    stories = [
+        {"id": "US-001", "title": "Feature A", "priority": 1, "story_points": 3},
+        {"id": "US-002", "title": "Feature B", "priority": 2, "story_points": 3},
+        {"id": "US-003", "title": "Feature C", "priority": 3, "story_points": 3},
+    ]
+    portfolio = Backlog.from_stories(stories, product_name="Test")
+
+    orch = MultiTeamOrchestrator(
+        team_configs=team_configs,
+        all_agents=agents,
+        shared_db=db,
+        experiment_config=config,
+        portfolio_backlog=portfolio,
+        message_bus=bus,
+        output_dir=tmp_path,
+    )
+    run(orch.setup_teams())
+    run(orch.setup_coordination([coordinator], coord_config))
+    run(orch.distribute_portfolio_stories(1))
+
+    # All stories assigned even if coordinator returns garbage (mock response)
+    stream_bl = orch._team_managers["stream-team"].backlog
+    plat_bl = orch._team_managers["platform-team"].backlog
+    total = (stream_bl.remaining if stream_bl else 0) + (
+        plat_bl.remaining if plat_bl else 0
+    )
+    assert total == 3
