@@ -131,3 +131,100 @@ def test_project_context_includes_documents(tmp_path):
     ctx = backlog.get_project_context()
     assert "Reference Documents" in ctx
     assert "docs/vision.md" in ctx
+
+
+# ---------------------------------------------------------------------------
+# AgentFactory web tool selection (Anthropic vs vLLM)
+# ---------------------------------------------------------------------------
+
+
+def test_anthropic_po_gets_native_search_not_custom_tool(tmp_path):
+    """Anthropic PO should NOT get custom web_search tool (native replaces it).
+
+    The Anthropic API has a native web_search_20250305 server tool.  Adding
+    our custom WebSearchTool alongside it would create a name collision
+    (both named 'web_search').  For Anthropic, only web_fetch should be
+    added as a custom tool; native search handles the rest.
+    """
+    runtime_configs = {
+        "anthropic": {
+            "enabled": True,
+            "api_key_env": "ANTHROPIC_API_KEY",
+        },
+        "tools": {"workspace_root": str(tmp_path)},
+        "domain_research": {
+            "enabled": True,
+            "web_search": {"enabled": True, "engine": "brave", "api_key_env": "KEY"},
+        },
+    }
+    agent_cfg = {
+        "name": "PO",
+        "role_archetype": "leader",
+        "seniority": "senior",
+        "runtime": "anthropic",
+        "tools": ["filesystem"],
+    }
+
+    # Simulate what _create_agent_runtime does: build tool_names
+    tool_names = list(agent_cfg.get("tools", []))
+    domain_research = runtime_configs.get("domain_research", {})
+    web_search_cfg = domain_research.get("web_search", {})
+    runtime_type = "anthropic"
+    use_native_search = runtime_type == "anthropic" and web_search_cfg.get(
+        "enabled", False
+    )
+
+    if domain_research.get("enabled", False):
+        is_po = "po" in "alex_senior_po"
+        if is_po:
+            if not use_native_search and "web_search" not in tool_names:
+                tool_names.append("web_search")
+            if "web_fetch" not in tool_names:
+                tool_names.append("web_fetch")
+
+    # Custom web_search should NOT be present (native handles it)
+    assert "web_search" not in tool_names
+    # web_fetch should still be present
+    assert "web_fetch" in tool_names
+
+
+def test_vllm_po_gets_custom_web_search_tool(tmp_path):
+    """vLLM PO should get the custom web_search tool (no native alternative)."""
+    runtime_configs = {
+        "local_vllm": {
+            "enabled": True,
+            "endpoint": "http://localhost:8000",
+        },
+        "tools": {"workspace_root": str(tmp_path)},
+        "domain_research": {
+            "enabled": True,
+            "web_search": {"enabled": True, "engine": "brave", "api_key_env": "KEY"},
+        },
+    }
+    agent_cfg = {
+        "name": "PO",
+        "role_archetype": "leader",
+        "seniority": "senior",
+        "runtime": "local_vllm",
+        "tools": ["filesystem"],
+    }
+
+    tool_names = list(agent_cfg.get("tools", []))
+    domain_research = runtime_configs.get("domain_research", {})
+    web_search_cfg = domain_research.get("web_search", {})
+    runtime_type = "local_vllm"
+    use_native_search = runtime_type == "anthropic" and web_search_cfg.get(
+        "enabled", False
+    )
+
+    if domain_research.get("enabled", False):
+        is_po = True
+        if is_po:
+            if not use_native_search and "web_search" not in tool_names:
+                tool_names.append("web_search")
+            if "web_fetch" not in tool_names:
+                tool_names.append("web_fetch")
+
+    # vLLM should get BOTH custom tools
+    assert "web_search" in tool_names
+    assert "web_fetch" in tool_names

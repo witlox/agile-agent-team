@@ -74,10 +74,15 @@ class AgentFactory:
             # Auto-add web tools to PO if domain research is enabled
             domain_research = self.runtime_configs.get("domain_research", {})
             web_search_cfg = domain_research.get("web_search", {})
+            use_native_search = runtime_type == "anthropic" and web_search_cfg.get(
+                "enabled", False
+            )
             if domain_research.get("enabled", False):
                 is_po = "po" in agent_id or agent_cfg.get("role_archetype") == "leader"
                 if is_po:
-                    if "web_search" not in tool_names:
+                    # For Anthropic runtime, skip the custom web_search tool —
+                    # the native server tool handles search.  For vLLM, add it.
+                    if not use_native_search and "web_search" not in tool_names:
                         tool_names.append("web_search")
                     if "web_fetch" not in tool_names:
                         tool_names.append("web_fetch")
