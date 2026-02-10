@@ -1,8 +1,11 @@
 """Daily standup - coordination, architectural alignment, blocker resolution."""
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from ..agents.messaging import MessageBus
 
 
 @dataclass
@@ -38,10 +41,17 @@ class StandupOutcome:
 class DailyStandupSession:
     """Manages daily standup coordination."""
 
-    def __init__(self, dev_lead, qa_lead, db):
+    def __init__(
+        self,
+        dev_lead,
+        qa_lead,
+        db,
+        message_bus: Optional["MessageBus"] = None,
+    ):
         self.dev_lead = dev_lead
         self.qa_lead = qa_lead
         self.db = db
+        self.message_bus = message_bus
 
     async def run_standup(
         self,
@@ -65,6 +75,20 @@ class DailyStandupSession:
         print("  Time: ~9:00 AM (simulated)")
         print(f"  Participants: {len(active_pairs)} pairs + Dev Lead\n")
 
+        # Create standup channel on the message bus (if available)
+        channel_name = f"standup-sprint{sprint_num}-day{day_num}"
+        if self.message_bus is not None:
+            try:
+                members = set()
+                for owner_id, navigator_id in active_pairs:
+                    members.add(owner_id)
+                    members.add(navigator_id)
+                if self.dev_lead:
+                    members.add(self.dev_lead.config.role_id)
+                self.message_bus.create_channel(channel_name, members=members)
+            except Exception:
+                pass  # Don't fail standup if bus errors
+
         # Each pair reports
         reports = []
         for owner_id, navigator_id in active_pairs:
@@ -80,6 +104,32 @@ class DailyStandupSession:
         # Dev lead facilitates and resolves issues
         print("\n  Dev Lead facilitation:")
         outcome = await self._dev_lead_facilitates(reports, sprint_num, day_num)
+
+        # Publish dev lead decisions to standup_decisions topic
+        if self.message_bus is not None and outcome.dev_lead_decisions:
+            try:
+                sender = self.dev_lead.config.role_id if self.dev_lead else "system"
+                await self.message_bus.publish(
+                    sender,
+                    "standup_decisions",
+                    {
+                        "sprint": sprint_num,
+                        "day": day_num,
+                        "decisions": [
+                            {"issue": d["issue"], "decision": d["decision"]}
+                            for d in outcome.dev_lead_decisions
+                        ],
+                    },
+                )
+            except Exception:
+                pass
+
+        # Clean up standup channel
+        if self.message_bus is not None:
+            try:
+                self.message_bus.delete_channel(channel_name)
+            except Exception:
+                pass
 
         print(
             f"\n  Standup complete. Decisions made: {len(outcome.dev_lead_decisions)}"

@@ -1,14 +1,16 @@
 """Base agent class that all agents inherit from."""
 
+import asyncio
 import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import httpx
 
 if TYPE_CHECKING:
+    from .messaging import MessageBus, Message
     from .runtime import AgentRuntime
 
 
@@ -72,6 +74,9 @@ class BaseAgent:
         self.learning_history: List[Dict] = []
         self._original_config: Optional[AgentConfig] = None
         self._swap_state: Optional[Dict] = None
+        # Message bus (attached later via attach_message_bus)
+        self._message_bus: Optional["MessageBus"] = None
+        self._inbox: Optional[asyncio.Queue] = None  # type: ignore[type-arg]
 
     def swap_to(
         self, target_role_id: str, domain: str, proficiency: float, sprint: int
@@ -119,6 +124,71 @@ class BaseAgent:
     def is_swapped(self) -> bool:
         """Return True if this agent is currently profile-swapped."""
         return self._swap_state is not None
+
+    # ------------------------------------------------------------------
+    # Identity
+    # ------------------------------------------------------------------
+
+    @property
+    def agent_id(self) -> str:
+        """Convenience alias for ``config.role_id``."""
+        return self.config.role_id
+
+    # ------------------------------------------------------------------
+    # Message bus integration
+    # ------------------------------------------------------------------
+
+    def attach_message_bus(self, bus: "MessageBus") -> None:
+        """Register this agent with *bus* and store the inbox queue."""
+        self._message_bus = bus
+        self._inbox = bus.register(self.agent_id)
+
+    @property
+    def message_bus(self) -> Optional["MessageBus"]:
+        return self._message_bus
+
+    @property
+    def inbox(self) -> Optional[asyncio.Queue]:  # type: ignore[type-arg]
+        return self._inbox
+
+    async def send_message(
+        self, recipient: str, content: Dict[str, Any]
+    ) -> Optional["Message"]:
+        """Send a direct message to another agent. Returns None if no bus."""
+        if self._message_bus is None:
+            return None
+        return await self._message_bus.send(self.agent_id, recipient, content)
+
+    async def receive_message(self, timeout: float = 0.0) -> Optional["Message"]:
+        """Poll the inbox for a message. Returns None if no bus or empty."""
+        if self._inbox is None:
+            return None
+        try:
+            if timeout > 0:
+                return await asyncio.wait_for(self._inbox.get(), timeout=timeout)
+            return self._inbox.get_nowait()
+        except (asyncio.TimeoutError, asyncio.QueueEmpty):
+            return None
+
+    async def request_from(
+        self, recipient: str, content: Dict[str, Any], timeout: float = 30.0
+    ) -> Optional["Message"]:
+        """Send a request and wait for a reply. Returns None if no bus."""
+        if self._message_bus is None:
+            return None
+        return await self._message_bus.request(
+            self.agent_id, recipient, content, timeout=timeout
+        )
+
+    def subscribe_topic(
+        self,
+        topic: str,
+        handler: Any,
+    ) -> None:
+        """Subscribe to a pub/sub topic. No-op if no bus attached."""
+        if self._message_bus is None:
+            return
+        self._message_bus.subscribe(topic, self.agent_id, handler)
 
     @staticmethod
     def _downclass_seniority(seniority: str) -> str:

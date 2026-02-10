@@ -1,7 +1,7 @@
 """Shared context database for team state."""
 
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class SharedContextDB:
@@ -23,6 +23,7 @@ class SharedContextDB:
         self._meta_learnings: List[Dict] = []
         self._snapshots: List[Dict] = []
         self._disturbance_events: List[Dict] = []
+        self._messages: List[Dict] = []
         self._next_id = 1
 
     async def initialize(self):
@@ -88,6 +89,19 @@ class SharedContextDB:
                     impact TEXT,
                     affected_agents JSONB,
                     details JSONB,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS messages (
+                    id SERIAL PRIMARY KEY,
+                    message_id TEXT,
+                    sender TEXT,
+                    recipients JSONB,
+                    type TEXT,
+                    content JSONB,
+                    channel TEXT,
+                    reply_to TEXT,
+                    sprint INTEGER,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
             """
@@ -237,6 +251,53 @@ class SharedContextDB:
             return list(self._disturbance_events)
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("SELECT * FROM disturbance_events ORDER BY id")
+            return [dict(r) for r in rows]
+
+    async def store_message(self, message_data: Dict) -> None:
+        """Store a message bus message for auditing / artifact generation."""
+        if self._mock_mode:
+            self._messages.append(message_data)
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO messages
+                   (message_id, sender, recipients, type, content, channel, reply_to, sprint)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
+                message_data.get("id"),
+                message_data.get("sender"),
+                json.dumps(message_data.get("recipients", [])),
+                message_data.get("type"),
+                json.dumps(message_data.get("content", {})),
+                message_data.get("channel"),
+                message_data.get("reply_to"),
+                message_data.get("sprint"),
+            )
+
+    async def get_messages(
+        self, sprint: Optional[int] = None, channel: Optional[str] = None
+    ) -> List[Dict]:
+        """Return stored messages, optionally filtered by sprint or channel."""
+        if self._mock_mode:
+            result = list(self._messages)
+            if sprint is not None:
+                result = [m for m in result if m.get("sprint") == sprint]
+            if channel is not None:
+                result = [m for m in result if m.get("channel") == channel]
+            return result
+        async with self.pool.acquire() as conn:
+            query = "SELECT * FROM messages WHERE 1=1"
+            params: list = []
+            idx = 1
+            if sprint is not None:
+                query += f" AND sprint = ${idx}"
+                params.append(sprint)
+                idx += 1
+            if channel is not None:
+                query += f" AND channel = ${idx}"
+                params.append(channel)
+                idx += 1
+            query += " ORDER BY id"
+            rows = await conn.fetch(query, *params)
             return [dict(r) for r in rows]
 
     async def close(self):

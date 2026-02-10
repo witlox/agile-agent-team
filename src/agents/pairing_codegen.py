@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .base_agent import BaseAgent
+from .messaging import MessageBus
 
 if TYPE_CHECKING:
     from ..orchestrator.config import ExperimentConfig
@@ -198,6 +199,31 @@ class CodeGenPairingEngine:
         self._busy_agents.add(driver.config.role_id)
         self._busy_agents.add(navigator.config.role_id)
 
+        # Create pair channel on the message bus (if available)
+        bus: Optional[MessageBus] = driver.message_bus
+        channel_name = (
+            f"pair-{driver.config.role_id}-{navigator.config.role_id}-{sprint_num}"
+        )
+        if bus is not None:
+            try:
+                bus.create_channel(
+                    channel_name,
+                    members={driver.config.role_id, navigator.config.role_id},
+                )
+                await bus.publish(
+                    driver.config.role_id,
+                    "pair_progress",
+                    {
+                        "event": "session_started",
+                        "driver": driver.config.role_id,
+                        "navigator": navigator.config.role_id,
+                        "task_id": task.get("id"),
+                        "sprint": sprint_num,
+                    },
+                )
+            except Exception:
+                pass  # Don't fail pairing if bus errors
+
         # Record reverse mentorship metric if junior is driver and navigator is senior
         if (
             driver.config.seniority == "junior"
@@ -332,6 +358,25 @@ class CodeGenPairingEngine:
             self._busy_agents.discard(driver.config.role_id)
             self._busy_agents.discard(navigator.config.role_id)
             session_result["end_time"] = datetime.utcnow().isoformat()
+
+            # Publish session ended event and clean up channel
+            if bus is not None:
+                try:
+                    await bus.publish(
+                        driver.config.role_id,
+                        "pair_progress",
+                        {
+                            "event": "session_ended",
+                            "driver": driver.config.role_id,
+                            "navigator": navigator.config.role_id,
+                            "task_id": task.get("id"),
+                            "sprint": sprint_num,
+                            "outcome": session_result.get("outcome", "unknown"),
+                        },
+                    )
+                    bus.delete_channel(channel_name)
+                except Exception:
+                    pass
 
         if self.db is not None:
             await self.db.log_pairing_session(session_result)

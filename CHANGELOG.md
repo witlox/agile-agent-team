@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Async Message Bus for Peer-to-Peer Agent Communication (2026-02-10)
+
+**In-process message bus enabling direct agent-to-agent communication**:
+- **MessageBus** (`src/agents/messaging.py`): Pure asyncio message bus with Strategy-pattern backends
+  - Direct 1-to-1 messaging between agents
+  - Named channels for group communication (pair channels, standup channels)
+  - Broadcast to all registered agents
+  - Pub/Sub topics with async handler callbacks
+  - Request/Reply with timeout (uses `asyncio.Future`)
+  - Message history with channel filtering and stats
+- **Two backends**: `InProcessBackend` (default, zero dependencies) and `RedisBackend` (multi-process, uses redis.asyncio)
+- **Frozen `Message` dataclass**: Immutable for safe concurrent access by multiple coroutines
+- **`MessageType` enum**: DIRECT, CHANNEL, BROADCAST, REQUEST, REPLY, EVENT
+- **`agent_id` property on BaseAgent**: Convenience alias for `config.role_id`; fixes pre-existing references in `sprint_manager.py`
+- **BaseAgent messaging methods**: `send_message()`, `receive_message()`, `request_from()`, `subscribe_topic()` — all return None gracefully when no bus attached
+- **Config**: `messaging:` YAML section with `backend`, `redis_url`, `history_size`, `log_messages`
+- **SprintManager**: Creates bus at init, registers all agents, optionally writes `messages.json` to sprint artifacts
+- **Ceremony integration**:
+  - `pairing_codegen.py`: Creates pair channels, publishes `pair_progress` events (session_started/ended)
+  - `daily_standup.py`: Creates standup channels, publishes `standup_decisions` topic after dev lead facilitation
+- **SharedContextDB**: Added `_messages` store, `messages` table, `store_message()` and `get_messages()` methods
+- **26 new tests**: 21 unit tests (`test_messaging.py`) + 5 integration tests (`test_messaging_integration.py`)
+- **Test count**: 324 → 350 collected (344 passing, 3 skipped, 3 pre-existing e2e failures)
+
+**Files changed**:
+- `src/agents/messaging.py` — **NEW**: MessageBus, Message, Channel, backends, factory
+- `tests/unit/test_messaging.py` — **NEW**: 21 unit tests
+- `tests/integration/test_messaging_integration.py` — **NEW**: 5 integration tests
+- `src/agents/base_agent.py` — `agent_id` property, `_message_bus`/`_inbox` fields, messaging convenience methods
+- `src/orchestrator/config.py` — 4 messaging fields + YAML parsing
+- `config.yaml` — `messaging:` section
+- `src/orchestrator/sprint_manager.py` — Create bus, register agents, message artifact logging
+- `src/agents/pairing_codegen.py` — Pair channels, progress events
+- `src/orchestrator/daily_standup.py` — Accept bus, standup channels, decision broadcasts
+- `src/tools/shared_context.py` — `_messages` store, `store_message()`, `get_messages()`, `messages` table
+
 ### Added - Complete Allowed Commands & Example Configurations (2026-02-10)
 
 **Expanded `allowed_commands` from 15 to 48 commands**:

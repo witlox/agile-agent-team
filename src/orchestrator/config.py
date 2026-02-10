@@ -55,6 +55,11 @@ class ExperimentConfig:
     # Domain research configuration (PO reads context docs + web search)
     domain_research_enabled: bool = False
     domain_research_config: Dict[str, Any] = field(default_factory=dict)
+    # Messaging / message bus configuration
+    messaging_backend: str = "asyncio"  # "asyncio" or "redis"
+    messaging_redis_url: str = "redis://localhost:6379"
+    messaging_history_size: int = 1000
+    messaging_log_messages: bool = False
 
 
 def load_config(
@@ -184,6 +189,18 @@ def load_config(
             "web_search": dr.get("web_search", {}),
         }
 
+    # Messaging configuration
+    messaging_backend = "asyncio"
+    messaging_redis_url = "redis://localhost:6379"
+    messaging_history_size = 1000
+    messaging_log_messages = False
+    if "messaging" in data:
+        msg = data["messaging"]
+        messaging_backend = msg.get("backend", "asyncio")
+        messaging_redis_url = msg.get("redis_url", "redis://localhost:6379")
+        messaging_history_size = int(msg.get("history_size", 1000))
+        messaging_log_messages = bool(msg.get("log_messages", False))
+
     # Inject domain_research into runtime_configs so AgentFactory can see it
     if domain_research_enabled:
         runtime_configs["domain_research"] = {
@@ -232,4 +249,8 @@ def load_config(
         sprint_zero_enabled=sprint_zero_enabled,
         domain_research_enabled=domain_research_enabled,
         domain_research_config=domain_research_config,
+        messaging_backend=messaging_backend,
+        messaging_redis_url=messaging_redis_url,
+        messaging_history_size=messaging_history_size,
+        messaging_log_messages=messaging_log_messages,
     )

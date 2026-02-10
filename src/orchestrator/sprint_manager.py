@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from ..agents.base_agent import BaseAgent
+from ..agents.messaging import MessageBus, create_message_bus
 from ..agents.pairing import PairingEngine
 from ..agents.pairing_codegen import CodeGenPairingEngine
 from ..codegen.workspace import WorkspaceManager
@@ -94,6 +95,19 @@ class SprintManager:
         self.metrics = SprintMetrics()
         self._sprint_results: List[Dict] = []
 
+        # Message bus for peer-to-peer agent communication
+        self.message_bus: MessageBus = create_message_bus(
+            {
+                "backend": getattr(config, "messaging_backend", "asyncio"),
+                "redis_url": getattr(
+                    config, "messaging_redis_url", "redis://localhost:6379"
+                ),
+                "history_size": getattr(config, "messaging_history_size", 1000),
+            }
+        )
+        for agent in agents:
+            agent.attach_message_bus(self.message_bus)
+
         # Agile ceremony managers
         po = self._agent("po")
         dev_lead = self._agent("dev_lead") or self._agent("lead")
@@ -113,7 +127,9 @@ class SprintManager:
             dev_lead,
             qa_lead,
         )
-        self.daily_standup = DailyStandupSession(dev_lead, qa_lead, shared_db)
+        self.daily_standup = DailyStandupSession(
+            dev_lead, qa_lead, shared_db, message_bus=self.message_bus
+        )
         self.sprint_review = SprintReviewSession(
             po, dev_lead, qa_lead, self.kanban, shared_db
         )
@@ -1115,6 +1131,26 @@ and stakeholder communications for the entire project."""
         # 3. Retro notes (Markdown)
         retro_md = self._format_retro_md(sprint_num, retro_data)
         (output_path / "retro.md").write_text(retro_md)
+
+        # 4. Message bus history (if logging enabled)
+        if getattr(self.config, "messaging_log_messages", False):
+            history = await self.message_bus.get_history(limit=5000)
+            messages_data = [
+                {
+                    "id": m.id,
+                    "sender": m.sender,
+                    "recipients": list(m.recipients),
+                    "type": m.type.value,
+                    "content": m.content,
+                    "timestamp": m.timestamp.isoformat(),
+                    "channel": m.channel,
+                    "reply_to": m.reply_to,
+                }
+                for m in history
+            ]
+            (output_path / "messages.json").write_text(
+                json.dumps(messages_data, indent=2)
+            )
 
     def _format_retro_md(self, sprint_num: int, retro: Dict) -> str:
         """Format retro data as Markdown (Keep/Drop/Puzzle)."""

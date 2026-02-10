@@ -583,6 +583,15 @@ remote_git:
   # Git author metadata for commit attribution
   author_email_domain: "agent.local"  # Generates emails like alex_senior_networking@agent.local
 
+# Agent messaging / message bus
+# Enables peer-to-peer agent communication (direct, channels, broadcast,
+# pub/sub, request/reply) without orchestrator mediation.
+messaging:
+  backend: "asyncio"              # "asyncio" (in-process) or "redis" (multi-process)
+  redis_url: "redis://localhost:6379"
+  history_size: 1000              # Max stored messages
+  log_messages: false             # Write messages.json to sprint artifacts
+
 # Domain research (optional, recommended)
 # When enabled, the PO reads context documents and searches the web during
 # Sprint 0 to build deep domain knowledge before the first sprint.
