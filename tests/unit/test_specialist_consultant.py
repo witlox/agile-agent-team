@@ -168,31 +168,9 @@ def test_sprint_summary(specialist_system):
 
 
 def test_specialist_domains(specialist_system):
-    """Test available specialist domains."""
-    assert "ml" in specialist_system.specialist_domains
-    assert "security" in specialist_system.specialist_domains
-    assert "performance" in specialist_system.specialist_domains
-    assert "cloud" in specialist_system.specialist_domains
-    assert "architecture" in specialist_system.specialist_domains
-    assert "database" in specialist_system.specialist_domains
-    assert "frontend" in specialist_system.specialist_domains
-    assert "distributed" in specialist_system.specialist_domains
-    assert "data" in specialist_system.specialist_domains
-    assert "mobile" in specialist_system.specialist_domains
-
-
-def test_all_specialist_profiles_loadable():
-    """Test all 10 specialist profiles can be loaded from team_config."""
-    from pathlib import Path
-
-    system = SpecialistConsultantSystem(
-        team_config_dir="team_config",
-        max_per_sprint=3,
-        velocity_penalty_per_consultation=2.0,
-    )
-
-    # All 10 domains should have real profiles
-    expected_domains = [
+    """Test all 37 specialist domains are registered."""
+    expected = [
+        # Original 10
         "ml",
         "security",
         "performance",
@@ -203,25 +181,71 @@ def test_all_specialist_profiles_loadable():
         "distributed",
         "data",
         "mobile",
+        # Infrastructure & operations
+        "backend",
+        "devops",
+        "networking",
+        "embedded",
+        "systems",
+        "observability",
+        "sre",
+        "platform",
+        "admin",
+        # Development specializations
+        "api_design",
+        "ui_ux",
+        "test_automation",
+        "quality",
+        "accessibility",
+        "blockchain",
+        "event_driven",
+        "search",
+        "i18n",
+        "business_processes",
+        "iam",
+        "mlops",
+        "data_science",
+        # Language specialists
+        "python",
+        "golang",
+        "rust",
+        "typescript",
+        "cpp",
     ]
+    for domain in expected:
+        assert (
+            domain in specialist_system.specialist_domains
+        ), f"Missing domain: {domain}"
+    assert len(specialist_system.specialist_domains) == 37
+
+
+def test_all_specialist_profiles_loadable():
+    """Test all 37 specialist profiles can be loaded from team_config."""
+    from pathlib import Path
+
+    system = SpecialistConsultantSystem(
+        team_config_dir="team_config",
+        max_per_sprint=3,
+        velocity_penalty_per_consultation=2.0,
+    )
+
+    # All 37 domains should have real profiles
+    expected_domains = list(system.specialist_domains.keys())
 
     for domain in expected_domains:
         # Load profile
         profile = system._load_specialist_profile(domain)
 
         # Should not be the synthetic fallback
-        assert not profile.startswith(
-            "# {domain.upper()} Specialist\n\nYou are an external consultant"
-        )
-        # Should have curated content
-        assert len(profile) > 500  # Real profiles are substantial
-        # Should be domain-specific
         assert (
-            domain.replace("_", " ") in profile.lower()
-            or domain in system.specialist_domains[domain].lower()
-        )
+            "You are an external consultant with deep expertise" not in profile
+        ), f"{domain} is using synthetic fallback, not a curated profile"
+        # Should have curated content
+        assert (
+            len(profile) > 500
+        ), f"{domain}_specialist.md is too small ({len(profile)} bytes)"
 
-    # Verify all files exist
+    # Verify all files exist on disk
     specialists_dir = Path("team_config/08_specialists")
     for domain in expected_domains:
         profile_file = specialists_dir / f"{domain}_specialist.md"

@@ -432,20 +432,55 @@ models:
       max_tokens: 3072
 
 # =============================================================================
-# EXTERNAL CONSULTANTS (10 guru-level domains - NOT in config, created on-demand)
+# EXTERNAL CONSULTANTS (37 domains - NOT in config, created on-demand)
 # =============================================================================
 # Managed by SpecialistConsultantSystem (src/orchestrator/specialist_consultant.py)
 # Available domains (curated profiles in team_config/08_specialists/):
-#   - ml: Machine Learning / AI (PyTorch, TensorFlow, MLOps, model debugging)
-#   - security: Authentication, OWASP Top 10, OAuth, secure coding, compliance
-#   - performance: Profiling, optimization (Python, Go, Rust, JS, C++), query tuning
-#   - cloud: AWS, GCP, Azure, Kubernetes, Terraform, CI/CD, observability
-#   - architecture: System design, microservices, scalability, design patterns
-#   - database: PostgreSQL, MongoDB, Redis, query optimization, schema design
-#   - frontend: React, TypeScript, Next.js, performance, accessibility
-#   - distributed: Microservices, consistency, Saga, circuit breaker, resilience
-#   - data: Data pipelines, Airflow, Spark, dbt, data warehousing
-#   - mobile: iOS (Swift/SwiftUI), Android (Kotlin/Compose), React Native
+#
+#   Original 10:
+#   - ml: Machine Learning / AI
+#   - security: Security / Authentication / Authorization
+#   - performance: Performance Optimization / Profiling
+#   - cloud: Cloud / DevOps / Infrastructure
+#   - architecture: Software Architecture / Design Patterns
+#   - database: Database Design / Optimization
+#   - frontend: Advanced Frontend / React / TypeScript
+#   - distributed: Distributed Systems / Microservices
+#   - data: Data Engineering / Pipelines
+#   - mobile: Mobile Development (iOS/Android)
+#
+#   Infrastructure & operations:
+#   - backend: Backend Development / APIs / Data Persistence
+#   - devops: DevOps / CI/CD / Infrastructure as Code
+#   - networking: Network Architecture / Protocols / Security
+#   - embedded: Embedded Systems / Real-Time / Firmware
+#   - systems: Systems Programming / Low-Level Performance
+#   - observability: Monitoring / Logging / Tracing / Alerting
+#   - sre: Site Reliability / SLOs / Incident Management
+#   - platform: Platform Engineering / Developer Experience
+#   - admin: System Administration / OS / Backup / Recovery
+#
+#   Development specializations:
+#   - api_design: API Design / REST / GraphQL / gRPC
+#   - ui_ux: UI/UX Design / Interaction Patterns
+#   - test_automation: Test Automation / Frameworks / CI Integration
+#   - quality: Quality Engineering / Test Strategy / Risk-Based Testing
+#   - accessibility: Accessibility / WCAG / Assistive Technologies
+#   - blockchain: Blockchain / Smart Contracts / Web3
+#   - event_driven: Event-Driven Architecture / Messaging / CQRS
+#   - search: Search Engineering / Relevance / Information Retrieval
+#   - i18n: Internationalization / Localization / Unicode
+#   - business_processes: Business Process Modeling / DDD / Workflow Engines
+#   - iam: Identity & Access Management / AuthZ / Zero Trust
+#   - mlops: MLOps / Model Deployment / ML Pipelines
+#   - data_science: Data Science / Statistics / Experimentation
+#
+#   Language specialists:
+#   - python: Python / Type Hints / Async / Ecosystem
+#   - golang: Go / Concurrency / Performance / Ecosystem
+#   - rust: Rust / Ownership / Safety / Performance
+#   - typescript: TypeScript / Type System / React / Node.js
+#   - cpp: C++ / Modern C++ / Memory Safety / Build Systems
 #
 # Each specialist is:
 #   - Guru-level expertise in their domain
