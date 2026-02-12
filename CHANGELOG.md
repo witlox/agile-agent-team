@@ -9,6 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Phase C: Behavioral Taxonomy, Episode Harness, Action Space, Checkpointing (2026-02-12)
+
+**Final RL environment API components enabling dojo's `AATEnv(gym.Env)` wrapper**:
+
+- **Behavioral Taxonomy** (`src/orchestrator/behavioral_taxonomy.py`): 30 frozen `BehavioralCode` dataclasses (B-01..B-30) across 4 stages and 13 episode type categories
+  - `BehavioralScorer`: Keyword/pattern heuristics scoring decision traces against expected behaviors (no LLM calls)
+  - Helper functions: `get_codes_for_category()`, `get_codes_for_stage()`
+- **Action Space** (`src/orchestrator/action_space.py`): 5 RL action types for dojo control
+  - `InjectDisturbance`, `SwapAgentRole`, `ModifyBacklog`, `ModifyTeamComposition`, `AdjustSprintParams`
+  - `ACTION_SPACE_SPEC`: Metadata dict for gym.Space construction
+  - `ActionExecutor`: Dispatches to SprintManager APIs; `execute_batch()` for multiple actions
+- **State Checkpointing** (`src/orchestrator/checkpoint.py`): Mid-episode state serialization for curriculum replay
+  - `Checkpoint` dataclass: kanban, agent states, sprint results, meta-learnings, tracers, backlog, config hash
+  - `CheckpointManager`: `save()` / `restore()` / `list_checkpoints()`
+  - Storage: `{dir}/{episode_id}/s{sprint:02d}-{phase}.json`
+- **Episode Harness** (`src/orchestrator/episode_runner.py`): Single-call episode execution
+  - `EpisodeResult` dataclass: full episode outcome (phases, observation, reward, behavioral score, traces)
+  - `EpisodeRunner`: Ties all Phase B+C components into one API
+  - Pipeline: setup SM → apply actions → run phases → observe → score → reward
+  - `run_episode()` / `run_scenario()` methods; all 13 episode types runnable
+- **Public API Package** (`src/rl/__init__.py`): Clean import surface re-exporting 28 symbols for dojo
+- **92 new tests**: 84 unit + 8 integration
+  - `test_behavioral_taxonomy.py` — 20 tests (30 codes, scorer heuristics)
+  - `test_action_space.py` — 23 tests (dataclasses, executor dispatch)
+  - `test_checkpoint.py` — 16 tests (save/restore round-trip)
+  - `test_episode_runner.py` — 14 tests (all 13 episode types, determinism, checkpoints)
+  - `test_rl_api.py` — 11 tests (all re-exported symbols importable)
+  - `test_episode_harness.py` — 8 integration tests (full pipeline, reward validity, curriculum)
+- **Test count**: 646 → 738 collected (735 passing, 3 skipped)
+
+**Files created**:
+- `src/orchestrator/behavioral_taxonomy.py`
+- `src/orchestrator/action_space.py`
+- `src/orchestrator/checkpoint.py`
+- `src/orchestrator/episode_runner.py`
+- `src/rl/__init__.py`
+- `tests/unit/test_behavioral_taxonomy.py`
+- `tests/unit/test_action_space.py`
+- `tests/unit/test_checkpoint.py`
+- `tests/unit/test_episode_runner.py`
+- `tests/unit/test_rl_api.py`
+- `tests/integration/test_episode_harness.py`
+
+### Added - Phase B: RL Environment API for Dojo Integration (2026-02-11)
+
+**Core building blocks for the RL environment**:
+
+- **Config Builder** (`src/orchestrator/config_builder.py`): Fluent `ExperimentConfigBuilder` + `ExperimentConfig.from_dict()` classmethod
+- **Runtime Registry** (`src/agents/runtime/factory.py`): Pluggable registry via `register_runtime()` / `_RUNTIME_REGISTRY`
+- **Phase Runner** (`src/orchestrator/phase_runner.py`): `PhaseRunner` + `PhaseResult` for running individual sprint phases
+- **Observation Extractor** (`src/orchestrator/observation.py`): `ObservationExtractor` + `Observation` / `AgentObservation` dataclasses
+- **Reward Calculator** (`src/orchestrator/reward.py`): `RewardCalculator` + `RewardSignal` / `RewardWeights` (multi-channel)
+- **Scenario Catalog** (`src/orchestrator/scenario_catalog.py`): `ScenarioCatalog` + 13 `EPISODE_TYPES` + `ScenarioConfig`
+- Sprint phase methods now return `Dict[str, Any]` (additive change, callers unaffected)
+
+### Added - Phase A: Decision Tracing, Agent Attrition, Onboarding (2026-02-11)
+
+**Foundation for RL observability**:
+
+- **Decision Tracer** (`src/orchestrator/decision_tracer.py`): Records agent decisions with context, reasoning, and outcomes
+- **Agent Attrition** (`src/orchestrator/attrition.py`): Agent departure simulation with knowledge loss modeling
+- **Onboarding Protocol** (`src/orchestrator/onboarding.py`): Structured onboarding for new/backfill agents
+
 ### Added - Experiment Continuation via `--continue N` (2026-02-10)
 
 **Resume completed experiments without re-running previous sprints**:
@@ -671,7 +734,7 @@ This project enables research into:
 
 ## Version History Summary
 
-- **Unreleased**: Experiment continuation (`--continue N`), multi-team orchestration, cross-team coordination, overhead budget, intelligent story distribution, stakeholder webhooks, async message bus
+- **Unreleased**: RL environment API (Phase A-C: decision tracing, config builder, scenario catalog, behavioral taxonomy, episode harness, action space, checkpointing, public `src.rl` package), experiment continuation (`--continue N`), multi-team orchestration, cross-team coordination, overhead budget, intelligent story distribution, stakeholder webhooks, async message bus
 - **v1.3.0** (2026-02-09): Agile ceremonies (2-phase planning, standups, sprint review, pair rotation)
 - **v1.2.0** (2026-02-08): Sprint 0 multi-language infrastructure, language specialists
 - **v1.1.0** (2026-02-07): Remote git integration, brownfield support

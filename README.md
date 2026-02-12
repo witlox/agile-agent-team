@@ -94,11 +94,12 @@ See **[docs/RESEARCH_QUESTIONS.md](docs/RESEARCH_QUESTIONS.md)** for detailed hy
 
 ```
 src/
-├── orchestrator/       # Sprint lifecycle, planning, standups, reviews
+├── orchestrator/       # Sprint lifecycle, planning, standups, reviews, RL components
 ├── agents/             # Agent system, pairing engines, runtimes
 ├── codegen/            # Workspace management, BDD generation
 ├── tools/              # Kanban, shared context, agent tools
-└── metrics/            # Prometheus metrics
+├── metrics/            # Prometheus metrics
+└── rl/                 # Public RL integration API for dojo
 
 team_config/            # 8-layer compositional agent profiles
 ├── 00_base/            # Universal behavior + coding standards

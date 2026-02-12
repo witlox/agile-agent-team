@@ -108,8 +108,8 @@ The resume logic scans the output directory for `sprint-NN` directories and `fin
 ### Running the tests
 
 ```bash
-pytest tests/unit/         # Tools, config, backlog, kanban, runtimes, multi-language
-pytest tests/integration/  # Pairing, codegen, ceremonies, remote git, sprint workflow
+pytest tests/unit/         # Tools, config, backlog, kanban, runtimes, multi-language, RL components
+pytest tests/integration/  # Pairing, codegen, ceremonies, remote git, sprint workflow, episode harness
 pytest tests/qualification/  # Agent creation, prompts
 pytest                     # All tests
 ```

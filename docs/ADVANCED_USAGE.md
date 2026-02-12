@@ -23,6 +23,7 @@ This guide covers advanced features for tuning experiments — disturbance injec
 17. [Team-scoped infrastructure](#17-team-scoped-infrastructure)
 18. [Running a multi-team experiment](#18-running-a-multi-team-experiment)
 19. [Research applications](#19-research-applications)
+20. [RL environment integration](#20-rl-environment-integration)
 
 ---
 
@@ -1257,6 +1258,136 @@ The team-of-teams model enables studying dynamics that single-team experiments c
 5. **Scale test:** 4-7 teams with portfolio backlog, measure coordination overhead
 
 Compare `final_report.json` across variants to measure coordination impact on velocity, blocked-card counts, and feature throughput.
+
+---
+
+## 20. RL environment integration
+
+The RL environment API provides everything needed to build a Gymnasium-compatible `AATEnv(gym.Env)` wrapper in the dojo project. All components are importable from `src.rl`.
+
+### Quick start
+
+```python
+from src.rl import EpisodeRunner, ScenarioCatalog, RewardWeights
+
+# Run a single episode
+runner = EpisodeRunner(workspace_root="/tmp/aat-episodes")
+result = await runner.run_episode("implementation", difficulty=0.5, seed=42)
+
+print(result.reward.total)        # 0.0-1.0 composite reward
+print(result.behavioral_score)    # 0.0-1.0 behavioral match
+print(result.final_observation)   # Dict observation for RL agent
+```
+
+### Components
+
+| Component | Class | Purpose |
+|-----------|-------|---------|
+| **Episode runner** | `EpisodeRunner` | Single-call episode execution (setup → actions → phases → observe → score → reward) |
+| **Scenario catalog** | `ScenarioCatalog` | 13 episode types with configurable difficulty and curriculum generation |
+| **Behavioral taxonomy** | `BehavioralScorer` | 30 behavioral codes (B-01..B-30) scored via keyword heuristics |
+| **Action space** | `ActionExecutor` | 5 action types dojo can apply between phases |
+| **Observation** | `ObservationExtractor` | Extract structured observations from sprint state |
+| **Reward** | `RewardCalculator` | Multi-channel reward: outcome, efficiency, phase_completion, behavioral |
+| **Checkpointing** | `CheckpointManager` | Save/restore mid-episode state for curriculum replay |
+| **Config builder** | `ExperimentConfigBuilder` | Fluent API for building experiment configs from scenarios |
+
+### Action space
+
+Dojo controls the environment by applying actions before phases:
+
+```python
+from src.rl import (
+    InjectDisturbance,
+    SwapAgentRole,
+    ModifyBacklog,
+    ModifyTeamComposition,
+    AdjustSprintParams,
+)
+
+result = await runner.run_episode(
+    "implementation",
+    difficulty=0.5,
+    actions=[
+        AdjustSprintParams(duration_minutes=3),
+        ModifyBacklog("add", story={"id": "INJ-1", "title": "Injected", "description": "..."}),
+    ],
+)
+```
+
+### Curriculum generation
+
+```python
+from src.rl import ScenarioCatalog
+
+catalog = ScenarioCatalog()
+scenarios = catalog.generate_curriculum(stage=1, num_episodes=10, seed=42)
+for scenario in scenarios:
+    result = await runner.run_scenario(scenario)
+```
+
+### Checkpointing
+
+```python
+from src.rl import CheckpointManager
+
+# Enable per-phase checkpoints
+result = await runner.run_episode(
+    "implementation", difficulty=0.5, checkpoint_every_phase=True
+)
+```
+
+### Behavioral codes
+
+30 codes across 4 stages:
+
+| Stage | Categories | Codes | Examples |
+|-------|-----------|-------|---------|
+| 1 | elicitation, decomposition, implementation, self_monitoring | B-01..B-11 | ask_clarifying_question, write_test_first, commit_incrementally |
+| 2 | research, triage, recovery, scope_change | B-12..B-21 | prototype_before_commit, diagnose_root_cause, renegotiate_scope |
+| 3 | borrowing_arrival, cross_team_dependency, knowledge_handoff | B-22..B-27 | read_team_conventions, declare_dependency, pair_with_successor |
+| 4 | onboarding_support, compensation | B-28..B-30 | mentor_new_member, cover_departed_role |
+
+### Reward channels
+
+The `RewardSignal` provides 4 channels plus a weighted total:
+
+```python
+result.reward.outcome           # Story completion ratio
+result.reward.efficiency        # Velocity vs plan ratio
+result.reward.phase_completion  # Phases completed ratio
+result.reward.behavioral        # Behavioral code match score
+result.reward.total             # Weighted composite (configurable via RewardWeights)
+```
+
+### All exported symbols
+
+```python
+from src.rl import (
+    # Episode harness
+    EpisodeRunner, EpisodeResult,
+    # Scenarios
+    ScenarioCatalog, ScenarioConfig, EPISODE_TYPES,
+    # Observation
+    ObservationExtractor, Observation, AgentObservation,
+    # Reward
+    RewardCalculator, RewardSignal, RewardWeights,
+    # Behavioral taxonomy
+    BehavioralScorer, BehavioralCode, BEHAVIORAL_CODES,
+    # Action space
+    ActionExecutor, InjectDisturbance, SwapAgentRole,
+    ModifyBacklog, ModifyTeamComposition, AdjustSprintParams,
+    ACTION_SPACE_SPEC,
+    # Checkpointing
+    CheckpointManager, Checkpoint,
+    # Config
+    ExperimentConfigBuilder, ExperimentConfig,
+    # Phase runner
+    PhaseRunner, PhaseResult,
+    # Runtime
+    register_runtime,
+)
+```
 
 ---
 

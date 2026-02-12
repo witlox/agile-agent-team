@@ -2,7 +2,7 @@
 
 **Date**: February 2026
 **Current State**: ✅ **100% Complete and Operational**
-**Tests**: 487 collected (479 passing, 5 skipped, 3 pre-existing e2e failures)
+**Tests**: 738 collected (735 passing, 3 skipped)
 
 ---
 
@@ -30,7 +30,7 @@
 - `src/agents/agent_factory.py` - Creates agents with runtimes from config
 - Three deployment modes: offline (vLLM), online (Anthropic), hybrid
 
-**Tests**: Unit + integration + qualification = **487 collected (479 passing, 5 skipped, 3 pre-existing e2e failures)**
+**Tests**: Unit + integration + qualification = **738 collected (735 passing, 3 skipped)**
 
 ---
 
@@ -495,6 +495,56 @@ coordination:
 
 ---
 
+### RL Environment API: Phase B (Config, Phases, Observation, Reward, Scenarios) ✅
+
+**Overview**: Provides the building blocks for dojo's `AATEnv(gym.Env)` wrapper — scenario generation, phase execution, observation extraction, and reward computation.
+
+**Key Components**:
+- `src/orchestrator/config_builder.py` — Fluent `ExperimentConfigBuilder` + `ExperimentConfig.from_dict()` classmethod
+- `src/agents/runtime/factory.py` — Pluggable runtime registry via `register_runtime()` / `_RUNTIME_REGISTRY`
+- `src/orchestrator/phase_runner.py` — `PhaseRunner` + `PhaseResult` for running individual sprint phases
+- `src/orchestrator/observation.py` — `ObservationExtractor` + `Observation` / `AgentObservation` dataclasses
+- `src/orchestrator/reward.py` — `RewardCalculator` + `RewardSignal` / `RewardWeights` (multi-channel rewards)
+- `src/orchestrator/scenario_catalog.py` — `ScenarioCatalog` + 13 `EPISODE_TYPES` + `ScenarioConfig`
+
+---
+
+### RL Environment API: Phase C (Behavioral Taxonomy, Episode Harness, Action Space, Checkpointing) ✅
+
+**Overview**: Bridges the final gap for dojo integration — behavioral scoring, episode orchestration, RL action space, state checkpointing, and a clean public API package.
+
+**Behavioral Taxonomy** (`src/orchestrator/behavioral_taxonomy.py`):
+- 30 frozen `BehavioralCode` dataclasses (B-01 through B-30) across 4 stages and 13 episode type categories
+- `BehavioralScorer`: Keyword/pattern heuristics scoring decision traces against expected behaviors (no LLM calls)
+- Detection heuristics: action_content keywords, action_type, metadata fields (files_changed, tool_calls), phase context
+- Helper functions: `get_codes_for_category()`, `get_codes_for_stage()`
+
+**Action Space** (`src/orchestrator/action_space.py`):
+- 5 action dataclasses: `InjectDisturbance`, `SwapAgentRole`, `ModifyBacklog`, `ModifyTeamComposition`, `AdjustSprintParams`
+- `ACTION_SPACE_SPEC`: Metadata dict for dojo's `gym.Space` construction
+- `ActionExecutor`: Dispatches actions to SprintManager APIs (disturbance engine, swap_to, backlog, agent list, config)
+- `execute_batch()` for applying multiple actions before a phase
+
+**State Checkpointing** (`src/orchestrator/checkpoint.py`):
+- `Checkpoint` dataclass: episode_id, sprint_num, phase, kanban_snapshot, agent_states, sprint_results, meta_learnings, tracer_states, backlog_state, config_hash
+- `CheckpointManager`: `save()` serializes mid-episode state to JSON, `restore()` rebuilds SprintManager in-place
+- Storage format: `{checkpoint_dir}/{episode_id}/s{sprint:02d}-{phase}.json`
+- Config hash mismatch warning on restore
+
+**Episode Harness** (`src/orchestrator/episode_runner.py`):
+- `EpisodeResult` dataclass: full episode outcome including phase results, observation, reward, behavioral score, decision traces
+- `EpisodeRunner`: Single-call episode execution tying all Phase B+C components together
+- Pipeline: setup SM → apply actions → run phases → extract observation → score behaviors → compute reward
+- `run_episode()` and `run_scenario()` methods; all 13 episode types runnable
+
+**Public API Package** (`src/rl/__init__.py`):
+- Re-exports 28 symbols from `src/orchestrator/` and `src/agents/runtime/`
+- Clean import surface: `from src.rl import EpisodeRunner, ScenarioCatalog, RewardCalculator, ...`
+
+**Tests**: 92 new tests — 84 unit + 8 integration
+
+---
+
 ## 🎯 Current Capabilities
 
 ### What Works Now ✅
@@ -559,13 +609,14 @@ coordination:
 - ✅ **Disturbance detection** (flaky tests, merge conflicts, test failures) - NEW
 
 **Testing**:
-- ✅ **487 tests collected** (479 passing, 5 skipped, 3 pre-existing e2e failures)
-- ✅ Unit tests — Kanban, tools (base, factory, filesystem, git, bash), config, backlog, runtimes, disturbances, metrics, multi-language (test runner, builder, linter, formatter), specialist, profile swapping, meta-learning
-- ✅ Integration tests — Pairing, codegen, ceremonies, remote git, sprint workflow
+- ✅ **738 tests collected** (735 passing, 3 skipped)
+- ✅ Unit tests — Kanban, tools, config, backlog, runtimes, disturbances, metrics, multi-language, specialist, profile swapping, meta-learning, RL components (behavioral taxonomy, action space, checkpoint, episode runner, RL API imports)
+- ✅ Integration tests — Pairing, codegen, ceremonies, remote git, sprint workflow, episode harness
 - ✅ Qualification tests — Agent creation, prompt loading
 - ✅ Mock mode works for all components
 - ✅ Multi-language tests with real tool execution (skip if tools not installed)
 - ✅ **Research-critical tests**: Profile swapping (13 tests), Meta-learning (11 tests)
+- ✅ **RL environment tests**: Behavioral taxonomy (20), action space (23), checkpoint (16), episode runner (14), RL API (11), episode harness integration (8)
 
 ---
 
@@ -676,6 +727,17 @@ Meta-Learning (learnings → JSONL)
 - `test_messaging.py` - Message bus pub/sub, channels, direct, request/reply
 - `test_overhead_budget.py` - Budget tracker calculation, step timeouts, clamping, min floor, reporting
 - `test_coordination_config.py` - CoordinationConfig defaults, YAML parsing, overhead budget config
+- `test_behavioral_taxonomy.py` - 30 behavioral codes, category/stage queries, scorer heuristics (20 tests)
+- `test_action_space.py` - 5 action dataclasses, ACTION_SPACE_SPEC, ActionExecutor dispatch (23 tests)
+- `test_checkpoint.py` - Save/restore round-trip, agent/kanban/tracer state, config hash (16 tests)
+- `test_episode_runner.py` - All 13 episode types, seed determinism, checkpointing, actions (14 tests)
+- `test_rl_api.py` - All 28 re-exported symbols importable from src.rl (11 tests)
+- `test_scenario_catalog.py` - ScenarioCatalog, EPISODE_TYPES, curriculum generation
+- `test_phase_runner.py` - PhaseRunner, phase sequences, phase results
+- `test_observation.py` - ObservationExtractor, agent observation
+- `test_reward.py` - RewardCalculator, RewardSignal, multi-channel rewards
+- `test_config_builder.py` - ExperimentConfigBuilder fluent API
+- `test_decision_tracer.py` - Decision recording, filtering, traces
 
 **Integration Tests**:
 - `test_agent_codegen.py` - Runtime execution, error handling
@@ -689,11 +751,12 @@ Meta-Learning (learnings → JSONL)
 - `test_e2e_sprint_workflow.py` - End-to-end sprint workflow (3 pre-existing failures)
 - `test_stakeholder_review.py` - Webhook disabled fallback, file feedback, DB persistence, bus events
 - `test_multi_team.py` - Multi-team orchestration, story distribution, coordination, overhead budget
+- `test_episode_harness.py` - Full pipeline: implementation/recovery episodes, reward validity, checkpoint round-trip, curriculum batch, JSON serializable (8 tests)
 
 **Qualification Tests**:
 - `test_agent_qualification.py` - Agent creation, prompt loading, conversation
 
-**487 tests collected, 479 pass, 5 skipped (tools not installed), 3 pre-existing e2e failures**
+**738 tests collected, 735 pass, 3 skipped (tools not installed)**
 
 ---
 
@@ -895,7 +958,7 @@ models:
 **Status**: 100% complete and operational
 
 **Key Achievements**:
-- ✅ 487 tests (479 passing, 5 skipped, 3 pre-existing e2e failures)
+- ✅ 738 tests (735 passing, 3 skipped)
 - ✅ Real code generation (BDD → implement → test → commit → push → PR)
 - ✅ Three deployment modes (offline, online, hybrid)
 - ✅ Full sprint lifecycle (planning → dev → QA → retro → meta)
@@ -903,11 +966,14 @@ models:
 - ✅ 7 disturbance types including merge conflicts
 - ✅ Stakeholder webhook notifications + feedback collection
 - ✅ Async message bus for peer-to-peer agent communication
+- ✅ RL environment API: scenario catalog, episode harness, action space, behavioral taxonomy, checkpointing
+- ✅ Public `src.rl` package re-exporting 28 symbols for dojo integration
 - ✅ Comprehensive documentation
 
 **Ready for**:
 - Production experiments
 - Research studies on AI team dynamics
+- Dojo integration via `AATEnv(gym.Env)` using `src.rl` API
 - Extension with new features
 
-The system now models a mature, high-performing agile development team that produces actual, tested, version-controlled software! 🚀
+The system now models a mature, high-performing agile development team that produces actual, tested, version-controlled software — with a complete RL environment API for training and evaluating agent policies.

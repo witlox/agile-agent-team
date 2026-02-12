@@ -15,6 +15,7 @@ This is a research project implementing an 11-agent software development team us
 - ✅ **Meta-learning** - Dynamic prompt evolution from retrospectives
 - ✅ **Disturbance injection** - Realistic failure scenarios
 - ✅ **Profile swapping** - Agents cover roles outside specialization
+- ✅ **RL environment API** - Phase B+C: scenario catalog, episode harness, action space, checkpointing
 
 ## Development Setup
 
@@ -52,9 +53,9 @@ MOCK_LLM=true python -m src.orchestrator.main \
 # View generated code
 ls -la /tmp/agent-workspace/sprint-01/*/
 
-# Tests (518 tests: 510 passing, 5 skipped, 3 pre-existing e2e failures)
-pytest tests/unit/            # Tools, config, backlog, kanban, runtimes, multi-language
-pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git, stakeholder
+# Tests (738 tests: 735 passing, 3 skipped)
+pytest tests/unit/            # Tools, config, backlog, kanban, runtimes, multi-language, RL components
+pytest tests/integration/     # Pairing, codegen, sprint workflow, ceremonies, remote git, stakeholder, episode harness
 pytest tests/qualification/   # Agent creation, prompt loading
 pytest                        # all tests
 
@@ -75,7 +76,11 @@ src/
 │   ├── config.py              # YAML config loader
 │   ├── backlog.py             # Product backlog management
 │   ├── disturbances.py        # Random failure injection
-│   └── stakeholder_notify.py  # Webhook notifications + feedback collection
+│   ├── stakeholder_notify.py  # Webhook notifications + feedback collection
+│   ├── behavioral_taxonomy.py # 30 behavioral codes + scorer (RL)
+│   ├── action_space.py        # 5 RL action types + executor (RL)
+│   ├── checkpoint.py          # State checkpointing for episode replay (RL)
+│   └── episode_runner.py      # Episode harness tying RL components (RL)
 ├── agents/
 │   ├── base_agent.py          # BaseAgent + AgentConfig (8-layer composition)
 │   ├── agent_factory.py       # Creates agents from team_config profiles
@@ -85,7 +90,10 @@ src/
 │   └── runtime/
 │       ├── base.py            # Abstract Runtime interface
 │       ├── vllm_runtime.py    # Local vLLM with XML tool calling
-│       └── anthropic_runtime.py  # Claude API with native tool use
+│       ├── anthropic_runtime.py  # Claude API with native tool use
+│       └── factory.py         # Pluggable runtime registry
+├── rl/                        # Public RL integration API for dojo ⭐
+│   └── __init__.py            # Re-exports 28 symbols from orchestrator/agents
 ├── codegen/                   # Code generation infrastructure ⭐
 │   ├── workspace.py           # Per-sprint/story git workspaces
 │   └── bdd_generator.py       # User stories → Gherkin features
@@ -156,7 +164,10 @@ outputs/                       # Experiment artifacts (gitignored)
 | **Stakeholder webhooks** | ✅ Complete | Webhook notifications, file/callback feedback, timeout actions |
 | **Message bus** | ✅ Complete | Async pub/sub, channels, direct messaging, two backends |
 | **Experiment resume** | ✅ Complete | `--continue N` resumes from output artifacts (single + multi-team) |
-| **Testing** | ✅ Complete | 518 tests (510 passing, 5 skipped, 3 pre-existing e2e failures) |
+| **RL environment API** | ✅ Complete | Phase B: config builder, runtime registry, phase runner, observation, reward, scenario catalog |
+| **RL episode harness** | ✅ Complete | Phase C: behavioral taxonomy (30 codes), action space (5 types), checkpointing, episode runner |
+| **Public RL package** | ✅ Complete | `src.rl` re-exports 28 symbols for dojo's `AATEnv(gym.Env)` |
+| **Testing** | ✅ Complete | 738 tests (735 passing, 3 skipped) |
 
 ## Code Generation Workflow
 
@@ -390,6 +401,9 @@ You CAN:
 - **Profile swapping**: Agents can swap roles under defined scenarios (`none` / `constrained` / `free`)
 - **Disturbances**: Randomly injected failures (flaky tests, scope creep, incidents) at configured frequencies
 - **Simulated coverage**: Process-based metric (checkpoints + consensus → ~70-95% coverage)
+- **RL episodes**: Single-call episode execution for dojo's `AATEnv` — run scenario → observe → score → reward
+- **Behavioral codes**: 30 codes (B-01..B-30) across 4 stages and 13 episode types, scored via keyword heuristics
+- **Action space**: 5 RL action types (inject disturbance, swap role, modify backlog, modify team, adjust params)
 
 ## Infrastructure (Production)
 
@@ -461,12 +475,12 @@ ls -la /tmp/agent-workspace/sprint-01/*/
 ## Testing
 
 ```bash
-# All tests (518 collected: 510 pass, 5 skip, 3 pre-existing e2e failures)
+# All tests (738 collected: 735 pass, 3 skip)
 pytest
 
 # By category
-pytest tests/unit/              # Tools, config, backlog, kanban, runtimes, multi-language, stakeholder
-pytest tests/integration/       # Pairing, codegen, ceremonies, remote git, sprint workflow, stakeholder
+pytest tests/unit/              # Tools, config, backlog, kanban, runtimes, multi-language, stakeholder, RL
+pytest tests/integration/       # Pairing, codegen, ceremonies, remote git, sprint workflow, episode harness
 pytest tests/qualification/     # Agent creation, prompts
 
 # Specific test
@@ -519,7 +533,7 @@ workspace = Path(tmpdir).resolve()
 - **Research design**: `README.md`, `RESEARCH_QUESTIONS.md`
 - **Usage guide**: `docs/USAGE.md` (configuration, deployment, remote git, code generation)
 - **Advanced usage**: `docs/ADVANCED_USAGE.md` (disturbances, profile swapping, metrics, multi-team)
-- **Example configs**: `examples/` (5 config+backlog pairs for common scenarios)
+- **Example configs**: `examples/` (6 config+backlog pairs for common scenarios)
 - **Implementation summary**: `docs/IMPLEMENTATION_STATUS.md` (code generation architecture)
 - **Contributing**: `CONTRIBUTING.md`
 - **Auto memory**: `~/.claude/projects/-Users-witlox-src-agile-agent-team/memory/MEMORY.md`
