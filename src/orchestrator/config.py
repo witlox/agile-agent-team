@@ -128,14 +128,26 @@ class ExperimentConfig:
     # Onboarding (F-02)
     onboarding: OnboardingConfig = field(default_factory=OnboardingConfig)
 
+    @classmethod
+    def from_dict(
+        cls, data: Dict[str, Any], database_url: Optional[str] = None
+    ) -> "ExperimentConfig":
+        """Construct config from a plain dict (no YAML file needed).
 
-def load_config(
-    config_path: str, database_url: Optional[str] = None
+        Applies the same defaults as load_config() but without filesystem I/O.
+        Used by ExperimentConfigBuilder and dojo's Gym wrapper.
+        """
+        return _build_config_from_dict(data, database_url)
+
+
+def _build_config_from_dict(
+    data: Dict[str, Any], database_url: Optional[str] = None
 ) -> ExperimentConfig:
-    """Load configuration from YAML file."""
-    with open(config_path) as f:
-        data = yaml.safe_load(f)
+    """Internal: build ExperimentConfig from a dict.
 
+    Shared implementation used by both ``load_config`` and
+    ``ExperimentConfig.from_dict``.
+    """
     agent_configs: Dict[str, Dict] = {}
     if "models" in data and "agents" in data["models"]:
         agent_configs = data["models"]["agents"]
@@ -460,16 +472,38 @@ def load_config(
                 )
 
     # Allow DATABASE_URL env var to override config (useful for local dev / mock mode)
-    resolved_db_url = (
-        database_url or os.environ.get("DATABASE_URL") or data["database"]["url"]
-    )
+    db_section = data.get("database", {})
+    default_db_url = db_section.get("url", "") if isinstance(db_section, dict) else ""
+    resolved_db_url = database_url or os.environ.get("DATABASE_URL") or default_db_url
+
+    # Experiment section (may be absent in programmatic configs)
+    experiment = data.get("experiment", {})
+    if not isinstance(experiment, dict):
+        experiment = {}
+
+    # Team section (may be absent in programmatic configs)
+    team_section = data.get("team", {})
+    if not isinstance(team_section, dict):
+        team_section = {}
+
+    # Models section (may be absent in programmatic configs)
+    models_section = data.get("models", {})
+    if not isinstance(models_section, dict):
+        models_section = {}
 
     return ExperimentConfig(
-        name=data["experiment"]["name"],
-        sprint_duration_minutes=data["experiment"].get("sprint_duration_minutes", 60),
+        name=experiment.get("name", data.get("name", "")),
+        sprint_duration_minutes=experiment.get(
+            "sprint_duration_minutes",
+            data.get("sprint_duration_minutes", 60),
+        ),
         database_url=resolved_db_url,
-        team_config_dir=data["team"]["config_dir"],
-        vllm_endpoint=data["models"]["vllm_endpoint"],
+        team_config_dir=team_section.get(
+            "config_dir", data.get("team_config_dir", "team_config")
+        ),
+        vllm_endpoint=models_section.get(
+            "vllm_endpoint", data.get("vllm_endpoint", "")
+        ),
         agent_configs=agent_configs,
         runtime_configs=runtime_configs,
         wip_limits=wip_limits,
@@ -520,3 +554,12 @@ def load_config(
         attrition=attrition_cfg,
         onboarding=onboarding_cfg,
     )
+
+
+def load_config(
+    config_path: str, database_url: Optional[str] = None
+) -> ExperimentConfig:
+    """Load configuration from YAML file."""
+    with open(config_path) as f:
+        data = yaml.safe_load(f)
+    return _build_config_from_dict(data, database_url)

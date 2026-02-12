@@ -736,8 +736,13 @@ and stakeholder communications for the entire project."""
     # Phase 1: Planning
     # -------------------------------------------------------------------------
 
-    async def run_planning(self, sprint_num: int):
-        """Sprint planning — 2-phase process: Story refinement + Technical planning."""
+    async def run_planning(self, sprint_num: int) -> Dict[str, Any]:
+        """Sprint planning — 2-phase process: Story refinement + Technical planning.
+
+        Returns:
+            Dict with ``stories_selected`` (list of story dicts) and
+            ``capacity`` (team capacity in story points).
+        """
 
         # Get candidate stories from backlog
         if self.backlog and self.backlog.remaining > 0:
@@ -786,22 +791,27 @@ and stakeholder communications for the entire project."""
         )
 
         # Add tasks to Kanban with dependencies and initial pairs
+        stories_selected: List[Dict[str, Any]] = []
         for task in tasks:
-            await self.kanban.add_card(
-                {
-                    "id": task.id,
-                    "title": task.title,
-                    "description": task.description,
-                    "status": "ready",
-                    "story_points": task.estimated_hours
-                    // 8,  # Convert hours to story points
-                    "sprint": sprint_num,
-                    "story_id": task.story_id,
-                    "owner": task.owner,
-                    "initial_navigator": task.initial_navigator,
-                    "depends_on": task.depends_on,
-                }
+            card_data = {
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+                "status": "ready",
+                "story_points": task.estimated_hours
+                // 8,  # Convert hours to story points
+                "sprint": sprint_num,
+                "story_id": task.story_id,
+                "owner": task.owner,
+                "initial_navigator": task.initial_navigator,
+                "depends_on": task.depends_on,
+            }
+            await self.kanban.add_card(card_data)
+            stories_selected.append(
+                {"id": task.id, "title": task.title, "story_id": task.story_id}
             )
+
+        return {"stories_selected": stories_selected, "capacity": team_capacity}
 
     def _parse_story_ids(self, response: str, candidates: List[Dict]) -> List[Dict]:
         """Extract story IDs from PO response; fall back to first 3 candidates."""
@@ -816,7 +826,7 @@ and stakeholder communications for the entire project."""
 
     async def run_development(
         self, sprint_num: int, duration_override: Optional[int] = None
-    ):
+    ) -> Dict[str, Any]:
         """Development phase with daily standups and pair rotation.
 
         Wall-clock duration (default 60 min) is divided into simulated working
@@ -828,6 +838,9 @@ and stakeholder communications for the entire project."""
         deadlines (``sprint_end`` / ``day_end``) to agents so they can see how
         much time remains and self-regulate (e.g. simplify approach, skip
         nice-to-haves).
+
+        Returns:
+            Dict with ``pairing_sessions`` count and ``days_completed``.
         """
         duration = duration_override or int(
             getattr(self.config, "sprint_duration_minutes", 60)
@@ -905,6 +918,11 @@ and stakeholder communications for the entire project."""
 
         if hasattr(self.pairing_engine, "wait_for_completion"):
             await self.pairing_engine.wait_for_completion()
+
+        return {
+            "pairing_sessions": len(self.pairing_engine.active_sessions),
+            "days_completed": day_num,
+        }
 
     async def _run_day_pairing_sessions(
         self,
@@ -1000,11 +1018,17 @@ and stakeholder communications for the entire project."""
     # Phase 3: QA review gate
     # -------------------------------------------------------------------------
 
-    async def run_qa_review(self, sprint_num: int):
-        """QA lead reviews each card in 'review'; approved → done, rejected → in_progress."""
+    async def run_qa_review(self, sprint_num: int) -> Dict[str, Any]:
+        """QA lead reviews each card in 'review'; approved -> done, rejected -> in_progress.
+
+        Returns:
+            Dict with ``cards_reviewed``, ``cards_approved``, ``cards_rejected``.
+        """
         qa = self._agent("qa_lead")
         snapshot = await self.kanban.get_snapshot()
         review_cards = snapshot.get("review", [])
+        cards_approved = 0
+        cards_rejected = 0
 
         for card in review_cards:
             if qa:
@@ -1026,6 +1050,10 @@ and stakeholder communications for the entire project."""
                 )
 
             new_status = "done" if approved else "in_progress"
+            if approved:
+                cards_approved += 1
+            else:
+                cards_rejected += 1
             try:
                 await self.kanban.move_card(card["id"], new_status)
 
@@ -1034,6 +1062,12 @@ and stakeholder communications for the entire project."""
                     await self._merge_pr_if_exists(card)
             except Exception:
                 pass  # WIP limit may block; leave card where it is
+
+        return {
+            "cards_reviewed": len(review_cards),
+            "cards_approved": cards_approved,
+            "cards_rejected": cards_rejected,
+        }
 
     async def _approve_pr_if_exists(
         self, card: Dict, qa_agent: Optional[BaseAgent], review_comment: str
