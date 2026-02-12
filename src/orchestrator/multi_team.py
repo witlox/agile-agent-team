@@ -35,6 +35,7 @@ class MultiTeamOrchestrator:
         portfolio_backlog: Optional[Backlog],
         message_bus: MessageBus,
         output_dir: Path,
+        agent_factory: Optional[Any] = None,
     ):
         self.team_configs = team_configs
         self.all_agents = all_agents
@@ -54,6 +55,9 @@ class MultiTeamOrchestrator:
         self._coordination_loop: Optional[CoordinationLoop] = None
         self._coordination_config: Optional[CoordinationConfig] = None
         self._last_results: Optional[Dict[str, SprintResult]] = None
+
+        # Agent factory (for attrition backfill)
+        self._agent_factory = agent_factory
 
         # Overhead budget (populated by set_budget_tracker)
         self._budget_tracker: Optional[OverheadBudgetTracker] = None
@@ -99,6 +103,7 @@ class MultiTeamOrchestrator:
                 backlog=team_backlog,
                 team_id=tc.id,
                 message_bus=self.message_bus,
+                agent_factory=self._agent_factory,
             )
             self._team_managers[tc.id] = manager
             self._team_results[tc.id] = []

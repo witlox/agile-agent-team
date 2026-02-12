@@ -18,7 +18,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .base_agent import BaseAgent
 from .messaging import MessageBus
@@ -47,6 +47,7 @@ class CodeGenPairingEngine:
         config: Optional["ExperimentConfig"] = None,
         remote_git_config: Optional[Dict] = None,
         disturbance_engine: Optional["DisturbanceEngine"] = None,
+        onboarding_manager: Optional[Any] = None,
     ):
         self.agents = agents
         self.workspace_manager = workspace_manager
@@ -58,6 +59,7 @@ class CodeGenPairingEngine:
         self.config = config
         self.remote_git_config = remote_git_config or {}
         self.disturbance_engine = disturbance_engine
+        self._onboarding_manager = onboarding_manager
 
     def _is_lead_dev(self, agent: BaseAgent) -> bool:
         """Check if agent is the development lead."""
@@ -123,6 +125,7 @@ class CodeGenPairingEngine:
         """Find agents available for pairing with role-based assignment.
 
         Returns pairs as (driver, navigator) tuples respecting team culture:
+        - Onboarding agents forced to pair with buddy (F-02)
         - Lead dev always navigates
         - Testers always navigate when pairing with devs
         - Seniors navigate with juniors
@@ -136,6 +139,24 @@ class CodeGenPairingEngine:
         testers = [a for a in available if self._is_tester(a)]
 
         pairs: List[Tuple[BaseAgent, BaseAgent]] = []
+
+        # F-02: Force onboarding agents to pair with their buddy
+        if self._onboarding_manager is not None:
+            paired_ids: set = set()
+            for agent in list(developers):
+                buddy_id = self._onboarding_manager.get_buddy_pairing_constraint(
+                    agent.agent_id
+                )
+                if buddy_id is not None:
+                    buddy = next((a for a in available if a.agent_id == buddy_id), None)
+                    if buddy and buddy.agent_id not in paired_ids:
+                        # New agent drives, buddy navigates
+                        pairs.append((agent, buddy))
+                        paired_ids.add(agent.agent_id)
+                        paired_ids.add(buddy.agent_id)
+            # Remove already-paired agents from available pools
+            developers = [a for a in developers if a.agent_id not in paired_ids]
+            testers = [a for a in testers if a.agent_id not in paired_ids]
 
         # Pair testers with developers if tester pairing enabled
         tester_pairing_enabled = (
@@ -245,6 +266,7 @@ class CodeGenPairingEngine:
             "outcome": "pending",
             "files_changed": [],
             "test_results": {},
+            "decision_ids": [],
         }
 
         try:
@@ -279,6 +301,10 @@ class CodeGenPairingEngine:
                     driver, navigator, task
                 )
                 session_result.update(impl_result)
+
+            # Collect decision ID from implementation (F-04)
+            if driver.last_decision_id:
+                session_result["decision_ids"].append(driver.last_decision_id)
 
             # Phase 3: Run tests if available
             if driver.runtime and self._has_tests(workspace):
@@ -590,10 +616,15 @@ class CodeGenPairingEngine:
         story_id = task.get("id", "unknown")
         title = task.get("title", "Implementation")
 
+        # Include decision ID in commit message metadata (F-04)
+        decision_line = ""
+        if agent.last_decision_id:
+            decision_line = f"\n\nDecision-ID: {agent.last_decision_id}"
+
         commit_prompt = f"""
         Stage and commit all changes with this message:
 
-        feat: {title} ({story_id})
+        feat: {title} ({story_id}){decision_line}
 
         Use git_status to see changes, git_add to stage all files, and git_commit with the message above.
         """

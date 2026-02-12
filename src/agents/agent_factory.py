@@ -31,6 +31,19 @@ class AgentFactory:
         self.runtime_mode_override = runtime_mode_override
         self.default_team_type = team_type
 
+    async def create_agent(self, agent_id: str, agent_cfg: Dict) -> BaseAgent:
+        """Create a single agent from config dict. Used for mid-experiment backfill."""
+        config = self._create_agent_config(agent_id, agent_cfg)
+
+        # Create runtime if agent has tools configured
+        runtime = None
+        if "tools" in agent_cfg and agent_cfg["tools"]:
+            tools_config = self.runtime_configs.get("tools", {})
+            workspace_root = tools_config.get("workspace_root", "/tmp/agent-workspace")
+            runtime = self._create_agent_runtime(agent_id, agent_cfg, workspace_root)
+
+        return BaseAgent(config, self.vllm_endpoint, runtime=runtime)
+
     async def create_all_agents(self) -> List[BaseAgent]:
         """Load all agent configurations and create instances with runtimes."""
         agents: List[BaseAgent] = []

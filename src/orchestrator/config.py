@@ -7,6 +7,9 @@ import yaml
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from .attrition import AttritionConfig
+from .onboarding import OnboardingConfig
+
 
 @dataclass
 class TeamConfig:
@@ -118,6 +121,12 @@ class ExperimentConfig:
     teams: List[TeamConfig] = field(default_factory=list)
     # Cross-team coordination
     coordination: CoordinationConfig = field(default_factory=CoordinationConfig)
+    # Decision tracing (F-03/F-04)
+    tracing_enabled: bool = False
+    # Attrition (F-01)
+    attrition: AttritionConfig = field(default_factory=AttritionConfig)
+    # Onboarding (F-02)
+    onboarding: OnboardingConfig = field(default_factory=OnboardingConfig)
 
 
 def load_config(
@@ -246,6 +255,39 @@ def load_config(
             tester_pairing = data["team"]["tester_pairing"]
             tester_pairing_enabled = tester_pairing.get("enabled", True)
             tester_pairing_frequency = tester_pairing.get("frequency", 0.20)
+
+    # Tracing (F-03/F-04)
+    tracing_enabled = False
+    if "experiment" in data:
+        tracing_enabled = bool(data["experiment"].get("tracing", False))
+
+    # Attrition config (F-01) — extends existing turnover fields
+    attrition_cfg = AttritionConfig()
+    if "team" in data and "turnover" in data["team"]:
+        t = data["team"]["turnover"]
+        attrition_cfg = AttritionConfig(
+            enabled=t.get("enabled", False),
+            starts_after_sprint=int(t.get("starts_after_sprint", 10)),
+            probability_per_sprint=float(t.get("probability_per_sprint", 0.05)),
+            backfill_enabled=t.get("backfill_enabled", True),
+            backfill_delay_sprints=int(t.get("backfill_delay_sprints", 1)),
+            protect_roles=list(t.get("protect_roles", ["dev_lead", "qa_lead", "po"])),
+            max_departures_per_sprint=int(t.get("max_departures_per_sprint", 1)),
+        )
+
+    # Onboarding config (F-02)
+    onboarding_cfg = OnboardingConfig()
+    if "team" in data and "onboarding" in data["team"]:
+        ob = data["team"]["onboarding"]
+        onboarding_cfg = OnboardingConfig(
+            onboarding_duration_sprints=int(ob.get("duration_sprints", 2)),
+            max_story_points_first_sprint=int(
+                ob.get("max_story_points_first_sprint", 3)
+            ),
+            velocity_penalty_first_sprint=float(
+                ob.get("velocity_penalty_first_sprint", 0.5)
+            ),
+        )
 
     # Team Topologies
     team_type = ""
@@ -474,4 +516,7 @@ def load_config(
         messaging_log_messages=messaging_log_messages,
         teams=teams,
         coordination=coordination,
+        tracing_enabled=tracing_enabled,
+        attrition=attrition_cfg,
+        onboarding=onboarding_cfg,
     )

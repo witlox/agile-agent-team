@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import httpx
 
 if TYPE_CHECKING:
+    from .decision_tracer import DecisionTracer
     from .messaging import MessageBus, Message
     from .runtime import AgentRuntime
 
@@ -77,6 +78,8 @@ class BaseAgent:
         self.learning_history: List[Dict] = []
         self._original_config: Optional[AgentConfig] = None
         self._swap_state: Optional[Dict] = None
+        # Decision tracer (attached by SprintManager when tracing enabled)
+        self._tracer: Optional["DecisionTracer"] = None
         # Message bus (attached later via attach_message_bus)
         self._message_bus: Optional["MessageBus"] = None
         self._inbox: Optional[asyncio.Queue] = None  # type: ignore[type-arg]
@@ -136,6 +139,25 @@ class BaseAgent:
     def agent_id(self) -> str:
         """Convenience alias for ``config.role_id``."""
         return self.config.role_id
+
+    # ------------------------------------------------------------------
+    # Decision tracing
+    # ------------------------------------------------------------------
+
+    def attach_tracer(self, tracer: "DecisionTracer") -> None:
+        """Attach a decision tracer for this sprint."""
+        self._tracer = tracer
+
+    @property
+    def tracer(self) -> Optional["DecisionTracer"]:
+        return self._tracer
+
+    @property
+    def last_decision_id(self) -> str:
+        """Return the last decision ID from the tracer, or empty string."""
+        if self._tracer is None:
+            return ""
+        return self._tracer.last_decision_id
 
     # ------------------------------------------------------------------
     # Message bus integration
@@ -481,6 +503,8 @@ class BaseAgent:
         if self._is_mock_mode():
             response = self._mock_response(user_message)
             self.conversation_history.append({"role": "assistant", "content": response})
+            if self._tracer is not None:
+                self._tracer.record_from_generate(user_message, response)
             return response
 
         async with httpx.AsyncClient() as client:
@@ -496,6 +520,8 @@ class BaseAgent:
             text = resp.json()["choices"][0]["text"]
 
         self.conversation_history.append({"role": "assistant", "content": text})
+        if self._tracer is not None:
+            self._tracer.record_from_generate(user_message, text)
         return text
 
     def _build_prompt(self, message: str, context: Optional[Dict] = None) -> str:
@@ -554,7 +580,7 @@ class BaseAgent:
             }
         )
 
-        return {
+        result_dict = {
             "success": result.success,
             "content": result.content,
             "files_changed": result.files_changed,
@@ -562,3 +588,8 @@ class BaseAgent:
             "turns": result.turns,
             "error": result.error,
         }
+
+        if self._tracer is not None:
+            self._tracer.record_from_coding_task(task_description, result_dict)
+
+        return result_dict

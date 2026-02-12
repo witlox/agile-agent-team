@@ -27,6 +27,8 @@ from .daily_standup import DailyStandupSession
 from .sprint_review import SprintReviewSession
 from .pair_rotation import PairRotationManager
 from .specialist_consultant import SpecialistConsultantSystem
+from .attrition import AttritionConfig, AttritionEngine, DepartureEvent
+from .onboarding import OnboardingConfig, OnboardingManager
 from .stakeholder_notify import StakeholderNotifier
 
 
@@ -43,6 +45,7 @@ class SprintManager:
         team_id: str = "",
         message_bus: Optional[MessageBus] = None,
         mid_sprint_callback: Optional[Any] = None,
+        agent_factory: Optional[Any] = None,
     ):
         self.agents = agents
         self.db = shared_db
@@ -94,6 +97,7 @@ class SprintManager:
                     **getattr(config, "remote_git_config", {}),
                 },
                 disturbance_engine=self.disturbance_engine,
+                onboarding_manager=None,  # Set after onboarding_manager is created
             )
         else:
             self.pairing_engine = PairingEngine(
@@ -172,6 +176,27 @@ class SprintManager:
             mock_mode=mock_mode,
         )
 
+        # Attrition engine (F-01)
+        self._agent_factory = agent_factory
+        attrition_cfg: AttritionConfig = getattr(config, "attrition", AttritionConfig())
+        if attrition_cfg.enabled:
+            self._attrition_engine: Optional[AttritionEngine] = AttritionEngine(
+                attrition_cfg
+            )
+        else:
+            self._attrition_engine = None
+        self._pending_backfills: List[DepartureEvent] = []
+
+        # Onboarding manager (F-02)
+        onboarding_cfg: OnboardingConfig = getattr(
+            config, "onboarding", OnboardingConfig()
+        )
+        self._onboarding_manager = OnboardingManager(onboarding_cfg, agents)
+
+        # Wire onboarding manager into pairing engine for buddy constraints
+        if isinstance(self.pairing_engine, CodeGenPairingEngine):
+            self.pairing_engine._onboarding_manager = self._onboarding_manager
+
     def _agent(self, role_id: str) -> Optional[BaseAgent]:
         """Find an agent by role_id (exact match first, then suffix match)."""
         exact = next((a for a in self.agents if a.config.role_id == role_id), None)
@@ -222,6 +247,30 @@ class SprintManager:
                     current_sprint, knowledge_decay_sprints=int(decay_sprints)
                 )
 
+    def _set_agent_phase(self, phase: str) -> None:
+        """Set the current phase on all agent tracers (no-op when tracing off)."""
+        for agent in self.agents:
+            if agent._tracer is not None:
+                agent._tracer.set_phase(phase)
+
+    def _attach_tracers(self, sprint_num: int) -> None:
+        """Create and attach decision tracers for all agents."""
+        from ..agents.decision_tracer import DecisionTracer
+
+        for agent in self.agents:
+            tracer = DecisionTracer(agent.agent_id, sprint_num)
+            agent.attach_tracer(tracer)
+
+    def _detach_tracers(self, sprint_output: Path) -> None:
+        """Write traces and detach tracers from all agents."""
+        if not getattr(self.config, "tracing_enabled", False):
+            return
+        traces_dir = sprint_output / "traces"
+        for agent in self.agents:
+            if agent._tracer is not None:
+                agent._tracer.write_trace(traces_dir)
+                agent._tracer = None
+
     async def run_sprint(self, sprint_num: int):
         """Execute one complete sprint."""
 
@@ -232,10 +281,16 @@ class SprintManager:
         sprint_output = self.output_dir / f"sprint-{sprint_num:02d}"
         sprint_output.mkdir(parents=True, exist_ok=True)
 
+        # Attach decision tracers (F-03/F-04)
+        if getattr(self.config, "tracing_enabled", False):
+            self._attach_tracers(sprint_num)
+
+        self._set_agent_phase("planning")
         print("  Planning...")
         await self.run_planning(sprint_num)
 
         # Disturbances fire after planning, before development
+        self._set_agent_phase("disturbances")
         disturbances_fired: List[str] = []
         if self.disturbance_engine is not None:
             disturbances_fired = self.disturbance_engine.roll_for_sprint(sprint_num)
@@ -247,6 +302,7 @@ class SprintManager:
             # Check whether a production incident warrants a profile swap
             await self._check_swap_triggers(disturbances_fired, sprint_num)
 
+        self._set_agent_phase("development")
         print("  Development...")
         await self.run_development(sprint_num)
 
@@ -254,6 +310,7 @@ class SprintManager:
         if self._mid_sprint_callback is not None:
             await self._mid_sprint_callback(sprint_num)
 
+        self._set_agent_phase("qa_review")
         print("  QA review...")
         await self.run_qa_review(sprint_num)
 
@@ -266,6 +323,7 @@ class SprintManager:
             sprint_num, completed_stories
         )
 
+        self._set_agent_phase("retro")
         print("  Retrospective...")
         retro_data = await self.run_retrospective(sprint_num)
 
@@ -275,8 +333,57 @@ class SprintManager:
         print("  Artifacts...")
         await self.generate_sprint_artifacts(sprint_num, sprint_output, retro_data)
 
+        # Write decision traces (F-03)
+        self._detach_tracers(sprint_output)
+
         # Decay swaps for the just-completed sprint
         self._decay_swaps(sprint_num)
+
+        # Attrition check (F-01) — between sprints
+        departure_events: List[DepartureEvent] = []
+        backfill_events: List[str] = []
+        if self._attrition_engine is not None:
+            departure_events = self._attrition_engine.roll_for_departures(
+                sprint_num, self.agents
+            )
+            for dep in departure_events:
+                print(f"  [DEPARTURE] {dep.agent_id} leaves after sprint {sprint_num}")
+                self.agents = [a for a in self.agents if a.agent_id != dep.agent_id]
+            if departure_events:
+                self._attrition_engine.generate_departure_report(
+                    departure_events, sprint_output
+                )
+                self._pending_backfills.extend(departure_events)
+
+        # Process pending backfills (after delay)
+        if self._pending_backfills and self._agent_factory is not None:
+            attrition_cfg: AttritionConfig = getattr(
+                self.config, "attrition", AttritionConfig()
+            )
+            ready = [
+                b
+                for b in self._pending_backfills
+                if sprint_num >= b.sprint + attrition_cfg.backfill_delay_sprints
+            ]
+            for backfill in ready:
+                new_agent = await self._attrition_engine.create_replacement(  # type: ignore[union-attr]
+                    backfill, self._agent_factory, self.agents
+                )
+                if new_agent:
+                    self.agents.append(new_agent)
+                    self._onboarding_manager.update_agents(self.agents)
+                    self._onboarding_manager.start_onboarding(new_agent, sprint_num)
+                    backfill_events.append(new_agent.agent_id)
+                    print(f"  [HIRE] {new_agent.agent_id} joins the team")
+            self._pending_backfills = [
+                b for b in self._pending_backfills if b not in ready
+            ]
+
+        # Onboarding advancement (F-02) — advance onboarding sprints
+        if self._onboarding_manager:
+            for agent in self.agents:
+                if self._onboarding_manager.is_onboarding(agent.agent_id):
+                    self._onboarding_manager.advance_sprint(agent.agent_id)
 
         result = await self.metrics.calculate_sprint_results(
             sprint_num, self.db, self.kanban, team_id=self.team_id
@@ -290,6 +397,8 @@ class SprintManager:
                 "pairing_sessions": result.pairing_sessions,
                 "cycle_time_avg": result.cycle_time_avg,
                 "disturbances": disturbances_fired,
+                "departure_events": [d.agent_id for d in departure_events],
+                "backfill_events": backfill_events,
             }
         )
 
